@@ -1,44 +1,58 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LanguageManager } from '../screens/LanguageManager'; // ✅ Import du gestionnaire de langue
+import { LanguageManager } from '../screens/LanguageManager'; 
 
 const FinanceContext = createContext();
 
 export function FinanceProvider({ children }) {
   const systemScheme = useColorScheme();
+  
+  // 🔒 États globaux
   const [transactions, setTransactions] = useState([]);
   const [theme, setTheme] = useState('Système');
   const [accentColor, setAccentColor] = useState('#3b82f6');
-  
-  // Nouvelle variable globale pour la Devise (par défaut €)
   const [devise, setDevise] = useState('€ (EUR)');
-
-  // ── Nouvel état global pour la langue de l'application ─────────────────
   const [locale, setLocale] = useState(LanguageManager.currentLanguage);
+  
+  // 🆕 Nouveaux états pour la personnalisation et l'onboarding
+  const [userName, setUserName] = useState('');
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+
+  // 🛡️ Verrou anti-écrasement au démarrage
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const isDark = theme === 'Sombre' || (theme === 'Système' && systemScheme === 'dark');
 
-  // ── Chargement initial depuis AsyncStorage ──────────────────────────────
+  // ── 📥 1. Chargement initial unifié depuis le stockage local ──────────────────────────────
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Initialisation de la langue au tout début du chargement de l'application
         await LanguageManager.init();
         setLocale(LanguageManager.currentLanguage);
 
-        const [storedTx, storedTheme, storedAccent, storedDevise] = await Promise.all([
+        // Récupération simultanée de TOUTES les données stockées (y compris le nom et le statut onboarding)
+        const [storedTx, storedTheme, storedAccent, storedDevise, storedName, storedOnboarding] = await Promise.all([
           AsyncStorage.getItem('@transactions'),
           AsyncStorage.getItem('@user_theme'),
           AsyncStorage.getItem('@accent_color'),
-          AsyncStorage.getItem('@devise'), // On récupère la devise stockée par Settings
+          AsyncStorage.getItem('@devise'),
+          AsyncStorage.getItem('@user_name'),
+          AsyncStorage.getItem('@onboarding_done'),
         ]);
+
         if (storedTx)     setTransactions(JSON.parse(storedTx));
         if (storedTheme)  setTheme(storedTheme);
         if (storedAccent) setAccentColor(storedAccent);
         if (storedDevise) setDevise(storedDevise);
+        if (storedName)   setUserName(storedName);
+        if (storedOnboarding) setHasSeenOnboarding(JSON.parse(storedOnboarding));
+
       } catch (err) {
         console.error('[FinanceContext] Erreur de chargement :', err);
+      } finally {
+        // Chargement terminé, on ouvre le verrou !
+        setIsLoaded(true);
       }
     };
     loadData();
@@ -55,40 +69,57 @@ export function FinanceProvider({ children }) {
         LanguageManager.currentLanguage = langValue;
         await AsyncStorage.setItem('@app_language', langValue);
       }
-      // On met à jour l'état du contexte pour avertir toute l'application du changement
       setLocale(langValue);
     } catch (error) {
       console.error('[FinanceContext] Erreur changement langue global :', error);
     }
   };
 
-  // ── Persistance automatique des transactions ────────────────────────────
+  // ── 💾 2. Sauvegardes automatiques sécurisées par 'isLoaded' ──
+
   useEffect(() => {
+    if (!isLoaded) return; 
     AsyncStorage.setItem('@transactions', JSON.stringify(transactions)).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde transactions :', err)
     );
-  }, [transactions]);
+  }, [transactions, isLoaded]);
 
-  // ── Persistance automatique du thème ───────────────────────────────────
   useEffect(() => {
+    if (!isLoaded) return;
     AsyncStorage.setItem('@user_theme', theme).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde thème :', err)
     );
-  }, [theme]);
+  }, [theme, isLoaded]);
 
-  // ── Persistance automatique de la couleur d'accent ─────────────────────
   useEffect(() => {
+    if (!isLoaded) return;
     AsyncStorage.setItem('@accent_color', accentColor).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde couleur :', err)
     );
-  }, [accentColor]);
+  }, [accentColor, isLoaded]);
 
-  // ── Persistance automatique de la devise ───────────────────────────────
   useEffect(() => {
+    if (!isLoaded) return;
     AsyncStorage.setItem('@devise', devise).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde devise :', err)
     );
-  }, [devise]);
+  }, [devise, isLoaded]);
+
+  // 🆕 Sauvegarde automatique du nom d'utilisateur
+  useEffect(() => {
+    if (!isLoaded) return;
+    AsyncStorage.setItem('@user_name', userName).catch(
+      (err) => console.error('[FinanceContext] Erreur sauvegarde pseudo :', err)
+    );
+  }, [userName, isLoaded]);
+
+  // 🆕 Sauvegarde automatique du statut de l'onboarding
+  useEffect(() => {
+    if (!isLoaded) return;
+    AsyncStorage.setItem('@onboarding_done', JSON.stringify(hasSeenOnboarding)).catch(
+      (err) => console.error('[FinanceContext] Erreur sauvegarde statut onboarding :', err)
+    );
+  }, [hasSeenOnboarding, isLoaded]);
 
   // ── Actions CRUD ────────────────────────────────────────────────────────
   const addTransaction = (transaction) => {
@@ -99,7 +130,6 @@ export function FinanceProvider({ children }) {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Nouvelle action pour vider/réinitialiser le budget si l'utilisateur valide
   const resetAllTransactions = () => {
     setTransactions([]);
   };
@@ -112,11 +142,15 @@ export function FinanceProvider({ children }) {
         setTheme,
         accentColor,
         setAccentColor,
-        devise,       // Accessible partout (Accueil, Stats, etc.)
-        setDevise,    // Modifiable depuis SettingsScreen
-        locale,                // ✅ Partagé à toute l'application
-        changeGlobalLanguage,  // ✅ Fonction de changement globale
+        devise,       
+        setDevise,    
+        locale,                
+        changeGlobalLanguage,  
         isDark,
+        userName,
+        setUserName,
+        hasSeenOnboarding,
+        setHasSeenOnboarding,
         addTransaction,
         deleteTransaction,
         resetAllTransactions,

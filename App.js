@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FinanceProvider, useFinance } from './src/context/FinanceContext';
@@ -9,48 +9,67 @@ import HomeScreen from './src/screens/HomeScreen';
 import AddTransactionScreen from './src/screens/AddTransactionScreen';
 import StatsScreen from './src/screens/StatsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 
 // Import des icônes
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 
-// 1. On crée un composant de navigation interne qui a accès au Contexte Finance
 function AppNavigator() {
-  const { isDark, accentColor } = useFinance();
+  const { isDark, accentColor, hasSeenOnboarding, isLoaded } = useFinance();
 
-  // Palette dynamique pour la barre d'onglets (Bottom Tab)
-  const tabColors = {
+  const themeColors = {
+    bg: isDark ? '#0f1015' : '#f5f6fa',
     barBg: isDark ? '#16171f' : '#ffffff',
     inactive: isDark ? '#555660' : '#8c8e9b',
     border: isDark ? '#1e202c' : '#eef0f5',
   };
 
+  // 1. Écran de chargement initial sécurisé
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: themeColors.bg }}>
+        <ActivityIndicator size="large" color={accentColor || '#3b82f6'} />
+      </View>
+    );
+  }
+
+  // 2. Affichage prioritaire de l'onboarding
+  if (!hasSeenOnboarding) {
+    return (
+      <>
+        <StatusBar 
+          barStyle={isDark ? 'light-content' : 'dark-content'} 
+          backgroundColor={themeColors.bg} 
+        />
+        <OnboardingScreen />
+      </>
+    );
+  }
+
+  // 3. Rendu de la navigation une fois l'onboarding validé
   return (
     <NavigationContainer>
-      {/* Configuration de la barre de statut du téléphone (Heure, Batterie...) */}
       <StatusBar 
         barStyle={isDark ? 'light-content' : 'dark-content'} 
-        backgroundColor={isDark ? '#0f1015' : '#f5f6fa'} 
+        backgroundColor={themeColors.bg} 
       />
 
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: tabColors.barBg,
+            backgroundColor: themeColors.barBg,
             borderTopWidth: isDark ? 0 : 1,
-            borderTopColor: tabColors.border,
-            elevation: isDark ? 0 : 4,
-            shadowColor: '#000',
-            shadowOpacity: isDark ? 0 : 0.05,
-            shadowRadius: 10,
+            borderTopColor: themeColors.border,
             height: 65,
             paddingBottom: 12,
             paddingTop: 8,
+            // 💡 Suppression des props "shadow*" obsolètes sur le Web pour éviter les avertissements
           },
-          tabBarActiveTintColor: accentColor || '#3b82f6', // Utilise la couleur principale choisie par l'utilisateur
-          tabBarInactiveTintColor: tabColors.inactive,
+          tabBarActiveTintColor: accentColor || '#3b82f6',
+          tabBarInactiveTintColor: themeColors.inactive,
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '600',
@@ -90,7 +109,6 @@ function AppNavigator() {
   );
 }
 
-// 2. Le composant racine encapsule le tout dans le Provider
 export default function App() {
   return (
     <FinanceProvider>
