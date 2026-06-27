@@ -8,14 +8,19 @@ import {
   TextInput,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dropdown } from 'react-native-element-dropdown';
-import { Palette, Globe, User, LogOut, Edit2, Check, X } from 'lucide-react-native';
-import { useFinance } from '../context/FinanceContext';
-import { LanguageManager } from './LanguageManager'; 
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield } from 'lucide-react-native';
+import { useFinance } from '../../viewmodel/FinanceContext';
+import { useAuth } from '../../viewmodel/AuthContext';
+import { useTranslation } from '../../utils/LanguageManager';
+import { exportTransactionsToCSV } from '../../service/exportCSV';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import PinAuthModal from '../components/PinAuthModal';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -188,43 +193,43 @@ const LANGUES_DISPONIBLES = [
 ];
 
 export default function SettingsScreen({ navigation }) {
-  const { theme, setTheme, isDark, accentColor, setAccentColor } = useFinance();
+  const {
+    transactions, theme, setTheme, isDark, accentColor, setAccentColor,
+    devise, setDevise, budgetLimit, setBudgetLimit,
+    budgetPeriod, setBudgetPeriod, reminderHour, reminderMinute,
+    checkBudgetPeriodAlert, updateDailyReminderTime, scheduleMonthlyReview,
+    hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, unlockDiscreteMode,
+  } = useFinance();
+  const { t, currentLanguage, changeLanguage } = useTranslation();
 
-  const [currentLang, setCurrentLang] = useState(LanguageManager.currentLanguage);
-  const [devise,      setDevise]      = useState('EUR');
-  const [pays,        setPays]        = useState('BJ');
-  const [isReady,     setIsReady]     = useState(false);
+  const [pays, setPays] = useState('BJ');
+  const [isReady, setIsReady] = useState(false);
 
-  // États pour le profil et l'édition
   const [userProfile, setUserProfile] = useState({ name: 'Mathieu', email: 'contact@finance.com' });
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
 
+  const [showChangePin, setShowChangePin] = useState(false);
+  const [changeStep, setChangeStep] = useState('verify');
+  const [verifiedOldPin, setVerifiedOldPin] = useState('');
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetStep, setResetStep] = useState('password');
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
+
   useEffect(() => {
     let isMounted = true;
-
-    const handleLangChange = (newLang) => {
-      if (isMounted) setCurrentLang(newLang);
-    };
-    LanguageManager.listeners.push(handleLangChange);
-
     const load = async () => {
-      await LanguageManager.init();
-      if (!isMounted) return;
-      setCurrentLang(LanguageManager.currentLanguage);
-      
       try {
-        const [sd, sp, sName, sEmail] = await Promise.all([
-          AsyncStorage.getItem('@devise'),
+        const [sp, sName, sEmail] = await Promise.all([
           AsyncStorage.getItem('@pays'),
           AsyncStorage.getItem('@user_name'),
           AsyncStorage.getItem('@user_email'),
         ]);
-        if (isMounted) {
-          if (sd) setDevise(sd);
+          if (isMounted) {
           if (sp) setPays(sp);
-          
           const finalName = sName || 'Mathieu';
           const finalEmail = sEmail || 'contact@finance.com';
           setUserProfile({ name: finalName, email: finalEmail });
@@ -238,15 +243,18 @@ export default function SettingsScreen({ navigation }) {
       }
     };
     load();
-
-    return () => {
-      isMounted = false;
-      LanguageManager.listeners = LanguageManager.listeners.filter(l => l !== handleLangChange);
-    };
+    return () => { isMounted = false; };
   }, []);
 
-  useEffect(() => { if (isReady) { AsyncStorage.setItem('@devise', devise).catch(console.error); } }, [devise, isReady]);
-  useEffect(() => { if (isReady) { AsyncStorage.setItem('@pays', pays).catch(console.error);     } }, [pays, isReady]);
+  useEffect(() => {
+    if (isReady) AsyncStorage.setItem('@pays', pays).catch(console.error);
+  }, [pays, isReady]);
+
+  useEffect(() => {
+    setBudgetInput(String(budgetLimit || ''));
+  }, [budgetLimit]);
+
+  const deviseDropdownValue = DEVISES_DU_MONDE.find(d => devise?.includes(d.value))?.value || 'EUR';
 
   const colors = {
     bg:             isDark ? '#0f1015' : '#f5f6fa',
@@ -256,45 +264,23 @@ export default function SettingsScreen({ navigation }) {
     unselectedPill: isDark ? '#232430' : '#eef0f5',
     border:         isDark ? '#2a2b38' : '#e8eaef',
     inputBg:        isDark ? '#1c1d28' : '#f0f1f6',
+    modalBg:        isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.5)',
     danger:         '#ef4444',
   };
 
-  const themesList  = [
-    currentLang === 'en' ? 'Dark' : (currentLang === 'es' ? 'Oscuro' : 'Sombre'),
-    currentLang === 'en' ? 'Light' : (currentLang === 'es' ? 'Claro' : 'Clair'),
-    currentLang === 'en' ? 'System' : (currentLang === 'es' ? 'Sistema' : 'Système')
-  ];
-  
-  // Palette de 20 couleurs : Les 8 premières basiques + 12 nouvelles nuances minimalistes, sobres et modernes
-  const colorsList  = [
-    // ── Les 8 premières originales ──
-    '#3b82f6', // Bleu standard
-    '#9b59b6', // Violet classique
-    '#2ecc71', // Vert émeraude
-    '#ed4c67', // Rouge rubis
-    '#f39c12', // Orange corail
-    '#00d2d3', // Cyan
-    '#f78fb3', // Rose fuchsia
-    '#2c3e50', // Ardoise foncé
+  const themesList = [t('sombre'), t('clair'), t('systeme')];
 
-    // ── Les 12 nouvelles ajouts minimalistes & esthétiques ──
-    '#4a5568', // Gris Ardoise moyen
-    '#718096', // Gris Acier bleuté
-    '#a0aec0', // Gris Galet clair
-    '#1a365d', // Bleu Marine Profond
-    '#2b6cb0', // Bleu Denim adouci
-    '#4eb3a2', // Vert Sauge / Eucalyptus
-    '#81e6d9', // Vert Menthe pastel doux
-    '#dd6b20', // Terre cuite / Terracotta
-    '#e53e3e', // Rouge Brique mat
-    '#b7791f', // Vieux Doré / Moutarde
-    '#d69e2e', // Sable chaud
-    '#6b46c1'  // Violet Aubergine feutré
+  const colorsList = [
+    '#3b82f6', '#9b59b6', '#2ecc71', '#ed4c67',
+    '#f39c12', '#00d2d3', '#f78fb3', '#2c3e50',
+    '#4a5568', '#718096', '#a0aec0', '#1a365d',
+    '#2b6cb0', '#4eb3a2', '#81e6d9', '#dd6b20',
+    '#e53e3e', '#b7791f', '#d69e2e', '#6b46c1',
   ];
 
   const handleSaveProfile = async () => {
     if (!editName.trim() || !editEmail.trim()) {
-      Alert.alert("Erreur", "Les champs ne peuvent pas être vides.");
+      Alert.alert(t('erreur'), t('champ_vide'));
       return;
     }
     try {
@@ -306,7 +292,7 @@ export default function SettingsScreen({ navigation }) {
       setIsEditing(false);
     } catch (error) {
       console.error("Erreur sauvegarde profil :", error);
-      Alert.alert("Erreur", "Impossible de sauvegarder les modifications.");
+      Alert.alert(t('erreur'), t('sauvegarde_impossible'));
     }
   };
 
@@ -316,56 +302,114 @@ export default function SettingsScreen({ navigation }) {
     setIsEditing(false);
   };
 
+  const { logout } = useAuth();
+
   const handleLogout = () => {
     Alert.alert(
-      currentLang === 'en' ? 'Logout' : 'Déconnexion',
-      currentLang === 'en' ? 'Are you sure you want to log out?' : 'Êtes-vous sûr de vouloir vous déconnecter ?',
+      t('deconnexion'),
+      t('message_deconnexion'),
       [
-        { text: currentLang === 'en' ? 'Cancel' : 'Annuler', style: 'cancel' },
-        { 
-          text: currentLang === 'en' ? 'Yes, Logout' : 'Oui, me déconnecter', 
+        { text: t('annuler'), style: 'cancel' },
+        {
+          text: t('oui_deconnecter'),
           style: 'destructive',
           onPress: async () => {
-            Alert.alert("Info", "Redirection vers l'écran d'inscription/connexion...");
+            await logout();
           }
         }
       ]
     );
   };
 
-  const changeLanguage = async (langValue) => {
+  const handleExport = async () => {
     try {
-      if (typeof LanguageManager.changeLanguage === 'function') {
-        await LanguageManager.changeLanguage(langValue);
-      } else if (typeof LanguageManager.setLanguage === 'function') {
-        await LanguageManager.setLanguage(langValue);
-      } else {
-        LanguageManager.currentLanguage = langValue;
-        await AsyncStorage.setItem('@app_language', langValue);
-      }
-
-      if (LanguageManager.listeners) {
-        LanguageManager.listeners.forEach((listener) => {
-          if (typeof listener === 'function') {
-            try {
-              listener(langValue);
-            } catch (e) {
-              console.error("Erreur lors de la notification d'un listener :", e);
-            }
-          }
-        });
-      }
-      setCurrentLang(langValue);
-    } catch (error) {
-      console.error("Erreur lors du changement de langue :", error);
-      Alert.alert("Erreur", "Impossible de changer la langue.");
+      await exportTransactionsToCSV(transactions, devise);
+    } catch (err) {
+      Alert.alert('Erreur', err.message || 'Impossible d\'exporter les transactions.');
     }
+  };
+
+  const handleAbout = () => {
+    Alert.alert(
+      'Finance Tracker',
+      `Version 3.5.0\n\n© 2026 Jhpy. Tous droits réservés.\n\nUne expérience de gestion budgétaire fluide, visuelle et respectueuse de votre vie privée.\n\n🔒 Confidentialité : Vos données financières restent exclusivement stockées en local sur votre appareil (AsyncStorage). L'application ne collecte, ne stocke, ni ne transmet aucune information personnelle ou bancaire.`,
+      [{ text: 'Fermer', style: 'cancel' }]
+    );
+  };
+
+  const handleStartChangePin = () => {
+    setChangeStep('verify');
+    setShowChangePin(true);
+  };
+
+  const handleChangePinOldVerify = (pin) => {
+    const ok = unlockDiscreteMode(pin);
+    if (ok) {
+      setVerifiedOldPin(pin);
+      setChangeStep('new');
+    }
+    return ok;
+  };
+
+  const handleChangePinNewSave = async (newPin) => {
+    const ok = await changePinCode(verifiedOldPin, newPin);
+    setShowChangePin(false);
+    setVerifiedOldPin('');
+    setChangeStep('verify');
+    if (ok) {
+      Alert.alert('Code PIN modifié', 'Votre code PIN a été mis à jour avec succès.');
+    } else {
+      Alert.alert('Erreur', 'Impossible de modifier le code PIN.');
+    }
+  };
+
+  const handleStartResetPin = () => {
+    setResetPassword('');
+    setResetStep('password');
+    setShowResetModal(true);
+  };
+
+  const handleResetPasswordSubmit = async () => {
+    if (!resetPassword.trim()) {
+      Alert.alert('Champ requis', 'Veuillez entrer votre mot de passe.');
+      return;
+    }
+    setResetStep('new');
+  };
+
+  const handleResetNewPinSave = async (newPin) => {
+    const ok = await resetPinCodeWithPassword(resetPassword, newPin);
+    setShowResetModal(false);
+    setResetPassword('');
+    setResetStep('password');
+    if (ok) {
+      Alert.alert('Code PIN réinitialisé', 'Votre nouveau code PIN est en place.');
+    } else {
+      Alert.alert('Erreur', 'Mot de passe incorrect. Réinitialisation impossible.');
+    }
+  };
+
+  const handleTimeChange = (event, selectedDate) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      updateDailyReminderTime(selectedDate.getHours(), selectedDate.getMinutes());
+    }
+  };
+
+  const handleBudgetSave = () => {
+    const amount = parseFloat(budgetInput);
+    if (isNaN(amount) || amount < 0) {
+      Alert.alert('Montant invalide', 'Veuillez entrer un montant valide.');
+      return;
+    }
+    setBudgetLimit(amount);
+    Alert.alert('Budget défini', `Budget ${budgetPeriod === 'day' ? 'journalier' : budgetPeriod === 'week' ? 'hebdomadaire' : 'mensuel'} : ${amount}${devise?.split(' ')[0] || '€'}`);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -374,19 +418,17 @@ export default function SettingsScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={[styles.pageTitle, { color: colors.text }]}>
-            {LanguageManager.t('settings')}
+            {t('settings')}
           </Text>
 
-          {/* ── SECTION COMPTE ET ÉDITION ───────────────────────────────── */}
           <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
             <View style={styles.sectionHeaderBetween}>
               <View style={styles.sectionHeaderLeft}>
                 <User size={20} color={colors.subText} />
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  {currentLang === 'en' ? 'My Account' : (currentLang === 'es' ? 'Mi cuenta' : 'Mon compte')}
+                  {t('mon_compte')}
                 </Text>
               </View>
-              
               {!isEditing && (
                 <TouchableOpacity onPress={() => setIsEditing(true)} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                   <Edit2 size={16} color={accentColor} />
@@ -395,7 +437,6 @@ export default function SettingsScreen({ navigation }) {
             </View>
 
             {!isEditing ? (
-              /* Mode Affichage Normal */
               <View style={styles.profileRow}>
                 <View style={[styles.avatarCircle, { backgroundColor: accentColor }]}>
                   <Text style={styles.avatarLetter}>
@@ -408,77 +449,69 @@ export default function SettingsScreen({ navigation }) {
                 </View>
               </View>
             ) : (
-              /* Mode Formulaire d'Édition */
               <View style={styles.editForm}>
-                <Text style={[styles.inputLabel, { color: colors.subText }]}>Nom</Text>
+                <Text style={[styles.inputLabel, { color: colors.subText }]}>{t('nom')}</Text>
                 <TextInput
                   style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
                   value={editName}
                   onChangeText={setEditName}
-                  placeholder="Votre nom"
+                  placeholder={t('votre_nom')}
                   placeholderTextColor={colors.subText}
                 />
 
-                <Text style={[styles.inputLabel, { color: colors.subText, marginTop: 10 }]}>Adresse Email</Text>
+                <Text style={[styles.inputLabel, { color: colors.subText, marginTop: 10 }]}>{t('adresse_email')}</Text>
                 <TextInput
                   style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
                   value={editEmail}
                   onChangeText={setEditEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  placeholder="Votre email"
+                  placeholder={t('votre_email')}
                   placeholderTextColor={colors.subText}
                 />
 
                 <View style={styles.actionFormRow}>
                   <TouchableOpacity style={[styles.formBtn, { backgroundColor: colors.unselectedPill }]} onPress={handleCancelEdit}>
                     <X size={16} color={colors.subText} style={{ marginRight: 6 }} />
-                    <Text style={{ color: colors.subText, fontWeight: '600' }}>Annuler</Text>
+                    <Text style={{ color: colors.subText, fontWeight: '600' }}>{t('annuler')}</Text>
                   </TouchableOpacity>
-
                   <TouchableOpacity style={[styles.formBtn, { backgroundColor: accentColor }]} onPress={handleSaveProfile}>
                     <Check size={16} color="#fff" style={{ marginRight: 6 }} />
-                    <Text style={{ color: '#fff', fontWeight: '600' }}>Enregistrer</Text>
+                    <Text style={{ color: '#fff', fontWeight: '600' }}>{t('enregistrer')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
           </View>
 
-          {/* ── Personnalisation Visuelle ───────────────────────────────── */}
           <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
             <View style={styles.sectionHeader}>
               <Palette size={20} color={colors.subText} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {LanguageManager.t('visualCustom')}
+                {t('visualCustom')}
               </Text>
             </View>
-          
-            <Text style={[styles.label, { color: colors.subText }]}>{LanguageManager.t('theme')}</Text>
+
+            <Text style={[styles.label, { color: colors.subText }]}>{t('theme')}</Text>
             <View style={styles.pillRow}>
-              {themesList.map((t, index) => {
+              {themesList.map((label, index) => {
                 const rawThemes = ['Sombre', 'Clair', 'Système'];
-                const isActive = theme === rawThemes[index] || theme === t;
+                const isActive = theme === rawThemes[index];
                 return (
                   <TouchableOpacity
-                    key={t}
-                    style={[
-                      styles.pillBtn,
-                      { backgroundColor: isActive ? accentColor : colors.unselectedPill },
-                    ]}
+                    key={rawThemes[index]}
+                    style={[styles.pillBtn, { backgroundColor: isActive ? accentColor : colors.unselectedPill }]}
                     onPress={() => setTheme(rawThemes[index])}
                   >
                     <Text style={[styles.pillText, { color: isActive ? '#fff' : colors.subText }]}>
-                      {t}
+                      {label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <Text style={[styles.label, { color: colors.subText }]}>
-              {currentLang === 'en' ? 'Main Color' : (currentLang === 'es' ? 'Color principal' : 'Couleur principale')}
-            </Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('couleur_principale')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorRowContainer}>
               <View style={styles.colorRow}>
                 {colorsList.map((c) => {
@@ -486,12 +519,9 @@ export default function SettingsScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={c}
-                      style={[
-                        styles.colorCircleOuter,
-                        isSelected && { borderColor: c, borderWidth: 2.5 },
-                      ]}
+                      style={[styles.colorCircleOuter, isSelected && { borderColor: c, borderWidth: 2.5 }]}
                       onPress={() => setAccentColor(c)}
-                  >
+                    >
                       <View style={[styles.colorCircleInner, { backgroundColor: c }]} />
                       {isSelected && <Text style={styles.checkmark}>✓</Text>}
                     </TouchableOpacity>
@@ -501,19 +531,17 @@ export default function SettingsScreen({ navigation }) {
             </ScrollView>
           </View>
 
-          {/* ── Localisation & Région ───────────────── */}
           <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
             <View style={styles.sectionHeader}>
               <Globe size={20} color={colors.subText} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {LanguageManager.t('locPreferences')}
+                {t('locPreferences')}
               </Text>
             </View>
 
-            {/* SÉLECTEUR DE LANGUE */}
-            <Text style={[styles.label, { color: colors.subText }]}>{LanguageManager.t('language')}</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('language')}</Text>
             <Dropdown
-              key={`lang-${currentLang}`}
+              key={`lang-${currentLanguage}`}
               style={[styles.dropdown, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
               placeholderStyle={[styles.placeholderStyle, { color: colors.subText }]}
               selectedTextStyle={[styles.selectedTextStyle, { color: colors.text }]}
@@ -523,15 +551,14 @@ export default function SettingsScreen({ navigation }) {
               data={LANGUES_DISPONIBLES}
               labelField="label"
               valueField="value"
-              placeholder={currentLang === 'en' ? 'Choose a language' : (currentLang === 'es' ? 'Elegir un idioma' : 'Choisir une langue')}
-              value={currentLang}
+              placeholder={t('choisir_langue')}
+              value={currentLanguage}
               onChange={(item) => changeLanguage(item.value)}
             />
 
-            {/* SÉLECTEUR DE DEVISE */}
-            <Text style={[styles.label, { color: colors.subText }]}>{LanguageManager.t('currency')}</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('currency')}</Text>
             <Dropdown
-              key={`devise-${currentLang}`}
+              key={`devise-${currentLanguage}`}
               style={[styles.dropdown, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
               placeholderStyle={[styles.placeholderStyle, { color: colors.subText }]}
               selectedTextStyle={[styles.selectedTextStyle, { color: colors.text }]}
@@ -541,15 +568,14 @@ export default function SettingsScreen({ navigation }) {
               data={DEVISES_DU_MONDE}
               labelField="label"
               valueField="value"
-              placeholder={currentLang === 'en' ? 'Choose a currency' : (currentLang === 'es' ? 'Elegir una moneda' : 'Choisir une devise')}
-              value={devise}
-              onChange={(item) => setDevise(item.value)}
+              placeholder={t('choisir_devise')}
+              value={deviseDropdownValue}
+              onChange={(item) => setDevise(item.label)}
             />
 
-            {/* SÉLECTEUR DE PAYS */}
-            <Text style={[styles.label, { color: colors.subText }]}>{LanguageManager.t('country')}</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('country')}</Text>
             <Dropdown
-              key={`pays-${currentLang}`}
+              key={`pays-${currentLanguage}`}
               style={[styles.dropdown, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
               placeholderStyle={[styles.placeholderStyle, { color: colors.subText }]}
               selectedTextStyle={[styles.selectedTextStyle, { color: colors.text }]}
@@ -559,13 +585,143 @@ export default function SettingsScreen({ navigation }) {
               data={PAYS_DU_MONDE}
               labelField="label"
               valueField="value"
-              placeholder={currentLang === 'en' ? 'Choose a country' : (currentLang === 'es' ? 'Elegir un país' : 'Choisir un pays')}
+              placeholder={t('choisir_pays')}
               value={pays}
               onChange={(item) => setPays(item.value)}
             />
           </View>
 
-          {/* ── BOUTON SE DÉCONNECTER TOUT EN BAS ──────────────────────── */}
+          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Budget & Rappels
+              </Text>
+            </View>
+
+            <Text style={[styles.label, { color: colors.subText }]}>Période du budget</Text>
+            <View style={styles.pillRow}>
+              {['day', 'week', 'month'].map((p) => {
+                const labels = { day: 'Jour', week: 'Semaine', month: 'Mois' };
+                const isActive = budgetPeriod === p;
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[styles.pillBtn, { backgroundColor: isActive ? accentColor : colors.unselectedPill }]}
+                    onPress={() => setBudgetPeriod(p)}
+                  >
+                    <Text style={[styles.pillText, { color: isActive ? '#fff' : colors.subText }]}>
+                      {labels[p]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>Montant maximum</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TextInput
+                style={[styles.textInput, { flex: 1, backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+                value={budgetInput}
+                onChangeText={setBudgetInput}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.subText}
+              />
+              <TouchableOpacity
+                style={[styles.formBtn, { backgroundColor: accentColor }]}
+                onPress={handleBudgetSave}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>OK</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>
+              Rappel quotidien ({String(reminderHour).padStart(2, '0')}h{String(reminderMinute).padStart(2, '0')})
+            </Text>
+            <TouchableOpacity
+              style={[styles.securityRow, { borderColor: colors.border }]}
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>Changer l'heure du rappel</Text>
+              <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={new Date(2024, 0, 1, reminderHour, reminderMinute)}
+                mode="time"
+                is24Hour
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleTimeChange}
+              />
+            )}
+          </View>
+
+          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.sectionHeader}>
+              <Lock size={20} color={colors.subText} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Sécurité & Code PIN
+              </Text>
+            </View>
+
+            <Text style={[styles.pinStatus, { color: hasPinCode ? '#2ecc71' : colors.subText }]}>
+              {hasPinCode ? '🔒 Code PIN actif' : '🔓 Aucun code PIN configuré'}
+            </Text>
+
+            {hasPinCode && (
+              <TouchableOpacity
+                style={[styles.securityRow, { borderColor: colors.border }]}
+                onPress={handleStartChangePin}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Shield size={18} color={accentColor} style={{ marginRight: 10 }} />
+                  <Text style={[styles.aboutLabel, { color: colors.text }]}>Modifier le code PIN</Text>
+                </View>
+                <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.securityRow, { borderColor: colors.border, marginTop: 10 }]}
+              onPress={handleStartResetPin}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Lock size={18} color={colors.danger} style={{ marginRight: 10 }} />
+                <Text style={[styles.aboutLabel, { color: colors.text }]}>
+                  Code PIN oublié ? Réinitialiser
+                </Text>
+              </View>
+              <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={handleAbout}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Info size={18} color={colors.subText} style={{ marginRight: 10 }} />
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>À propos de l'application</Text>
+            </View>
+            <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.exportBtn, { backgroundColor: accentColor }]}
+            onPress={handleExport}
+            activeOpacity={0.8}
+          >
+            <Download size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.exportText}>
+              Exporter les transactions (CSV)
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.logoutBtn, { borderColor: colors.border, backgroundColor: colors.cardBg }]}
             onPress={handleLogout}
@@ -573,13 +729,75 @@ export default function SettingsScreen({ navigation }) {
           >
             <LogOut size={16} color={colors.danger} style={{ marginRight: 8 }} />
             <Text style={[styles.logoutText, { color: colors.danger }]}>
-              {currentLang === 'en' ? 'Log Out' : (currentLang === 'es' ? 'Cerrar sesión' : 'Se déconnecter')}
+              {t('se_deconnecter')}
             </Text>
           </TouchableOpacity>
-          
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={showResetModal && resetStep === 'password'} transparent animationType="fade">
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modalBg }]}>
+          <View style={[styles.pwdModal, { backgroundColor: colors.cardBg }]}>
+            <Text style={[styles.pwdTitle, { color: colors.text }]}>Réinitialisation du code PIN</Text>
+            <Text style={[styles.pwdSubtitle, { color: colors.subText }]}>
+              Entrez votre mot de passe de session pour vérifier votre identité.
+            </Text>
+            <TextInput
+              style={[styles.pwdInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+              value={resetPassword}
+              onChangeText={setResetPassword}
+              placeholder="Mot de passe"
+              placeholderTextColor={colors.subText}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={[styles.pwdBtn, { backgroundColor: colors.unselectedPill }]}
+                onPress={() => { setShowResetModal(false); setResetPassword(''); }}
+              >
+                <Text style={{ color: colors.subText, fontWeight: '600' }}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pwdBtn, { backgroundColor: accentColor }]}
+                onPress={handleResetPasswordSubmit}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Vérifier</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <PinAuthModal
+        visible={showChangePin && changeStep === 'verify'}
+        onClose={() => { setShowChangePin(false); setChangeStep('verify'); }}
+        onUnlock={(pin) => handleChangePinOldVerify(pin)}
+        onSaveNewPin={() => {}}
+        hasPin={true}
+        isDark={isDark}
+        accentColor={accentColor}
+      />
+
+      <PinAuthModal
+        visible={(showChangePin && changeStep === 'new') || (showResetModal && resetStep === 'new')}
+        onClose={() => {
+          setShowChangePin(false);
+          setShowResetModal(false);
+          setChangeStep('verify');
+          setResetStep('password');
+        }}
+        onUnlock={() => true}
+        onSaveNewPin={(pin) => {
+          if (showChangePin) handleChangePinNewSave(pin);
+          if (showResetModal) handleResetNewPinSave(pin);
+        }}
+        hasPin={false}
+        isDark={isDark}
+        accentColor={accentColor}
+      />
     </SafeAreaView>
   );
 }
@@ -593,30 +811,49 @@ const styles = StyleSheet.create({
   sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
-  
-  // Profil normal
   profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   avatarCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   avatarLetter: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
   profileInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 17, fontWeight: '600' },
   userEmail: { fontSize: 14, marginTop: 2 },
-
-  // Édition formulaire
   editForm: { marginTop: 4 },
   inputLabel: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
   textInput: { height: 44, borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, fontSize: 15 },
   actionFormRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 14 },
   formBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
-
-  // Déconnexion
-  logoutBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: 14, 
-    borderRadius: 12, 
-    borderWidth: 1, 
+  aboutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  aboutLabel: { fontSize: 15, fontWeight: '500' },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  exportText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
     marginTop: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -625,21 +862,52 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   logoutText: { fontSize: 15, fontWeight: '600' },
-
   label: { fontSize: 14, marginBottom: 8, marginTop: 12 },
   pillRow: { flexDirection: 'row', gap: 10 },
   pillBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
   pillText: { fontSize: 14, fontWeight: '500' },
-  
-  // Gestion du défilement horizontal si la liste de couleurs s'allonge
   colorRowContainer: { paddingVertical: 4 },
   colorRow: { flexDirection: 'row', gap: 14 },
   colorCircleOuter: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   colorCircleInner: { width: 26, height: 26, borderRadius: 13 },
   checkmark: { color: '#fff', fontSize: 12, position: 'absolute', fontWeight: 'bold' },
-  
   dropdown: { height: 50, borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, marginTop: 4 },
   placeholderStyle: { fontSize: 15 },
   selectedTextStyle: { fontSize: 15 },
   dropdownContainer: { borderRadius: 8, borderWidth: 1 },
+
+  pinStatus: { fontSize: 14, fontWeight: '600', marginBottom: 14, marginLeft: 4 },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  pwdModal: {
+    width: '85%',
+    maxWidth: 340,
+    borderRadius: 28,
+    padding: 28,
+    alignItems: 'center',
+  },
+  pwdTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
+  pwdSubtitle: { fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
+  pwdInput: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 15,
+  },
+  pwdBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

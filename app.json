@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "FinanceTracker",
+    "name": "Orane.d",
     "slug": "FinanceTracker",
-    "version": "2.0.0",
+    "version": "3.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
@@ -16,7 +16,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.yannick21.FinanceTracker"
+      "package": "com.jhpy.Orane"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -25,6 +25,10 @@
       "eas": {
         "projectId": "72b315e8-e3a4-435e-97ed-c6fc3b7fd91c"
       }
-    }
+    },
+    "owner": "yannick21",
+    "plugins": [
+      "expo-sharing"
+    ]
   }
 }
