@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   REMINDER_MINUTE: '@oraned_reminder_minute',
   PIN: '@oraned_pin',
   TRANSACTIONS: '@oraned_transactions',
+  ONBOARDING_SEEN: '@oraned_onboarding_seen',
 };
 
 export function transactionsKey(userId) {
@@ -26,6 +27,10 @@ export function budgetLimitKey(userId) {
 
 export function pinKey(userId) {
   return `@oraned_pin_${userId}`;
+}
+
+export function debtsKey(userId) {
+  return `@oraned_debts_${userId}`;
 }
 
 //

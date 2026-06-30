@@ -18,6 +18,8 @@ export {
   HOME_CATEGORY_ICONS,
   normalizeType,
   isRealExpense,
+  TRANSFER_FEES,
+  computeTransferFee,
 } from './TransactionModel';
 
 export {
@@ -29,10 +31,20 @@ export {
 } from './ThemeModel';
 
 export {
+  DEBT_TYPES,
+  DEBT_STATUS,
+  DEBT_TABS,
+  debtsKey as debtsStorageKey,
+  createDebt,
+  computeDebtStatus,
+} from './DebtModel';
+
+export {
   STORAGE_KEYS,
   transactionsKey,
   budgetLimitKey,
   pinKey,
+  debtsKey,
   BUDGET_PERIODS,
   DEFAULT_BUDGET_PERIOD,
   DEFAULT_REMINDER_HOUR,

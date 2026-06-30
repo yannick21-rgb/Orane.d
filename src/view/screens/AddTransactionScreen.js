@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,41 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTranslation } from '../../utils/LanguageManager';
-
-const NETWORKS = [
-  { key: 'MTN',     tKey: 'mtn_momo'     },
-  { key: 'MOOV',    tKey: 'moov_money'   },
-  { key: 'CELTIIS', tKey: 'celtiis_cash' },
-];
-
-const INCOME_FREQUENCIES = [
-  { key: 'variable', tKey: 'non_fixe' },
-  { key: 'weekly',   tKey: 'hebdo'    },
-  { key: 'monthly',  tKey: 'mensuel'  },
-];
-
-const EXPENSE_CATEGORIES = [
-  { key: 'Alimentation',       tKey: 'alimentation',       icon: '🛒'  },
-  { key: 'Logement',           tKey: 'logement',           icon: '🏠'  },
-  { key: 'Transport',          tKey: 'transport',          icon: '🚗'  },
-  { key: 'Abonnements & Tech', tKey: 'abonnements_tech',   icon: '💳'  },
-  { key: 'Sport',              tKey: 'sport',              icon: '🏋️‍♂️' },
-  { key: 'Loisirs',            tKey: 'loisirs',            icon: '🎮'  },
-  { key: 'Habillement',        tKey: 'habillement',        icon: '👗'  },
-  { key: 'Santé',              tKey: 'sante',              icon: '💊'  },
-  { key: 'Épargne',            tKey: 'epargne',            icon: '🏦'  },
-  { key: 'Remboursement',      tKey: 'remboursement',      icon: '💸'  },
-  { key: 'Frais & Retraits',   tKey: 'frais_retraits_cat', icon: '🪙'  },
-];
-
-const INCOME_CATEGORIES = [
-  { key: 'Salaire / Coaching', tKey: 'salaire_coaching', icon: '💼' },
-  { key: 'Freelance / Dev',    tKey: 'freelance_dev',    icon: '💻' },
-  { key: 'Projets Web',        tKey: 'projets_web',      icon: '📈' },
-  { key: 'Cadeau',             tKey: 'cadeau',           icon: '🎁' },
-  { key: 'Emprunt',            tKey: 'emprunt',          icon: '🤝' },
-  { key: 'Ventes',             tKey: 'ventes',           icon: '🛍️' },
-];
+import { toNumber } from '../../utils/format';
+import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, computeTransferFee } from '../../model/TransactionModel';
 
 export default function AddTransactionScreen({ navigation }) {
   const { t } = useTranslation();
@@ -62,7 +29,6 @@ export default function AddTransactionScreen({ navigation }) {
   const [category, setCategory] = useState('Alimentation');
 
   const [wallet, setWallet] = useState('momo');
-  const [transferFee, setTransferFee] = useState('');
   const [selectedNetwork,  setSelectedNetwork]  = useState('MTN');
   const [incomeFrequency,  setIncomeFrequency]  = useState('monthly');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -81,18 +47,26 @@ export default function AddTransactionScreen({ navigation }) {
     text:    isDark ? '#ffffff' : '#131419',
     subText: isDark ? '#8c8e9b' : '#6a6c7a',
     input:   isDark ? '#222431' : '#eef0f5',
+    border:  isDark ? '#2a2b38' : '#e8eaef',
     modalBg: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.5)',
   };
 
   const currentCategories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+
+  const autoFee = useMemo(() => {
+    if (type !== 'transfert') return 0;
+    const parsed = toNumber(amount);
+    if (parsed <= 0) return 0;
+    return computeTransferFee(parsed, selectedNetwork);
+  }, [amount, selectedNetwork, type]);
 
   const handleSave = () => {
     if (!title.trim()) {
       Alert.alert(t('champ_requis'), t('veuillez_titre'));
       return;
     }
-    const parsed = parseFloat(amount.replace(',', '.'));
-    if (isNaN(parsed) || parsed <= 0) {
+    const parsed = toNumber(amount);
+    if (parsed <= 0) {
       Alert.alert(t('montant_invalide'), t('veuillez_montant'));
       return;
     }
@@ -103,18 +77,19 @@ export default function AddTransactionScreen({ navigation }) {
     let finalCategory = category;
 
     if (type === 'transfert') {
-      const feeParsed = parseFloat(transferFee.replace(',', '.')) || 0;
-      computedFee   = feeParsed;
-      finalAmount   = parsed + computedFee;
+      computedFee   = autoFee;
+      finalAmount   = parsed;
       const netLabel = NETWORKS.find(n => n.key === selectedNetwork);
       const netName = netLabel ? t(netLabel.tKey) : selectedNetwork;
-      const details = `Retrait ${netName} : -${computedFee}${deviseSymbol} → +${parsed}${deviseSymbol} en espèces`;
+      const details = `Retrait ${netName} : -${computedFee}${deviseSymbol} de frais → +${parsed}${deviseSymbol} en espèces`;
       customNote    = customNote ? `${customNote} | ${details}` : details;
       finalCategory = 'Retrait MoMo';
     }
 
+    const txId = Date.now().toString();
+
     addTransaction({
-      id:              Date.now().toString(),
+      id:              txId,
       title:           title.trim(),
       amount:          finalAmount,
       type,
@@ -123,11 +98,25 @@ export default function AddTransactionScreen({ navigation }) {
       note:            customNote || null,
       date:            new Date().toISOString(),
       momoNetwork:     type === 'transfert' ? selectedNetwork : null,
-      momoFee:         computedFee > 0 ? computedFee : null,
-      frais:           computedFee,
+      momoFee:         null,
+      frais:           0,
       amountReceived:  type === 'transfert' ? parsed : null,
       incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
     });
+
+    if (type === 'transfert' && computedFee > 0) {
+      addTransaction({
+        id:          txId + '_fee',
+        title:       `Frais retrait ${title.trim() || selectedNetwork}`,
+        amount:      computedFee,
+        type:        'expense',
+        wallet:      'momo',
+        category:    'Frais & Retraits',
+        momoNetwork: selectedNetwork,
+        note:        `Frais automatiques ${NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork} : ${computedFee}${deviseSymbol}`,
+        date:        new Date().toISOString(),
+      });
+    }
 
     setShowSuccessModal(true);
 
@@ -135,7 +124,6 @@ export default function AddTransactionScreen({ navigation }) {
     setAmount('');
     setNote('');
     setWallet('momo');
-    setTransferFee('');
     setIncomeFrequency('monthly');
     setCategory(type === 'expense' || type === 'transfert' ? 'Alimentation' : 'Salaire / Coaching');
 
@@ -176,7 +164,7 @@ export default function AddTransactionScreen({ navigation }) {
           <View style={[styles.toggle, { backgroundColor: colors.input }]}>
             <TouchableOpacity
               style={[styles.toggleBtn, type === 'expense' && { backgroundColor: '#ff5c5c' }]}
-              onPress={() => { setType('expense'); setWallet('momo'); setTransferFee(''); setCategory('Alimentation'); }}
+              onPress={() => { setType('expense'); setWallet('momo'); setCategory('Alimentation'); }}
             >
               <Text style={[styles.toggleText, { color: type === 'expense' ? '#fff' : colors.subText }, type === 'expense' && { fontWeight: '700' }]}>
                 {t('depense')}
@@ -184,7 +172,7 @@ export default function AddTransactionScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, type === 'income' && { backgroundColor: '#2ecc71' }]}
-              onPress={() => { setType('income'); setTransferFee(''); setCategory('Salaire / Coaching'); }}
+              onPress={() => { setType('income'); setCategory('Salaire / Coaching'); }}
             >
               <Text style={[styles.toggleText, { color: type === 'income' ? '#fff' : colors.subText }, type === 'income' && { fontWeight: '700' }]}>
                 {t('revenu')}
@@ -192,7 +180,7 @@ export default function AddTransactionScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, type === 'transfert' && { backgroundColor: '#f59e0b' }]}
-              onPress={() => { setType('transfert'); setWallet('momo'); setTransferFee(''); setCategory('Retrait MoMo'); }}
+              onPress={() => { setType('transfert'); setWallet('momo'); setCategory('Retrait MoMo'); }}
             >
               <Text style={[styles.toggleText, { color: type === 'transfert' ? '#fff' : colors.subText }, type === 'transfert' && { fontWeight: '700' }]}>
                 💸 Transfert
@@ -306,18 +294,31 @@ export default function AddTransactionScreen({ navigation }) {
 
           {type === 'transfert' ? (
             <>
-              <Text style={[styles.label, { color: colors.subText, marginTop: 20 }]}>
-                Frais de retrait MoMo <Text style={[styles.optionalBadge, { color: colors.subText }]}>(optionnel)</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.input, color: colors.text }]}
-                value={transferFee}
-                onChangeText={setTransferFee}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={colors.subText}
-                returnKeyType="done"
-              />
+              {toNumber(amount) > 0 && (
+                <View style={{ marginTop: 20, padding: 14, backgroundColor: '#f59e0b' + '18', borderRadius: 16 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={[styles.label, { color: colors.subText, marginTop: 0, marginBottom: 0 }]}>
+                      Frais auto ({NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork})
+                    </Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#f59e0b' }}>
+                      -{autoFee} {deviseSymbol}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, color: colors.subText }}>Reçu en espèces</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#2ecc71' }}>
+                      +{toNumber(amount)} {deviseSymbol}
+                    </Text>
+                  </View>
+                  <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, color: colors.subText }}>Débité MoMo</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                      -{toNumber(amount) + autoFee} {deviseSymbol}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </>
           ) : (
             <>

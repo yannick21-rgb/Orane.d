@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Dropdown } from 'react-native-element-dropdown';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTranslation } from '../../utils/LanguageManager';
+import { toNumber } from '../../utils/format';
 import {
   isTransactionInLastNDays,
   isTransactionInCurrentWeek,
@@ -58,7 +59,7 @@ export default function StatsScreen() {
     : [];
 
   // ── Filtrage par période ──────────────────────────────────────────────────
-  const filtered = safeTransactions.filter((t) => {
+  const filtered = useMemo(() => safeTransactions.filter((t) => {
     if (!t.date) return false;
     if (period === 'personalisé') {
       const tDate = new Date(t.date).getTime();
@@ -73,16 +74,16 @@ export default function StatsScreen() {
     if (period === 'semaine') return isTransactionInCurrentWeek(t);
     if (period === 'mois')    return isTransactionInMonth(t);
     return true;
-  });
+  }), [safeTransactions, period, startDate, endDate]);
 
   // ── Synthèse financière ───────────────────────────────────────────────────
-  const totalIncome   = filtered.filter((t) => (t.type === 'income' || t.type === 'revenu') && t.category !== 'Emprunt').reduce((s, t) => s + Math.abs(t.amount || 0), 0);
-  const totalExpenses = filtered.filter((t) => (t.type === 'expense' || t.type === 'depense') && t.category !== 'Remboursement').reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+  const totalIncome   = filtered.filter((t) => (t.type === 'income' || t.type === 'revenu') && t.category !== 'Emprunt').reduce((s, t) => s + Math.abs(toNumber(t.amount)), 0);
+  const totalExpenses = filtered.filter((t) => (t.type === 'expense' || t.type === 'depense') && t.category !== 'Remboursement').reduce((s, t) => s + Math.abs(toNumber(t.amount)), 0);
   const balance       = totalIncome - totalExpenses;
 
   // ── Prêts & Dettes ────────────────────────────────────────────────────────
-  const totalBorrowed = filtered.filter((t) => (t.type === 'income' || t.type === 'revenu') && t.category === 'Emprunt').reduce((s, t) => s + Math.abs(t.amount || 0), 0);
-  const totalRepaid   = filtered.filter((t) => (t.type === 'expense' || t.type === 'depense') && t.category === 'Remboursement').reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+  const totalBorrowed = filtered.filter((t) => (t.type === 'income' || t.type === 'revenu') && t.category === 'Emprunt').reduce((s, t) => s + Math.abs(toNumber(t.amount)), 0);
+  const totalRepaid   = filtered.filter((t) => (t.type === 'expense' || t.type === 'depense') && t.category === 'Remboursement').reduce((s, t) => s + Math.abs(toNumber(t.amount)), 0);
   const debtStatus    = totalBorrowed - totalRepaid;
 
   // ── Frais de retrait MoMo ─────────────────────────────────────────────────
@@ -90,14 +91,17 @@ export default function StatsScreen() {
   let totalWithdrawalFees = 0;
 
   filtered.forEach((t) => {
-    if (t.momoFee && t.momoFee > 0) {
-      const network = t.momoNetwork || 'Autre';
-      networkFeesMap[network] = (networkFeesMap[network] || 0) + Math.abs(t.momoFee);
-      totalWithdrawalFees += Math.abs(t.momoFee);
-    } else if ((t.category === 'Retrait MoMo' || t.category === 'Frais & Retraits') && t.momoFee > 0) {
-      const network = t.momoNetwork || 'Mobile Money';
-      networkFeesMap[network] = (networkFeesMap[network] || 0) + Math.abs(t.momoFee);
-      totalWithdrawalFees += Math.abs(t.momoFee);
+    let fee = 0;
+    let network = t.momoNetwork || 'Autre';
+    if (t.type === 'transfert' && toNumber(t.momoFee) > 0) {
+      fee = toNumber(t.momoFee);
+    } else if (t.category === 'Frais & Retraits') {
+      fee = toNumber(t.amount);
+      if (t.momoNetwork) network = t.momoNetwork;
+    }
+    if (fee > 0) {
+      networkFeesMap[network] = (networkFeesMap[network] || 0) + fee;
+      totalWithdrawalFees += fee;
     }
   });
 
@@ -111,7 +115,7 @@ export default function StatsScreen() {
   }));
 
   // ── Activité des dépenses (7 derniers jours) ──────────────────────────────
-  const getDailyExpenseStats = () => {
+  const dailyExpenseData = useMemo(() => {
     const dayNames = {
       fr: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
       en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -134,14 +138,12 @@ export default function StatsScreen() {
               t.date &&
               new Date(t.date).toDateString() === target.toDateString()
             )
-            .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
+            .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0)
         )
       );
     }
     return { labels: dailyLabels, datasets: [{ data: dailyValues }] };
-  };
-
-  const dailyExpenseData = getDailyExpenseStats();
+  }, [safeTransactions, currentLanguage]);
   const hasDailyExpenses = dailyExpenseData.datasets[0].data.some(v => v > 0);
 
   // ── Top 5 catégories ──────────────────────────────────────────────────────
@@ -150,7 +152,7 @@ export default function StatsScreen() {
     .filter((t) => (t.type === 'expense' || t.type === 'depense') && t.category !== 'Remboursement')
     .forEach((t) => {
       const cat = t.category || 'Général';
-      categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(t.amount || 0);
+      categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(toNumber(t.amount));
     });
 
   const topCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -419,7 +421,7 @@ export default function StatsScreen() {
 }
 
 // ── Smooth Area Chart (SVG custom) ────────────────────────────────────────────
-function DailyAreaChart({ data, chartWidth, colors }) {
+const DailyAreaChart = React.memo(({ data, chartWidth, colors }) => {
   if (!data?.datasets?.[0]) return null;
 
   const values = data.datasets[0].data;
@@ -487,7 +489,7 @@ function DailyAreaChart({ data, chartWidth, colors }) {
       ))}
     </Svg>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles

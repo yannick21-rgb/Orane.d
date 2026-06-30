@@ -1,29 +1,42 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock, hasPin, isDark, accentColor }) {
+export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock, hasPin, isDark, accentColor, remainingText }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const pinRef = useRef('');
 
   useEffect(() => {
     if (visible) {
       setPin('');
       setError('');
+      setLoading(false);
     }
   }, [visible]);
 
-  const processPin = useCallback((fullPin) => {
+  const processPin = useCallback(async (fullPin) => {
     if (hasPin) {
-      const ok = onUnlock(fullPin);
-      if (!ok) {
-        setError('Code PIN incorrect');
+      setLoading(true);
+      try {
+        const ok = await onUnlock(fullPin);
+        if (!ok) {
+          setError('Code PIN incorrect');
+          pinRef.current = '';
+          setPin('');
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        setError(e.message || 'Code PIN incorrect');
         pinRef.current = '';
         setPin('');
+        setLoading(false);
         return;
       }
       pinRef.current = '';
       setPin('');
+      setLoading(false);
     } else {
       onSaveNewPin(fullPin);
       pinRef.current = '';
@@ -102,6 +115,12 @@ export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock,
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {hasPin && remainingText && !error ? (
+            <Text style={[styles.remainingText, { color: colors.subText }]}>{remainingText}</Text>
+          ) : null}
+
+          {loading ? <Text style={[styles.remainingText, { color: accentColor }]}>Vérification...</Text> : null}
 
           <View style={styles.numpad}>
             {keys.map((row, ri) => (
@@ -187,6 +206,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 12,
     fontWeight: '500',
+  },
+  remainingText: {
+    fontSize: 12,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   numpad: {
     width: '100%',

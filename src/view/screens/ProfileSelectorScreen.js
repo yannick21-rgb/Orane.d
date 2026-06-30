@@ -1,0 +1,230 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  ScrollView, Modal, Alert, StatusBar,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { useAuth } from '../../viewmodel/AuthContext';
+
+const PIN_LENGTH = 5;
+
+export default function ProfileSelectorScreen({ navigation }) {
+  const { accountsIndex, loginToUser } = useAuth();
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [selectedName, setSelectedName] = useState('');
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [hasBiometrics, setHasBiometrics] = useState(false);
+  const biometricAttempted = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setHasBiometrics(compatible && enrolled);
+    })();
+  }, []);
+
+  const handleProfilePress = async (id, name) => {
+    biometricAttempted.current = false;
+    if (hasBiometrics) {
+      biometricAttempted.current = true;
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authentification requise pour ouvrir ce compte',
+        fallbackLabel: 'Utiliser le code PIN',
+        cancelLabel: 'Annuler',
+      });
+      if (result.success) {
+        await loginToUser(id, '');
+        return;
+      }
+    }
+    setSelectedId(id);
+    setSelectedName(name);
+    setPin('');
+    setModalVisible(true);
+  };
+
+  const pressDigit = (d) => {
+    if (pin.length < PIN_LENGTH) setPin((p) => p + d);
+  };
+
+  const deleteDigit = () => setPin((p) => p.slice(0, -1));
+
+  useEffect(() => {
+    if (pin.length !== PIN_LENGTH || loading) return;
+    (async () => {
+      setLoading(true);
+      try {
+        await loginToUser(selectedId, pin);
+        setModalVisible(false);
+      } catch (e) {
+        Alert.alert('Code incorrect', e.message || 'Le code PIN saisi ne correspond pas à ce compte.');
+        setPin('');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [pin]);
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+
+      <View style={styles.head}>
+        <Text style={styles.appName}>Orane.d</Text>
+        <Text style={styles.tagline}>Connecte-toi pour continuer</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.grid}>
+        {accountsIndex.map((acct) => (
+          <TouchableOpacity
+            key={acct.id}
+            style={styles.card}
+            activeOpacity={0.7}
+            onPress={() => handleProfilePress(acct.id, acct.name)}
+          >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{acct.name.charAt(0).toUpperCase()}</Text>
+            </View>
+            <Text style={styles.cardName} numberOfLines={1}>{acct.name}</Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity
+          style={[styles.card, styles.addCard]}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Register')}
+        >
+          <View style={[styles.avatar, styles.addAvatar]}>
+            <Text style={styles.addIcon}>+</Text>
+          </View>
+          <Text style={styles.addLabel}>Ajouter un compte</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={[styles.avatar, { width: 64, height: 64, borderRadius: 32 }]}>
+              <Text style={[styles.avatarText, { fontSize: 26 }]}>
+                {selectedName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.modalTitle}>{selectedName}</Text>
+            <Text style={styles.modalSub}>Saisis ton code PIN {PIN_LENGTH} chiffres</Text>
+
+            <View style={styles.dots}>
+              {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+                <View key={i} style={[styles.dot, pin[i] && styles.dotFill]} />
+              ))}
+            </View>
+
+            <View style={styles.pad}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                <TouchableOpacity key={n} style={styles.key} onPress={() => pressDigit(String(n))}>
+                  <Text style={styles.keyText}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.key} onPress={deleteDigit}>
+                <Text style={[styles.keyText, { color: '#8c8e9b' }]}>⌫</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.key} onPress={() => pressDigit('0')}>
+                <Text style={styles.keyText}>0</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.key} onPress={() => setModalVisible(false)}>
+                <Text style={[styles.keyText, { color: '#ef4444' }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#0f1015' },
+
+  head: { alignItems: 'center', paddingTop: 50, paddingBottom: 32 },
+  appName: { fontSize: 30, fontWeight: 'bold', color: '#fff', letterSpacing: 0.5 },
+  tagline: { fontSize: 14, color: '#8c8e9b', marginTop: 6 },
+
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 18,
+  },
+
+  card: {
+    width: 100,
+    alignItems: 'center',
+    paddingVertical: 18,
+    borderRadius: 18,
+    backgroundColor: '#16171f',
+    borderWidth: 1,
+    borderColor: '#2a2b38',
+  },
+  addCard: { borderStyle: 'dashed' },
+
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  avatarText: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
+  addAvatar: { backgroundColor: '#232430' },
+  addIcon: { fontSize: 28, color: '#8c8e9b', fontWeight: '300' },
+
+  cardName: { fontSize: 13, fontWeight: '600', color: '#fff', textAlign: 'center', maxWidth: 84 },
+  addLabel: { fontSize: 11, fontWeight: '500', color: '#8c8e9b', textAlign: 'center' },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modal: {
+    width: 300,
+    borderRadius: 28,
+    backgroundColor: '#16171f',
+    padding: 28,
+    alignItems: 'center',
+  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginTop: 10, marginBottom: 4 },
+  modalSub: { fontSize: 13, color: '#8c8e9b', marginBottom: 22 },
+
+  dots: { flexDirection: 'row', gap: 12, marginBottom: 26 },
+  dot: {
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: '#232430',
+    borderWidth: 1.5, borderColor: '#3b82f6',
+  },
+  dotFill: { backgroundColor: '#3b82f6' },
+
+  pad: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    maxWidth: 240,
+  },
+  key: {
+    width: 70, height: 52,
+    borderRadius: 14,
+    backgroundColor: '#232430',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keyText: { fontSize: 22, fontWeight: '600', color: '#fff' },
+});

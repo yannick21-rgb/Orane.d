@@ -4,3 +4,7 @@ export { default as StatsScreen } from './StatsScreen';
 export { default as SettingsScreen } from './SettingsScreen';
 export { default as LoginScreen } from './LoginScreen';
 export { default as RegisterScreen } from './RegisterScreen';
+export { default as OnboardingScreen } from './OnboardingScreen';
+export { default as DebtsScreen } from './DebtsScreen';
+export { default as TontinesScreen } from './TontinesScreen';
+export { default as TontineDetailScreen } from './TontineDetailScreen';

@@ -21,6 +21,17 @@ export const NETWORKS = [
   { key: 'CELTIIS', tKey: 'celtiis_cash' },
 ];
 
+export const TRANSFER_FEES = {
+  MTN:     { percent: 2,   label: '2%'  },
+  MOOV:    { percent: 2,   label: '2%'  },
+  CELTIIS: { percent: 2.5, label: '2.5%' },
+};
+
+export function computeTransferFee(amount, networkKey) {
+  const cfg = TRANSFER_FEES[networkKey] || TRANSFER_FEES.MTN;
+  return Math.round(amount * cfg.percent / 100);
+}
+
 export const INCOME_FREQUENCIES = [
   { key: 'variable', tKey: 'non_fixe' },
   { key: 'weekly',   tKey: 'hebdo'    },

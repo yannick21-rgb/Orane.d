@@ -14,13 +14,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dropdown } from 'react-native-element-dropdown';
-import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield } from 'lucide-react-native';
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw } from 'lucide-react-native';
+import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
+import { toNumber } from '../../utils/format';
 import { exportTransactionsToCSV } from '../../service/exportCSV';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import PinAuthModal from '../components/PinAuthModal';
+import DebtsScreen from './DebtsScreen';
+import TontinesScreen from './TontinesScreen';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -205,7 +209,6 @@ export default function SettingsScreen({ navigation }) {
   const [pays, setPays] = useState('BJ');
   const [isReady, setIsReady] = useState(false);
 
-  const [userProfile, setUserProfile] = useState({ name: 'Mathieu', email: 'contact@finance.com' });
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -218,24 +221,15 @@ export default function SettingsScreen({ navigation }) {
   const [resetStep, setResetStep] = useState('password');
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
+  const [showDebts, setShowDebts] = useState(false);
+  const [showTontines, setShowTontines] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
       try {
-        const [sp, sName, sEmail] = await Promise.all([
-          AsyncStorage.getItem('@pays'),
-          AsyncStorage.getItem('@user_name'),
-          AsyncStorage.getItem('@user_email'),
-        ]);
-          if (isMounted) {
-          if (sp) setPays(sp);
-          const finalName = sName || 'Mathieu';
-          const finalEmail = sEmail || 'contact@finance.com';
-          setUserProfile({ name: finalName, email: finalEmail });
-          setEditName(finalName);
-          setEditEmail(finalEmail);
-        }
+        const sp = await AsyncStorage.getItem('@pays');
+        if (isMounted && sp) setPays(sp);
       } catch (err) {
         console.error('[Settings] Erreur chargement :', err);
       } finally {
@@ -279,16 +273,12 @@ export default function SettingsScreen({ navigation }) {
   ];
 
   const handleSaveProfile = async () => {
-    if (!editName.trim() || !editEmail.trim()) {
+    if (!editName.trim()) {
       Alert.alert(t('erreur'), t('champ_vide'));
       return;
     }
     try {
-      await Promise.all([
-        AsyncStorage.setItem('@user_name', editName.trim()),
-        AsyncStorage.setItem('@user_email', editEmail.trim()),
-      ]);
-      setUserProfile({ name: editName.trim(), email: editEmail.trim() });
+      await updateProfile(editName.trim());
       setIsEditing(false);
     } catch (error) {
       console.error("Erreur sauvegarde profil :", error);
@@ -297,12 +287,12 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleCancelEdit = () => {
-    setEditName(userProfile.name);
-    setEditEmail(userProfile.email);
+    setEditName(authUser?.name || '');
+    setEditEmail(authUser?.email || '');
     setIsEditing(false);
   };
 
-  const { logout } = useAuth();
+  const { user: authUser, allUsers, switchToUser, logout, updateProfile } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -331,8 +321,8 @@ export default function SettingsScreen({ navigation }) {
 
   const handleAbout = () => {
     Alert.alert(
-      'Finance Tracker',
-      `Version 3.5.0\n\n© 2026 Jhpy. Tous droits réservés.\n\nUne expérience de gestion budgétaire fluide, visuelle et respectueuse de votre vie privée.\n\n🔒 Confidentialité : Vos données financières restent exclusivement stockées en local sur votre appareil (AsyncStorage). L'application ne collecte, ne stocke, ni ne transmet aucune information personnelle ou bancaire.`,
+      APP_NAME,
+      `Version ${APP_VERSION}\n\n© 2026 Jhpy. Tous droits réservés.\n\nUne expérience de gestion budgétaire fluide, visuelle et respectueuse de votre vie privée.\n\n🔒 Confidentialité : Vos données financières restent exclusivement stockées en local sur votre appareil (AsyncStorage). L'application ne collecte, ne stocke, ni ne transmet aucune information personnelle ou bancaire.`,
       [{ text: 'Fermer', style: 'cancel' }]
     );
   };
@@ -342,13 +332,17 @@ export default function SettingsScreen({ navigation }) {
     setShowChangePin(true);
   };
 
-  const handleChangePinOldVerify = (pin) => {
-    const ok = unlockDiscreteMode(pin);
-    if (ok) {
-      setVerifiedOldPin(pin);
-      setChangeStep('new');
+  const handleChangePinOldVerify = async (pin) => {
+    try {
+      const ok = await unlockDiscreteMode(pin);
+      if (ok) {
+        setVerifiedOldPin(pin);
+        setChangeStep('new');
+      }
+      return ok;
+    } catch (e) {
+      throw e;
     }
-    return ok;
   };
 
   const handleChangePinNewSave = async (newPin) => {
@@ -397,8 +391,8 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleBudgetSave = () => {
-    const amount = parseFloat(budgetInput);
-    if (isNaN(amount) || amount < 0) {
+    const amount = toNumber(budgetInput);
+    if (amount < 0) {
       Alert.alert('Montant invalide', 'Veuillez entrer un montant valide.');
       return;
     }
@@ -430,7 +424,11 @@ export default function SettingsScreen({ navigation }) {
                 </Text>
               </View>
               {!isEditing && (
-                <TouchableOpacity onPress={() => setIsEditing(true)} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                <TouchableOpacity onPress={() => {
+                  setEditName(authUser?.name || '');
+                  setEditEmail(authUser?.email || '');
+                  setIsEditing(true);
+                }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                   <Edit2 size={16} color={accentColor} />
                 </TouchableOpacity>
               )}
@@ -440,12 +438,12 @@ export default function SettingsScreen({ navigation }) {
               <View style={styles.profileRow}>
                 <View style={[styles.avatarCircle, { backgroundColor: accentColor }]}>
                   <Text style={styles.avatarLetter}>
-                    {userProfile.name.charAt(0).toUpperCase()}
+                    {(authUser?.name || '?').charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.profileInfo}>
-                  <Text style={[styles.userName, { color: colors.text }]}>{userProfile.name}</Text>
-                  <Text style={[styles.userEmail, { color: colors.subText }]}>{userProfile.email}</Text>
+                  <Text style={[styles.userName, { color: colors.text }]}>{authUser?.name || ''}</Text>
+                  <Text style={[styles.userEmail, { color: colors.subText }]}>{authUser?.email || ''}</Text>
                 </View>
               </View>
             ) : (
@@ -461,11 +459,9 @@ export default function SettingsScreen({ navigation }) {
 
                 <Text style={[styles.inputLabel, { color: colors.subText, marginTop: 10 }]}>{t('adresse_email')}</Text>
                 <TextInput
-                  style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+                  style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.subText, borderColor: colors.border }]}
                   value={editEmail}
-                  onChangeText={setEditEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  editable={false}
                   placeholder={t('votre_email')}
                   placeholderTextColor={colors.subText}
                 />
@@ -483,6 +479,58 @@ export default function SettingsScreen({ navigation }) {
               </View>
             )}
           </View>
+
+          {allUsers.length > 1 && (
+            <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
+              <View style={styles.sectionHeader}>
+                <Users size={20} color={colors.subText} />
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Gestion des Comptes
+                </Text>
+              </View>
+              {allUsers.map((account) => {
+                const isActive = account.email === authUser?.email;
+                return (
+                  <View
+                    key={account.email}
+                    style={[styles.accountRow, { borderColor: colors.border }]}
+                  >
+                    <View style={styles.accountInfo}>
+                      <View style={[styles.accountAvatar, { backgroundColor: isActive ? '#2ecc71' : colors.unselectedPill }]}>
+                        <Text style={[styles.accountAvatarText, { color: isActive ? '#fff' : colors.subText }]}>
+                          {account.name.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.accountName, { color: colors.text }]}>
+                          {account.name}
+                        </Text>
+                        <Text style={[styles.accountEmail, { color: colors.subText }]}>
+                          {account.email}
+                        </Text>
+                      </View>
+                    </View>
+                    {isActive ? (
+                      <View style={styles.activeBadge}>
+                        <View style={styles.activeDot} />
+                        <Text style={[styles.activeLabel, { color: '#2ecc71' }]}>
+                          Compte Actif
+                        </Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.switchBtn, { backgroundColor: accentColor }]}
+                        onPress={() => switchToUser(account.email)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.switchBtnText}>Basculer</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
             <View style={styles.sectionHeader}>
@@ -701,6 +749,30 @@ export default function SettingsScreen({ navigation }) {
 
           <TouchableOpacity
             style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={() => setShowDebts(true)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Handshake size={18} color={accentColor} style={{ marginRight: 10 }} />
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>Dettes & Prêts</Text>
+            </View>
+            <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={() => setShowTontines(true)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <RefreshCw size={18} color={accentColor} style={{ marginRight: 10 }} />
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>Tontine / Épargne</Text>
+            </View>
+            <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
             onPress={handleAbout}
             activeOpacity={0.7}
           >
@@ -779,6 +851,7 @@ export default function SettingsScreen({ navigation }) {
         hasPin={true}
         isDark={isDark}
         accentColor={accentColor}
+        remainingText=""
       />
 
       <PinAuthModal
@@ -797,7 +870,20 @@ export default function SettingsScreen({ navigation }) {
         hasPin={false}
         isDark={isDark}
         accentColor={accentColor}
+        remainingText=""
       />
+
+      {showDebts && (
+        <View style={StyleSheet.absoluteFill}>
+          <DebtsScreen onClose={() => setShowDebts(false)} />
+        </View>
+      )}
+
+      {showTontines && (
+        <View style={StyleSheet.absoluteFill}>
+          <TontinesScreen onClose={() => setShowTontines(false)} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -909,5 +995,64 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+  },
+  accountInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  accountAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  accountAvatarText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  accountName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  accountEmail: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2ecc71',
+    marginRight: 6,
+  },
+  activeLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  switchBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  switchBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

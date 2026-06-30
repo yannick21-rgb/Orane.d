@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,27 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
+let usePreventScreenCapture = () => {};
+try {
+  const sc = require('expo-screen-capture');
+  usePreventScreenCapture = sc.usePreventScreenCapture || (() => {});
+} catch (e) {}
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { useDebts } from '../../viewmodel/DebtContext';
+import { useTontines } from '../../viewmodel/TontineContext';
+import { useAuth } from '../../viewmodel/AuthContext';
+import { checkPinRateLimit, getRemainingAttemptsText } from '../../utils/security';
 import { useTranslation } from '../../utils/LanguageManager';
+import { toNumber } from '../../utils/format';
 import { Trash2, CheckSquare, Square, X, Eye, EyeOff } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
 
@@ -39,14 +56,10 @@ const CATEGORY_KEY_MAP = {
 };
 
 export default function HomeScreen({ navigation }) {
+  usePreventScreenCapture();
   const { t, currentLanguage } = useTranslation();
   const [showPinModal, setShowPinModal] = useState(false);
-
-  useEffect(() => {
-    if (isDiscreteMode && !hasPinCode) {
-      setShowPinModal(true);
-    }
-  }, []);
+  const [pinRemainingText, setPinRemainingText] = useState('');
 
   const {
     transactions = [],
@@ -57,12 +70,39 @@ export default function HomeScreen({ navigation }) {
     devise,
     isDiscreteMode,
     hasPinCode,
+    isUserDataLoaded,
     saveNewPin,
     unlockDiscreteMode,
     toggleDiscreteMode,
     momoBalance,
     cashBalance,
   } = useFinance();
+
+  const { totalToReceive, totalToRepay } = useDebts();
+  const { overallSummary } = useTontines();
+  const { userId } = useAuth();
+
+  const hasCheckedPinRef = useRef(false);
+
+  useEffect(() => {
+    if (!isUserDataLoaded) return;
+    if (hasCheckedPinRef.current) return;
+    if (isDiscreteMode && !hasPinCode) {
+      setShowPinModal(true);
+    }
+    hasCheckedPinRef.current = true;
+  }, [isUserDataLoaded, isDiscreteMode, hasPinCode]);
+
+  useEffect(() => {
+    if (userId && hasPinCode) {
+      getRemainingAttemptsText(userId).then(setPinRemainingText).catch(() => {});
+      checkPinRateLimit(userId).then((info) => {
+        if (info.totalAttempts > 0) {
+          getRemainingAttemptsText(userId).then(setPinRemainingText);
+        }
+      }).catch(() => {});
+    }
+  }, [hasPinCode, userId]);
 
   const deviseSymbol = devise?.split(' ')[0] || '€';
 
@@ -89,11 +129,11 @@ export default function HomeScreen({ navigation }) {
 
   const totalIncome = sorted
     .filter((t) => t.type === 'income' || t.type === 'revenu')
-    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0);
 
   const totalExpenses = sorted
     .filter((t) => (t.type === 'expense' || t.type === 'depense') && t.type !== 'transfert')
-    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0);
 
   const enterSelectionMode = (id) => {
     setSelectedIds(new Set([id]));
@@ -127,7 +167,10 @@ export default function HomeScreen({ navigation }) {
         {
           text: t('supprimer'),
           style: 'destructive',
-          onPress: () => deleteTransaction(item.id),
+          onPress: () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            deleteTransaction(item.id);
+          },
         },
       ]
     );
@@ -137,7 +180,7 @@ export default function HomeScreen({ navigation }) {
     const count = selectedIds.size;
     Alert.alert(
       t('supprimer'),
-      `${t('supprimer')} ${count} ${t('operations')} ?`,
+      `${t('supprimer')} ${count} ${count > 1 ? t('operationsLabel') : t('operationLabel')} ?`,
       [
         { text: t('annuler'), style: 'cancel' },
         {
@@ -179,7 +222,7 @@ export default function HomeScreen({ navigation }) {
               <X color={colors.text} size={20} />
             </TouchableOpacity>
             <Text style={[styles.selectionCount, { color: colors.text }]}>
-              {selectedIds.size} {t('selectionne')}
+              {selectedIds.size} {selectedIds.size > 1 ? t('operationsLabel') : t('operationLabel')}
             </Text>
             <TouchableOpacity onPress={handleBulkDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Trash2 color={colors.expense} size={20} />
@@ -258,6 +301,44 @@ export default function HomeScreen({ navigation }) {
             Total : {isDiscreteMode ? '••••' : `${(momoBalance + cashBalance) >= 0 ? '+' : '-'}${Math.abs(momoBalance + cashBalance).toFixed(2)} ${deviseSymbol}`}
           </Text>
         </View>
+
+        {(totalToReceive > 0 || totalToRepay > 0 || overallSummary.totalPaid > 0) && !isDiscreteMode && (
+          <View style={styles.debtSummaryRow}>
+            {totalToReceive > 0 && (
+              <View style={[styles.debtBadge, { backgroundColor: '#2ecc71' + '20' }]}>
+                <Text style={styles.debtBadgeIcon}>💸</Text>
+                <View>
+                  <Text style={[styles.debtBadgeLabel, { color: colors.subText }]}>À recevoir</Text>
+                  <Text style={[styles.debtBadgeValue, { color: '#2ecc71' }]}>
+                    +{totalToReceive.toLocaleString()} {deviseSymbol}
+                  </Text>
+                </View>
+              </View>
+            )}
+            {totalToRepay > 0 && (
+              <View style={[styles.debtBadge, { backgroundColor: '#ef4444' + '20' }]}>
+                <Text style={styles.debtBadgeIcon}>💳</Text>
+                <View>
+                  <Text style={[styles.debtBadgeLabel, { color: colors.subText }]}>À rembourser</Text>
+                  <Text style={[styles.debtBadgeValue, { color: '#ef4444' }]}>
+                    -{totalToRepay.toLocaleString()} {deviseSymbol}
+                  </Text>
+                </View>
+              </View>
+            )}
+            {overallSummary.totalPaid > 0 && (
+              <View style={[styles.debtBadge, { backgroundColor: '#f59e0b' + '20' }]}>
+                <Text style={styles.debtBadgeIcon}>🔄</Text>
+                <View>
+                  <Text style={[styles.debtBadgeLabel, { color: colors.subText }]}>Tontine</Text>
+                  <Text style={[styles.debtBadgeValue, { color: '#f59e0b' }]}>
+                    {overallSummary.totalPaid.toLocaleString()} {deviseSymbol}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('toutes_operations')}</Text>
@@ -352,7 +433,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={[styles.txAmount, { color: isTransfer ? '#f59e0b' : isExpense ? colors.expense : colors.income }]}>
                       {isDiscreteMode
                         ? '••••'
-                        : `${isTransfer ? '↻' : isExpense ? '-' : '+'}${Math.abs(item.amount || 0).toFixed(2)} ${deviseSymbol}`
+                        : `${isTransfer ? '↻' : isExpense ? '-' : '+'}${Math.abs(toNumber(item.amount)).toFixed(2)} ${deviseSymbol}`
                       }
                     </Text>
 
@@ -371,7 +452,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={[styles.txAmountSelection, { color: isTransfer ? '#f59e0b' : isExpense ? colors.expense : colors.income }]}>
                     {isDiscreteMode
                       ? '••••'
-                      : `${isTransfer ? '↻' : isExpense ? '-' : '+'}${Math.abs(item.amount || 0).toFixed(2)} ${deviseSymbol}`
+                      : `${isTransfer ? '↻' : isExpense ? '-' : '+'}${Math.abs(toNumber(item.amount)).toFixed(2)} ${deviseSymbol}`
                     }
                   </Text>
                 )}
@@ -384,15 +465,22 @@ export default function HomeScreen({ navigation }) {
       <PinAuthModal
         visible={showPinModal}
         onClose={() => setShowPinModal(false)}
-        onUnlock={(pin) => {
-          const ok = unlockDiscreteMode(pin);
-          if (ok) setShowPinModal(false);
-          return ok;
+        onUnlock={async (pin) => {
+          try {
+            await unlockDiscreteMode(pin);
+            setShowPinModal(false);
+            return true;
+          } catch (e) {
+            const txt = await getRemainingAttemptsText(userId).catch(() => '');
+            setPinRemainingText(txt);
+            throw e;
+          }
         }}
         onSaveNewPin={(pin) => {
           saveNewPin(pin);
           setShowPinModal(false);
         }}
+        remainingText={pinRemainingText}
         hasPin={hasPinCode}
         isDark={isDark}
         accentColor={accentColor}
@@ -440,4 +528,15 @@ const styles = StyleSheet.create({
   emptyText:       { fontSize: 14, textAlign: 'center', marginBottom: 15 },
   emptyButton:     { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed' },
   emptyButtonText: { fontSize: 13, fontWeight: '600' },
+
+  debtSummaryRow: {
+    flexDirection: 'row', gap: 12, marginBottom: 20,
+  },
+  debtBadge: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 14, borderRadius: 16,
+  },
+  debtBadgeIcon: { fontSize: 22 },
+  debtBadgeLabel: { fontSize: 11, fontWeight: '600' },
+  debtBadgeValue: { fontSize: 16, fontWeight: 'bold', marginTop: 2 },
 });

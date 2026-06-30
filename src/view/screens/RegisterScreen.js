@@ -38,6 +38,13 @@ export default function RegisterScreen({ onSwitchToLogin }) {
     border:  isDark ? '#2a2b38' : '#e8eaef',
   };
 
+  const validatePassword = (pw) => {
+    if (pw.length < 6) return 'Le mot de passe doit contenir au moins 6 caractères.';
+    if (!/[a-zA-Z]/.test(pw)) return 'Le mot de passe doit contenir au moins une lettre.';
+    if (!/[0-9]/.test(pw)) return 'Le mot de passe doit contenir au moins un chiffre.';
+    return null;
+  };
+
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert(t('erreur'), 'Veuillez remplir tous les champs.');
@@ -45,6 +52,11 @@ export default function RegisterScreen({ onSwitchToLogin }) {
     }
     if (password !== confirmPassword) {
       Alert.alert(t('erreur'), 'Les mots de passe ne correspondent pas.');
+      return;
+    }
+    const pwError = validatePassword(password);
+    if (pwError) {
+      Alert.alert('Mot de passe faible', pwError);
       return;
     }
     setLoading(true);

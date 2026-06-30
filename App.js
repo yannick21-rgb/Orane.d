@@ -1,9 +1,20 @@
+import './src/utils/cryptoPolyfill';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated, useColorScheme } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+let usePreventScreenCapture = () => {};
+try {
+  const sc = require('expo-screen-capture');
+  usePreventScreenCapture = sc.usePreventScreenCapture || (() => {});
+} catch (e) {}
 import { AuthProvider, useAuth } from './src/viewmodel/AuthContext';
 import { FinanceProvider, useFinance } from './src/viewmodel/FinanceContext';
+import { DebtProvider } from './src/viewmodel/DebtContext';
+import { TontineProvider } from './src/viewmodel/TontineContext';
 import { useTranslation } from './src/utils/LanguageManager';
 
 import HomeScreen from './src/view/screens/HomeScreen';
@@ -12,12 +23,15 @@ import StatsScreen from './src/view/screens/StatsScreen';
 import SettingsScreen from './src/view/screens/SettingsScreen';
 import LoginScreen from './src/view/screens/LoginScreen';
 import RegisterScreen from './src/view/screens/RegisterScreen';
+import OnboardingScreen from './src/view/screens/OnboardingScreen';
 
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
 
 function LoadingScreen() {
+  const scheme = useColorScheme();
+  const bgColor = scheme === 'dark' ? '#0f1015' : '#f5f6fa';
   return (
-    <View style={styles.centered}>
+    <View style={[styles.centered, { backgroundColor: bgColor }]}>
       <ActivityIndicator size="large" color="#3b82f6" />
     </View>
   );
@@ -35,6 +49,7 @@ function AuthScreen() {
 const TAB_BAR_HEIGHT = 60;
 
 function MainTabs() {
+  usePreventScreenCapture();
   const pagerRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const { isDark, accentColor } = useFinance();
@@ -49,6 +64,17 @@ function MainTabs() {
 
   const icons = [Home, PlusCircle, PieChart, SettingsIcon];
   const tabLabels = [t('home'), t('add'), t('stats'), t('settings')];
+
+  const scaleAnims = useRef(screens.map(() => new Animated.Value(1))).current;
+
+  const onTabPress = (i) => {
+    pagerRef.current?.setPage(i);
+    setActiveIndex(i);
+    Animated.sequence([
+      Animated.spring(scaleAnims[i], { toValue: 1.15, useNativeDriver: true, friction: 3 }),
+      Animated.spring(scaleAnims[i], { toValue: 1, useNativeDriver: true, friction: 3 }),
+    ]).start();
+  };
 
   const navigateToTab = useCallback((name) => {
     const idx = screens.findIndex(s => s.key === name);
@@ -107,9 +133,11 @@ function MainTabs() {
             <TouchableOpacity
               key={s.key}
               style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-              onPress={() => { pagerRef.current?.setPage(i); setActiveIndex(i); }}
+              onPress={() => onTabPress(i)}
             >
-              <IconComp color={focused ? accentColor : colors.inactive} size={22} />
+              <Animated.View style={{ transform: [{ scale: scaleAnims[i] }] }}>
+                <IconComp color={focused ? accentColor : colors.inactive} size={22} />
+              </Animated.View>
               <Text style={{
                 fontSize: 11,
                 fontWeight: '600',
@@ -128,29 +156,43 @@ function MainTabs() {
 
 function RootNavigator() {
   const { user, loading } = useAuth();
-  const { isLoaded } = useFinance();
-  const [forceShow, setForceShow] = useState(false);
-  const mountedRef = useRef(true);
+  const { isLoaded, isUserDataLoaded } = useFinance();
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    return () => { mountedRef.current = false; };
+    AsyncStorage.getItem('@oraned_onboarding_seen').then((value) => {
+      setHasSeenOnboarding(value === 'true');
+    });
   }, []);
+
+  const isReady = !loading && isLoaded && (!user || isUserDataLoaded);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (mountedRef.current) setForceShow(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isReady) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isReady, fadeAnim]);
 
-  if (forceShow) {
-    if (!user) return <AuthScreen />;
-    return <MainTabs />;
+  if (hasSeenOnboarding === false) {
+    return (
+      <OnboardingScreen
+        onComplete={() => setHasSeenOnboarding(true)}
+      />
+    );
   }
 
-  if (loading || !isLoaded) return <LoadingScreen />;
-  if (!user) return <AuthScreen />;
-  return <MainTabs />;
+  if (!isReady || hasSeenOnboarding === null) return <LoadingScreen />;
+
+  return (
+    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+      {!user ? <AuthScreen /> : <MainTabs />}
+    </Animated.View>
+  );
 }
 
 export default function App() {
@@ -158,7 +200,11 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <FinanceProvider>
-          <RootNavigator />
+          <DebtProvider>
+            <TontineProvider>
+              <RootNavigator />
+            </TontineProvider>
+          </DebtProvider>
         </FinanceProvider>
       </AuthProvider>
     </SafeAreaProvider>
@@ -166,5 +212,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f1015' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

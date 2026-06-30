@@ -1,0 +1,182 @@
+import React, { useState, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Plus, X, Trash2, ChevronRight } from 'lucide-react-native';
+import { useFinance } from '../../viewmodel/FinanceContext';
+import { useTontines } from '../../viewmodel/TontineContext';
+import { computeTontineSummary } from '../../model/TontineModel';
+import { toNumber } from '../../utils/format';
+import TontineFormModal from '../components/TontineFormModal';
+import TontineDetailScreen from './TontineDetailScreen';
+
+export default function TontinesScreen({ onClose }) {
+  const { isDark, accentColor, devise } = useFinance();
+  const { groups, deleteGroup, overallSummary } = useTontines();
+  const deviseSymbol = devise?.split(' ')[0] || 'F';
+
+  const [showForm, setShowForm] = useState(false);
+  const [editGroup, setEditGroup] = useState(null);
+  const [detailGroup, setDetailGroup] = useState(null);
+
+  const colors = {
+    bg: isDark ? '#0f1015' : '#f5f6fa',
+    card: isDark ? '#16171f' : '#ffffff',
+    text: isDark ? '#ffffff' : '#131419',
+    subText: isDark ? '#8c8e9b' : '#6a6c7a',
+    input: isDark ? '#1c1d28' : '#f0f1f6',
+    border: isDark ? '#2a2b38' : '#e8eaef',
+    green: '#2ecc71',
+    orange: '#f59e0b',
+  };
+
+  const handleDelete = (g) => {
+    Alert.alert(
+      'Supprimer cette tontine ?',
+      `Toutes les données de "${g.groupName}" seront perdues.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: () => deleteGroup(g.id) },
+      ]
+    );
+  };
+
+  if (detailGroup) {
+    return (
+      <TontineDetailScreen
+        group={detailGroup}
+        onClose={() => setDetailGroup(null)}
+      />
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <X size={22} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Mes Tontines</Text>
+        <TouchableOpacity onPress={() => { setEditGroup(null); setShowForm(true); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Plus size={22} color={accentColor} />
+        </TouchableOpacity>
+      </View>
+
+      {groups.length > 0 && (
+        <View style={[styles.summaryBar, { backgroundColor: colors.card }]}>
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryLabel, { color: colors.subText }]}>Total cotisé</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {overallSummary.totalPaid.toLocaleString()} {deviseSymbol}
+            </Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryLabel, { color: colors.subText }]}>À recevoir</Text>
+            <Text style={[styles.summaryValue, { color: colors.green }]}>
+              {overallSummary.totalToReceive.toLocaleString()} {deviseSymbol}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {groups.length === 0 && (
+          <View style={styles.empty}>
+            <Text style={{ fontSize: 40, marginBottom: 12 }}>🔄</Text>
+            <Text style={[styles.emptyText, { color: colors.subText }]}>
+              Aucune tontine enregistrée.
+            </Text>
+            <TouchableOpacity
+              style={[styles.emptyBtn, { borderColor: accentColor }]}
+              onPress={() => { setEditGroup(null); setShowForm(true); }}
+            >
+              <Text style={[styles.emptyBtnText, { color: accentColor }]}>Créer une tontine</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {groups.map((g) => {
+          const summary = computeTontineSummary(g);
+          const progress = g.rounds.filter((r) => r.status !== 'a_payer').length;
+          const total = g.rounds.length;
+          const pct = Math.round((progress / total) * 100);
+          return (
+            <TouchableOpacity
+              key={g.id}
+              style={[styles.groupCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setDetailGroup(g)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.groupHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.groupName, { color: colors.text }]}>{g.groupName}</Text>
+                  <Text style={[styles.groupMeta, { color: colors.subText }]}>
+                    {g.amountPerTour.toLocaleString()} {deviseSymbol} × {g.totalParticipants} tours · {g.frequency === 'hebdomadaire' ? 'Hebdo' : 'Mensuel'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleDelete(g)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+                  <Trash2 size={16} color={colors.subText} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.progressRow}>
+                <View style={[styles.progressTrack, { backgroundColor: colors.input }]}>
+                  <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: pct >= 100 ? colors.green : accentColor }]} />
+                </View>
+                <Text style={[styles.progressText, { color: colors.subText }]}>{progress}/{total}</Text>
+              </View>
+
+              <View style={styles.groupSummary}>
+                <Text style={[styles.summaryLabel, { color: colors.subText }]}>
+                  {summary.hasReceived ? '✅ Reçu' : `Position : ${g.myPosition}/${g.totalParticipants}`}
+                </Text>
+                <ChevronRight size={16} color={colors.subText} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      <TontineFormModal
+        visible={showForm}
+        initialData={editGroup}
+        onClose={() => { setShowForm(false); setEditGroup(null); }}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1,
+  },
+  headerTitle: { fontSize: 20, fontWeight: 'bold' },
+  list: { padding: 16, paddingBottom: 40 },
+  empty: { alignItems: 'center', paddingVertical: 60 },
+  emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },
+  emptyBtnText: { fontSize: 13, fontWeight: '600' },
+  summaryBar: {
+    flexDirection: 'row', marginHorizontal: 16, marginTop: 12,
+    padding: 16, borderRadius: 16, marginBottom: 4,
+  },
+  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryLabel: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  summaryValue: { fontSize: 18, fontWeight: 'bold' },
+  summaryDivider: { width: 1, marginHorizontal: 16 },
+  groupCard: {
+    padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1,
+  },
+  groupHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  groupName: { fontSize: 16, fontWeight: '700' },
+  groupMeta: { fontSize: 12, marginTop: 2 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  progressTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 3 },
+  progressText: { fontSize: 11, fontWeight: '600', width: 40, textAlign: 'right' },
+  groupSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+});
