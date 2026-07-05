@@ -7,7 +7,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.hideAsync();
 
 let usePreventScreenCapture = () => {};
 try {
@@ -31,7 +31,7 @@ import OnboardingScreen from './src/view/screens/OnboardingScreen';
 
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
 
-const LOADING_TIMEOUT = 8000;
+const LOADING_TIMEOUT = 5000;
 
 function LoadingScreen() {
   const scheme = useColorScheme();
@@ -186,7 +186,10 @@ function RootNavigator() {
   }, []);
 
   useEffect(() => {
-    const force = setTimeout(() => setForceReady(true), 15000);
+    const force = setTimeout(() => {
+      setForceReady(true);
+      setHasSeenOnboarding(prev => prev === null ? false : prev);
+    }, 15000);
     return () => clearTimeout(force);
   }, []);
 

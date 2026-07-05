@@ -18,38 +18,39 @@ key-files:
   modified: [App.js, app.json, package.json]
 
 key-decisions:
-  - "Utiliser expo-splash-screen pour gérer le splash natif (preventAutoHideAsync + hideAsync)"
-  - "Timeout de 8s pour le fetch AsyncStorage onboarding_seen"
-  - "Filet de sécurité global de 15s (forceReady) pour éviter tout blocage permanent"
+  - "Ne PAS utiliser preventAutoHideAsync — laisse le splash natif se masquer automatiquement"
+  - "hideAsync appelé au niveau module + dans useEffect pour compatibilité maximale"
+  - "Timeout de 5s pour le fetch AsyncStorage onboarding_seen"
+  - "Filet de sécurité global de 15s (forceReady + hasSeenOnboarding fallback) pour éviter tout blocage permanent"
 
 requirements-completed: []
 
 coverage:
   - id: D1
-    description: "Le splash screen natif se masque automatiquement quand l'app est prête"
+    description: "Le splash screen natif se masque sans preventAutoHideAsync (auto-hide natif) + hideAsync double appel"
     verification:
       - kind: unit
-        ref: "App.js#SplashScreen.preventAutoHideAsync at module level"
+        ref: "App.js#SplashScreen.hideAsync at module level (best-effort)"
         status: pass
       - kind: unit
         ref: "App.js#SplashScreen.hideAsync in isReady useEffect"
         status: pass
     human_judgment: false
   - id: D2
-    description: "Le fetch AsyncStorage a un timeout de 8s et un catch en cas d'erreur"
+    description: "Le fetch AsyncStorage a un timeout de 5s et un catch en cas d'erreur"
     verification:
       - kind: unit
-        ref: "App.js#LOADING_TIMEOUT = 8000"
+        ref: "App.js#LOADING_TIMEOUT = 5000"
         status: pass
       - kind: unit
         ref: "App.js#AsyncStorage.getItem catch handler"
         status: pass
     human_judgment: false
   - id: D3
-    description: "Un filet de sécurité de 15s force l'affichage en dernier recours"
+    description: "Un filet de sécurité de 15s force l'affichage (forceReady + hasSeenOnboarding fallback)"
     verification:
       - kind: unit
-        ref: "App.js#forceReady setTimeout at 15000ms"
+        ref: "App.js#forceReady setTimeout at 15000ms sets both forceReady and hasSeenOnboarding"
         status: pass
     human_judgment: false
 
