@@ -19,8 +19,10 @@ import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, co
 
 export default function AddTransactionScreen({ navigation }) {
   const { t } = useTranslation();
-  const { isDark, accentColor, addTransaction, devise } = useFinance();
+  const { isDark, accentColor, addTransaction, updateTransaction, editingTransaction, setEditingTransaction, devise } = useFinance();
   const deviseSymbol = devise?.split(' ')[0] || 'F';
+
+  const isEditing = !!editingTransaction;
 
   const [title,    setTitle]    = useState('');
   const [amount,   setAmount]   = useState('');
@@ -34,6 +36,19 @@ export default function AddTransactionScreen({ navigation }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const navTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (editingTransaction) {
+      setTitle(editingTransaction.title || '');
+      setAmount(String(editingTransaction.amount || ''));
+      setNote(editingTransaction.note || '');
+      setType(editingTransaction.type || 'expense');
+      setCategory(editingTransaction.category || 'Alimentation');
+      setWallet(editingTransaction.wallet || 'momo');
+      setSelectedNetwork(editingTransaction.momoNetwork || 'MTN');
+      setIncomeFrequency(editingTransaction.incomeFrequency || 'monthly');
+    }
+  }, [editingTransaction]);
 
   useEffect(() => {
     return () => {
@@ -86,40 +101,54 @@ export default function AddTransactionScreen({ navigation }) {
       finalCategory = 'Retrait MoMo';
     }
 
-    const txId = Date.now().toString();
-
-    addTransaction({
-      id:              txId,
-      title:           title.trim(),
-      amount:          finalAmount,
-      type,
-      wallet,
-      category:        finalCategory,
-      note:            customNote || null,
-      date:            new Date().toISOString(),
-      momoNetwork:     type === 'transfert' ? selectedNetwork : null,
-      momoFee:         null,
-      frais:           0,
-      amountReceived:  type === 'transfert' ? parsed : null,
-      incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
-    });
-
-    if (type === 'transfert' && computedFee > 0) {
-      addTransaction({
-        id:          txId + '_fee',
-        title:       `Frais retrait ${title.trim() || selectedNetwork}`,
-        amount:      computedFee,
-        type:        'expense',
-        wallet:      'momo',
-        category:    'Frais & Retraits',
-        momoNetwork: selectedNetwork,
-        note:        `Frais automatiques ${NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork} : ${computedFee}${deviseSymbol}`,
-        date:        new Date().toISOString(),
+    if (isEditing) {
+      updateTransaction(editingTransaction.id, {
+        title:           title.trim(),
+        amount:          finalAmount,
+        type,
+        wallet,
+        category:        finalCategory,
+        note:            customNote || null,
+        momoNetwork:     type === 'transfert' ? selectedNetwork : null,
+        incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
       });
+    } else {
+      const txId = Date.now().toString();
+
+      addTransaction({
+        id:              txId,
+        title:           title.trim(),
+        amount:          finalAmount,
+        type,
+        wallet,
+        category:        finalCategory,
+        note:            customNote || null,
+        date:            new Date().toISOString(),
+        momoNetwork:     type === 'transfert' ? selectedNetwork : null,
+        momoFee:         null,
+        frais:           0,
+        amountReceived:  type === 'transfert' ? parsed : null,
+        incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
+      });
+
+      if (type === 'transfert' && computedFee > 0) {
+        addTransaction({
+          id:          txId + '_fee',
+          title:       `Frais retrait ${title.trim() || selectedNetwork}`,
+          amount:      computedFee,
+          type:        'expense',
+          wallet:      'momo',
+          category:    'Frais & Retraits',
+          momoNetwork: selectedNetwork,
+          note:        `Frais automatiques ${NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork} : ${computedFee}${deviseSymbol}`,
+          date:        new Date().toISOString(),
+        });
+      }
     }
 
     setShowSuccessModal(true);
 
+    setEditingTransaction(null);
     setTitle('');
     setAmount('');
     setNote('');
@@ -157,7 +186,7 @@ export default function AddTransactionScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.pageTitle, { color: colors.text }]}>{t('nouvelle_operation')}</Text>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>{isEditing ? 'Modifier' : t('nouvelle_operation')}</Text>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.label, { color: colors.subText }]}>{t('type_operation')}</Text>
@@ -367,7 +396,7 @@ export default function AddTransactionScreen({ navigation }) {
           onPress={handleSave}
           activeOpacity={0.85}
         >
-          <Text style={styles.saveBtnText}>{t('enregistrer_operation')}</Text>
+          <Text style={styles.saveBtnText}>{isEditing ? 'Mettre à jour' : t('enregistrer_operation')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

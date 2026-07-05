@@ -7,7 +7,7 @@ export async function exportTransactionsToCSV(transactions, devise = '€') {
     throw new Error('Aucune transaction à exporter.');
   }
 
-  const headers = 'Date;Catégorie;Description;Montant;Type;Portefeuille';
+  const headers = 'Date;Catégorie;Description;Montant;Type;Portefeuille;Frais MoMo;Réseau';
   const rows = transactions.map((tx) => {
     const date = tx.date || '';
     const category = (tx.category || '').replace(/,/g, ' ');
@@ -15,7 +15,9 @@ export async function exportTransactionsToCSV(transactions, devise = '€') {
     const amount = toNumber(tx.amount).toFixed(2);
     const wallet = tx.wallet === 'cash' ? 'Espèces' : 'MoMo';
     const type = tx.type === 'expense' ? 'Dépense' : tx.type === 'transfert' ? 'Transfert' : 'Revenu';
-    return `${date};${category};${description};${amount};${type};${wallet}`;
+    const momoFee = toNumber(tx.momoFee || tx.frais || 0).toFixed(2);
+    const network = tx.momoNetwork || '';
+    return `${date};${category};${description};${amount};${type};${wallet};${momoFee};${network}`;
   });
 
   const csvContent = `${headers}\n${rows.join('\n')}`;

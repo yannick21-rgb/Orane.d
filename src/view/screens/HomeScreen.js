@@ -8,12 +8,9 @@ import {
   Alert,
   LayoutAnimation,
   Platform,
-  UIManager,
+  TextInput,
 } from 'react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { SafeAreaView } from 'react-native-safe-area-context';
 let usePreventScreenCapture = () => {};
 try {
@@ -27,7 +24,8 @@ import { useAuth } from '../../viewmodel/AuthContext';
 import { checkPinRateLimit, getRemainingAttemptsText } from '../../utils/security';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
-import { Trash2, CheckSquare, Square, X, Eye, EyeOff } from 'lucide-react-native';
+import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
+import { Trash2, CheckSquare, Square, X, Eye, EyeOff, Search } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
 
 const CATEGORY_ICONS = {
@@ -67,6 +65,7 @@ export default function HomeScreen({ navigation }) {
     accentColor = '#3b82f6',
     deleteTransaction,
     deleteMultipleTransactions,
+    setEditingTransaction,
     devise,
     isDiscreteMode,
     hasPinCode,
@@ -108,6 +107,7 @@ export default function HomeScreen({ navigation }) {
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const colors = {
     bg:      isDark ? '#0f1015' : '#f5f6fa',
@@ -127,13 +127,15 @@ export default function HomeScreen({ navigation }) {
     (a, b) => new Date(b.date) - new Date(a.date)
   );
 
-  const totalIncome = sorted
-    .filter((t) => t.type === 'income' || t.type === 'revenu')
-    .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0);
+  const filtered = searchQuery.trim()
+    ? sorted.filter((t) => {
+        const q = searchQuery.toLowerCase();
+        return (t.title && t.title.toLowerCase().includes(q)) ||
+               (t.note && t.note.toLowerCase().includes(q));
+      })
+    : sorted;
 
-  const totalExpenses = sorted
-    .filter((t) => (t.type === 'expense' || t.type === 'depense') && t.type !== 'transfert')
-    .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0);
+  const { totalIncome, totalExpenses } = computeIncomeExpenseTotals(filtered);
 
   const enterSelectionMode = (id) => {
     setSelectedIds(new Set([id]));
@@ -344,13 +346,30 @@ export default function HomeScreen({ navigation }) {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('toutes_operations')}</Text>
         </View>
 
-        {sorted.length > 0 && !selectionMode && (
+        <View style={[styles.searchContainer, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+          <Search color={colors.subText} size={16} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Rechercher..."
+            placeholderTextColor={colors.subText}
+          />
+        </View>
+
+        {searchQuery.trim() && filtered.length === 0 && (
+          <Text style={[styles.deleteHint, { color: colors.subText }]}>
+            Aucun résultat pour "{searchQuery.trim()}"
+          </Text>
+        )}
+
+        {filtered.length > 0 && !selectionMode && (
           <Text style={[styles.deleteHint, { color: colors.subText }]}>
             {t('appuie_poubelle')}
           </Text>
         )}
 
-        {sorted.length === 0 ? (
+        {filtered.length === 0 && !searchQuery.trim() ? (
           <View
             style={[
               styles.emptyCard,
@@ -363,7 +382,7 @@ export default function HomeScreen({ navigation }) {
             </Text>
             <TouchableOpacity
               style={[styles.emptyButton, { borderColor: accentColor }]}
-              onPress={() => navigation?.navigate('Ajout')}
+              onPress={() => { setEditingTransaction(null); navigation?.navigate('Ajout'); }}
             >
               <Text style={[styles.emptyButtonText, { color: accentColor }]}>
                 {t('ajouter_premiere')}
@@ -371,7 +390,7 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         ) : (
-          sorted.map((item) => {
+          filtered.map((item) => {
             if (!item) return null;
             const isExpense = item.type === 'expense' || item.type === 'depense';
             const isTransfer = item.type === 'transfert';
@@ -387,6 +406,9 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => {
                   if (selectionMode) {
                     toggleSelection(item.id);
+                  } else {
+                    setEditingTransaction(item);
+                    navigation?.navigate('Ajout');
                   }
                 }}
                 onLongPress={() => {
@@ -509,6 +531,8 @@ const styles = StyleSheet.create({
 
   sectionHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionTitle:   { fontSize: 18, fontWeight: 'bold' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, marginBottom: 12, borderWidth: 1 },
+  searchInput:     { flex: 1, fontSize: 14, fontWeight: '500', padding: 0 },
   deleteHint:     { fontSize: 11, fontWeight: '500', marginBottom: 14, opacity: 0.7 },
 
   txCard:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 12 },

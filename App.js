@@ -2,9 +2,12 @@ import './src/utils/cryptoPolyfill';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated, useColorScheme } from 'react-native';
-import PagerView from 'react-native-pager-view';
+import CrossPlatformPager from './src/view/components/CrossPlatformPager';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 let usePreventScreenCapture = () => {};
 try {
@@ -15,6 +18,7 @@ import { AuthProvider, useAuth } from './src/viewmodel/AuthContext';
 import { FinanceProvider, useFinance } from './src/viewmodel/FinanceContext';
 import { DebtProvider } from './src/viewmodel/DebtContext';
 import { TontineProvider } from './src/viewmodel/TontineContext';
+import { AccountingProvider } from './src/viewmodel/AccountingContext';
 import { useTranslation } from './src/utils/LanguageManager';
 
 import HomeScreen from './src/view/screens/HomeScreen';
@@ -26,6 +30,8 @@ import RegisterScreen from './src/view/screens/RegisterScreen';
 import OnboardingScreen from './src/view/screens/OnboardingScreen';
 
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
+
+const LOADING_TIMEOUT = 8000;
 
 function LoadingScreen() {
   const scheme = useColorScheme();
@@ -105,7 +111,7 @@ function MainTabs() {
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.bg}
       />
-      <PagerView
+      <CrossPlatformPager
         ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={0}
@@ -116,7 +122,7 @@ function MainTabs() {
             <ScreenComp navigation={tabNavigation} />
           </View>
         ))}
-      </PagerView>
+      </CrossPlatformPager>
       <View style={{
         flexDirection: 'row',
         backgroundColor: colors.barBg,
@@ -158,18 +164,37 @@ function RootNavigator() {
   const { user, loading } = useAuth();
   const { isLoaded, isUserDataLoaded } = useFinance();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
+  const [forceReady, setForceReady] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    AsyncStorage.getItem('@oraned_onboarding_seen').then((value) => {
-      setHasSeenOnboarding(value === 'true');
-    });
+    const timer = setTimeout(() => {
+      setHasSeenOnboarding((prev) => (prev === null ? false : prev));
+    }, LOADING_TIMEOUT);
+
+    AsyncStorage.getItem('@oraned_onboarding_seen')
+      .then((value) => {
+        clearTimeout(timer);
+        setHasSeenOnboarding(value === 'true');
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        setHasSeenOnboarding(false);
+      });
+
+    return () => clearTimeout(timer);
   }, []);
 
-  const isReady = !loading && isLoaded && (!user || isUserDataLoaded);
+  useEffect(() => {
+    const force = setTimeout(() => setForceReady(true), 15000);
+    return () => clearTimeout(force);
+  }, []);
+
+  const isReady = (forceReady || (!loading && isLoaded && (!user || isUserDataLoaded)));
 
   useEffect(() => {
     if (isReady) {
+      SplashScreen.hideAsync();
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 250,
@@ -202,7 +227,9 @@ export default function App() {
         <FinanceProvider>
           <DebtProvider>
             <TontineProvider>
-              <RootNavigator />
+              <AccountingProvider>
+                <RootNavigator />
+              </AccountingProvider>
             </TontineProvider>
           </DebtProvider>
         </FinanceProvider>

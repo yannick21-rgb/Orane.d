@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "/home/jhpy/FinanceTracker/.opencode/gsd-core/*": "allow"
+    },
+    "external_directory": {
+      "/home/jhpy/FinanceTracker/.opencode/gsd-core/*": "allow"
+    }
+  }
+}

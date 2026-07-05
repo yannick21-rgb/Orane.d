@@ -13,10 +13,11 @@ import { PieChart, BarChart } from 'react-native-chart-kit';
 // ✅ BUG #4b CORRIGÉ : Rect retiré (importé mais jamais utilisé → warning inutile)
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText, G } from 'react-native-svg';
 import { Dropdown } from 'react-native-element-dropdown';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
+import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
 import {
   isTransactionInLastNDays,
   isTransactionInCurrentWeek,
@@ -77,8 +78,7 @@ export default function StatsScreen() {
   }), [safeTransactions, period, startDate, endDate]);
 
   // ── Synthèse financière ───────────────────────────────────────────────────
-  const totalIncome   = filtered.filter((t) => (t.type === 'income' || t.type === 'revenu') && t.category !== 'Emprunt').reduce((s, t) => s + Math.abs(toNumber(t.amount)), 0);
-  const totalExpenses = filtered.filter((t) => (t.type === 'expense' || t.type === 'depense') && t.category !== 'Remboursement').reduce((s, t) => s + Math.abs(toNumber(t.amount)), 0);
+  const { totalIncome, totalExpenses } = computeIncomeExpenseTotals(filtered);
   const balance       = totalIncome - totalExpenses;
 
   // ── Prêts & Dettes ────────────────────────────────────────────────────────
@@ -251,18 +251,20 @@ export default function StatsScreen() {
         )}
 
         {showStartPicker && (
-          <DateTimePicker
+          <CrossPlatformDatePicker
             value={startDate}
             mode="date"
-            display="default"
+            isDark={isDark}
+            colors={{ inputBg: colors.inputBg, border: colors.border, text: colors.text }}
             onChange={(_, d) => { setShowStartPicker(false); if (d) setStartDate(d); }}
           />
         )}
         {showEndPicker && (
-          <DateTimePicker
+          <CrossPlatformDatePicker
             value={endDate}
             mode="date"
-            display="default"
+            isDark={isDark}
+            colors={{ inputBg: colors.inputBg, border: colors.border, text: colors.text }}
             onChange={(_, d) => { setShowEndPicker(false); if (d) setEndDate(d); }}
           />
         )}

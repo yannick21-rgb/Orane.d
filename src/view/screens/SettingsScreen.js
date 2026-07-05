@@ -14,17 +14,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dropdown } from 'react-native-element-dropdown';
-import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw } from 'lucide-react-native';
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw, Calculator } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
 import { exportTransactionsToCSV } from '../../service/exportCSV';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
 import PinAuthModal from '../components/PinAuthModal';
 import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
+import AccountingDashboardScreen from './Accounting/AccountingDashboardScreen';
+import { JournalListScreen, GeneralLedgerScreen, TrialBalanceScreen, ChartOfAccountsScreen } from './Accounting';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -223,6 +225,8 @@ export default function SettingsScreen({ navigation }) {
   const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
   const [showDebts, setShowDebts] = useState(false);
   const [showTontines, setShowTontines] = useState(false);
+  const [showAccounting, setShowAccounting] = useState(false);
+  const [accountingScreen, setAccountingScreen] = useState('dashboard');
 
   useEffect(() => {
     let isMounted = true;
@@ -696,11 +700,15 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
 
             {showTimePicker && (
-              <DateTimePicker
+              <CrossPlatformDatePicker
                 value={new Date(2024, 0, 1, reminderHour, reminderMinute)}
                 mode="time"
-                is24Hour
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                isDark={isDark}
+                colors={{
+                  inputBg: colors.inputBg,
+                  border: colors.border,
+                  text: colors.text,
+                }}
                 onChange={handleTimeChange}
               />
             )}
@@ -767,6 +775,18 @@ export default function SettingsScreen({ navigation }) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <RefreshCw size={18} color={accentColor} style={{ marginRight: 10 }} />
               <Text style={[styles.aboutLabel, { color: colors.text }]}>Tontine / Épargne</Text>
+            </View>
+            <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={() => { setShowAccounting(true); setAccountingScreen('dashboard'); }}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Calculator size={18} color={accentColor} style={{ marginRight: 10 }} />
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>Comptabilité (Partie double)</Text>
             </View>
             <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
           </TouchableOpacity>
@@ -882,6 +902,29 @@ export default function SettingsScreen({ navigation }) {
       {showTontines && (
         <View style={StyleSheet.absoluteFill}>
           <TontinesScreen onClose={() => setShowTontines(false)} />
+        </View>
+      )}
+
+      {showAccounting && (
+        <View style={StyleSheet.absoluteFill}>
+          {accountingScreen === 'dashboard' && (
+            <AccountingDashboardScreen
+              onNavigate={(screen) => setAccountingScreen(screen)}
+              onClose={() => { setShowAccounting(false); setAccountingScreen('dashboard'); }}
+            />
+          )}
+          {accountingScreen === 'journal' && (
+            <JournalListScreen />
+          )}
+          {accountingScreen === 'ledger' && (
+            <GeneralLedgerScreen onClose={() => setAccountingScreen('dashboard')} />
+          )}
+          {accountingScreen === 'trial' && (
+            <TrialBalanceScreen onClose={() => setAccountingScreen('dashboard')} />
+          )}
+          {accountingScreen === 'chart' && (
+            <ChartOfAccountsScreen onClose={() => setAccountingScreen('dashboard')} />
+          )}
         </View>
       )}
     </SafeAreaView>

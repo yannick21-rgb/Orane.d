@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "project_name": "Orane.d FinanceTracker",
+  "response_language": "fr",
+  "workflow": {
+    "parallelization": true,
+    "auto_advance": false,
+    "use_worktrees": false
+  },
+  "executor_model": "sonnet",
+  "verifier_model": "sonnet"
+}

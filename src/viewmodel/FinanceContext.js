@@ -41,6 +41,7 @@ export function FinanceProvider({ children }) {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [isUserDataLoaded, setIsUserDataLoaded] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const lastSavedUserId = useRef(null);
 
   const isDark = theme === 'Sombre' || (theme === 'Système' && systemScheme === 'dark');
@@ -101,6 +102,26 @@ export function FinanceProvider({ children }) {
       }
     };
     init();
+  }, []);
+
+  const scheduleMonthlyReview = useCallback(async () => {
+    if (!Notifications) return;
+    try {
+      const now = new Date();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      lastDay.setHours(20, 0, 0, 0);
+      if (lastDay <= now) {
+        lastDay.setMonth(lastDay.getMonth() + 1);
+        lastDay.setDate(0);
+        lastDay.setHours(20, 0, 0, 0);
+      }
+      await Notifications.scheduleNotificationAsync({
+        content: { title: 'Bilan mensuel Orane.d', body: 'Découvre ton bilan financier du mois !' },
+        trigger: { date: lastDay, channelId: 'monthly-review' },
+      });
+    } catch (err) {
+      console.error('[FinanceContext] Erreur planification bilan :', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -169,11 +190,12 @@ export function FinanceProvider({ children }) {
         setBudgetLimit(0);
       } finally {
         setIsUserDataLoaded(true);
+        scheduleMonthlyReview();
       }
     };
 
     loadUserData();
-  }, [userId]);
+  }, [userId, scheduleMonthlyReview]);
 
   const changeGlobalLanguage = async (langValue) => {
     try {
@@ -335,26 +357,6 @@ export function FinanceProvider({ children }) {
     }
   };
 
-  const scheduleMonthlyReview = async () => {
-    if (!Notifications) return;
-    try {
-      const now = new Date();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      lastDay.setHours(20, 0, 0, 0);
-      if (lastDay <= now) {
-        lastDay.setMonth(lastDay.getMonth() + 1);
-        lastDay.setDate(0);
-        lastDay.setHours(20, 0, 0, 0);
-      }
-      await Notifications.scheduleNotificationAsync({
-        content: { title: 'Bilan mensuel Orane.d', body: 'Découvre ton bilan financier du mois !' },
-        trigger: { date: lastDay, channelId: 'monthly-review' },
-      });
-    } catch (err) {
-      console.error('[FinanceContext] Erreur planification bilan :', err);
-    }
-  };
-
   useEffect(() => {
     if (!isLoaded || !userId) return;
     if (lastSavedUserId.current !== userId) return;
@@ -427,6 +429,12 @@ export function FinanceProvider({ children }) {
     }
   };
 
+  const updateTransaction = (id, updates) => {
+    setTransactions((prev) =>
+      (prev || []).map((t) => (t.id === id ? { ...t, ...updates } : t))
+    );
+  };
+
   const deleteTransaction = (id) => {
     setTransactions((prev) => (prev || []).filter((t) => t.id !== id));
   };
@@ -445,8 +453,8 @@ export function FinanceProvider({ children }) {
         transactions, momoBalance: walletBalances.momoBalance, cashBalance: walletBalances.cashBalance,
         totalDepenses: walletBalances.totalDepenses, theme, setTheme, accentColor, setAccentColor,
         devise, setDevise, locale, changeGlobalLanguage, isDark, budgetLimit, setBudgetLimit,
-        addTransaction, deleteTransaction, deleteMultipleTransactions, resetAllTransactions,
-        isUserDataLoaded, isDiscreteMode, hasPinCode, saveNewPin, unlockDiscreteMode,
+        addTransaction, updateTransaction, deleteTransaction, deleteMultipleTransactions, resetAllTransactions,
+        isLoaded, isUserDataLoaded, editingTransaction, setEditingTransaction, isDiscreteMode, hasPinCode, saveNewPin, unlockDiscreteMode,
         toggleDiscreteMode, changePinCode, resetPinCodeWithPassword, exportTransactionsAsCSV,
         budgetPeriod, setBudgetPeriod, reminderHour, reminderMinute, checkBudgetPeriodAlert,
         updateDailyReminderTime, scheduleMonthlyReview,
