@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGamification } from '../../viewmodel/GamificationContext';
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { useColors } from '../theme';
 
 export default function GamificationToast() {
   const { notifications, dismissNotification } = useGamification();
@@ -10,6 +11,7 @@ export default function GamificationToast() {
   const insets = useSafeAreaInsets();
   const note = notifications.length ? notifications[notifications.length - 1] : null;
   const anim = useRef(new Animated.Value(0)).current;
+  const colors = useColors();
 
   useEffect(() => {
     if (!note) return;
@@ -22,9 +24,12 @@ export default function GamificationToast() {
 
   if (!note) return null;
 
-  const bg = note.kind === 'level' ? accentColor : note.kind === 'badge' ? '#f59e0b' : isDark ? '#1e293b' : '#ffffff';
-  const fg = note.kind === 'level' || note.kind === 'badge' ? '#fff' : isDark ? '#fff' : '#131419';
-  const subFg = note.kind === 'level' || note.kind === 'badge' ? 'rgba(255,255,255,0.9)' : isDark ? '#94a3b8' : '#6a6c7a';
+  const isReward = note.kind === 'level' || note.kind === 'badge';
+  // Écarts conservés : le toast utilise une carte bleu ardoise en thème
+  // sombre et un sous-texte plus clair, différents de la palette générale.
+  const bg = note.kind === 'level' ? accentColor : note.kind === 'badge' ? colors.warning : isDark ? '#1e293b' : colors.card;
+  const fg = isReward ? '#fff' : colors.text;
+  const subFg = isReward ? 'rgba(255,255,255,0.9)' : isDark ? '#94a3b8' : colors.subText;
 
   return (
     <Animated.View

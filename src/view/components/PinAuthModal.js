@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { buildColors } from '../theme';
 
 export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock, hasPin, isDark, accentColor, remainingText }) {
   const [pin, setPin] = useState('');
@@ -69,13 +70,17 @@ export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock,
     onClose();
   }, [onClose]);
 
-  const colors = {
-    text: isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    card: isDark ? '#16171f' : '#ffffff',
-    overlay: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.4)',
-    dotBg: isDark ? '#2a2b38' : '#e8eaef',
-  };
+  // Ce composant reçoit isDark/accentColor en props (et non via useFinance) :
+  // on construit donc la palette directement. Ecarts conservés : voile plus
+  // translucide et pastilles sur la teinte `border` plutôt que `dot`.
+  const colors = useMemo(() => {
+    const base = buildColors(isDark, accentColor);
+    return {
+      ...base,
+      overlay: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.4)',
+      dotBg: base.border,
+    };
+  }, [isDark, accentColor]);
 
   const keys = [
     ['1', '2', '3'],

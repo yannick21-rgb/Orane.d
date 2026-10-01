@@ -8,9 +8,10 @@ import { useDebts } from '../../viewmodel/DebtContext';
 import { DEBT_TYPES } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useColors } from '../theme';
 
 export default function DebtFormModal({ visible, onClose, initialData, defaultType }) {
-  const { isDark, accentColor } = useFinance();
+  const { accentColor } = useFinance();
   const { addDebt, updateDebt } = useDebts();
   const isEdit = !!initialData;
 
@@ -41,14 +42,7 @@ export default function DebtFormModal({ visible, onClose, initialData, defaultTy
     }
   }, [visible, initialData, defaultType]);
 
-  const colors = {
-    bg: isDark ? '#0f1015' : '#f5f6fa',
-    card: isDark ? '#16171f' : '#ffffff',
-    text: isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    input: isDark ? '#1c1d28' : '#f0f1f6',
-    border: isDark ? '#2a2b38' : '#e8eaef',
-  };
+  const colors = useColors();
 
   const handleSave = async () => {
     if (!personName.trim()) {

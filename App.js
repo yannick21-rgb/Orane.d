@@ -1,7 +1,7 @@
 import './src/utils/cryptoPolyfill';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated, useColorScheme } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated } from 'react-native';
 import CrossPlatformPager from './src/view/components/CrossPlatformPager';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,15 +31,15 @@ import RegisterScreen from './src/view/screens/RegisterScreen';
 import OnboardingScreen from './src/view/screens/OnboardingScreen';
 
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
+import { buildColors, useColors } from './src/view/theme';
 
 const LOADING_TIMEOUT = 5000;
 
 function LoadingScreen() {
-  const scheme = useColorScheme();
-  const bgColor = scheme === 'dark' ? '#0f1015' : '#f5f6fa';
+  const { bg, accent } = useColors();
   return (
-    <View style={[styles.centered, { backgroundColor: bgColor }]}>
-      <ActivityIndicator size="large" color="#3b82f6" />
+    <View style={[styles.centered, { backgroundColor: bg }]}>
+      <ActivityIndicator size="large" color={accent} />
     </View>
   );
 }
@@ -99,12 +99,17 @@ function MainTabs() {
 
   const insets = useSafeAreaInsets();
 
-  const colors = {
-    bg: isDark ? '#0f1015' : '#f5f6fa',
-    barBg: isDark ? '#16171f' : '#ffffff',
-    inactive: isDark ? '#555660' : '#8c8e9b',
-    border: isDark ? '#1e202c' : '#eef0f5',
-  };
+  // Écarts conservés : la barre d'onglets a sa propre teinte de bordure et
+  // un gris inactif plus contrasté que le `subText` de la palette.
+  const colors = useMemo(() => {
+    const base = buildColors(isDark, accentColor);
+    return {
+      ...base,
+      barBg: base.card,
+      inactive: isDark ? '#555660' : '#8c8e9b',
+      border: isDark ? '#1e202c' : base.borderSoft,
+    };
+  }, [isDark, accentColor]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
