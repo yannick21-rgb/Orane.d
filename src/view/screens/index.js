@@ -8,3 +8,4 @@ export { default as OnboardingScreen } from './OnboardingScreen';
 export { default as DebtsScreen } from './DebtsScreen';
 export { default as TontinesScreen } from './TontinesScreen';
 export { default as TontineDetailScreen } from './TontineDetailScreen';
+export { default as ProgressScreen } from './ProgressScreen';
