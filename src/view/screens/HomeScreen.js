@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
 import { useResponsive } from '../../utils/responsive';
 import { Trash2, CheckSquare, Square, X, Eye, EyeOff, Search } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
+import { buildColors } from '../theme';
 
 const CATEGORY_ICONS = {
   'Alimentation':        '🛒',
@@ -131,15 +132,12 @@ export default function HomeScreen({ navigation }) {
   const [walletIndex, setWalletIndex] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
 
-  const colors = {
-    bg:      isDark ? '#0f1015' : '#f5f6fa',
-    cardBg:  isDark ? '#16171f' : '#ffffff',
-    text:    isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    border:  isDark ? 'transparent' : '#eef0f5',
-    income:  '#2ecc71',
-    expense: '#ff5c5c',
-  };
+  // Ecart conservé : les cartes de cet écran n'ont pas de bordure en thème
+  // sombre, contrairement aux autres écrans (`borderSoft`).
+  const colors = useMemo(() => {
+    const base = buildColors(isDark, accentColor);
+    return { ...base, border: base.borderSoft };
+  }, [isDark, accentColor]);
 
   const safeTransactions = Array.isArray(transactions)
     ? transactions.filter(Boolean)
@@ -302,7 +300,7 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Text style={[styles.gamifArrow, { color: accentColor }]}>›</Text>
             </View>
-            <View style={[styles.gamifTrack, { backgroundColor: isDark ? '#222431' : '#eef0f5' }]}>
+            <View style={[styles.gamifTrack, { backgroundColor: colors.track }]}>
               <View style={[styles.gamifFill, { backgroundColor: accentColor, width: `${Math.round(levelInfo.progress * 100)}%` }]} />
             </View>
             <View style={styles.gamifStreakRow}>
@@ -396,7 +394,7 @@ export default function HomeScreen({ navigation }) {
                 {isDiscreteMode ? '••••' : `+${totalIncome.toFixed(2)} ${deviseSymbol}`}
               </Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: isDark ? '#222431' : '#eef0f5' }]} />
+            <View style={[styles.statDivider, { backgroundColor: colors.track }]} />
             <View style={styles.statContainer}>
               <Text style={[styles.statLabel, { color: colors.subText }]}>{t('depenses')}</Text>
               <Text style={[styles.statValue, { color: colors.expense }]}>

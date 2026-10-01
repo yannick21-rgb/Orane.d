@@ -25,6 +25,7 @@ import {
   isTransactionInCurrentWeek,
   isTransactionInMonth,
 } from '../../utils/transactionDates';
+import { useColors } from '../theme';
 
 const PERIODS = [
   { key: '7j',           label: '7 jours'      },
@@ -50,15 +51,7 @@ export default function StatsScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker]     = useState(false);
 
-  const colors = {
-    bg:      isDark ? '#0f1015' : '#f5f6fa',
-    card:    isDark ? '#16171f' : '#ffffff',
-    text:    isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    line:    isDark ? '#222431' : '#eef0f5',
-    inputBg: isDark ? '#1c1d28' : '#f0f1f6',
-    border:  isDark ? '#2a2b38' : '#e8eaef',
-  };
+  const colors = useColors();
 
   const safeTransactions = Array.isArray(transactions)
     ? transactions.filter(Boolean)
@@ -176,9 +169,9 @@ export default function StatsScreen() {
   };
 
   const chartConfig = {
-    backgroundColor:        isDark ? '#16171f' : '#ffffff',
-    backgroundGradientFrom: isDark ? '#16171f' : '#ffffff',
-    backgroundGradientTo:   isDark ? '#16171f' : '#ffffff',
+    backgroundColor:        colors.card,
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo:   colors.card,
     decimalPlaces: 0,
     color:      (opacity = 1) => `rgba(${hexToRgb(accentColor)}, ${opacity})`,
     labelColor: ()            => colors.subText,

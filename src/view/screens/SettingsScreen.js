@@ -31,6 +31,7 @@ import PinAuthModal from '../components/PinAuthModal';
 import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
+import { useColors } from '../theme';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -269,17 +270,7 @@ export default function SettingsScreen({ navigation }) {
 
   const deviseDropdownValue = DEVISES_DU_MONDE.find(d => devise?.includes(d.value))?.value || 'EUR';
 
-  const colors = {
-    bg:             isDark ? '#0f1015' : '#f5f6fa',
-    cardBg:         isDark ? '#16171f' : '#ffffff',
-    text:           isDark ? '#ffffff' : '#131419',
-    subText:        isDark ? '#8c8e9b' : '#6a6c7a',
-    unselectedPill: isDark ? '#232430' : '#eef0f5',
-    border:         isDark ? '#2a2b38' : '#e8eaef',
-    inputBg:        isDark ? '#1c1d28' : '#f0f1f6',
-    modalBg:        isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.5)',
-    danger:         '#ef4444',
-  };
+  const colors = useColors();
 
   const themesList = [t('sombre'), t('clair'), t('systeme')];
 

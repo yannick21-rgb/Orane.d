@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useFinance } from '../../viewmodel/FinanceContext';
 import { APP_NAME } from '../../model/AppConstants';
 import { useResponsive } from '../../utils/responsive';
 import Constants from 'expo-constants';
+import { buildColors } from '../theme';
 
 const slides = [
   {
@@ -45,19 +46,19 @@ const slides = [
 export default function OnboardingScreen({ onComplete }) {
   const flatListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { isDark } = useFinance();
+  const { isDark, accentColor } = useFinance();
   const insets = useSafeAreaInsets();
   const { width, contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
 
   const isLast = currentIndex === slides.length - 1;
 
-  const colors = {
-    bg: isDark ? '#0f1015' : '#ffffff',
-    text: isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    dot: isDark ? '#2a2b38' : '#d1d5db',
-  };
+  // Ecart conservé : l'onboarding a un fond plein blanc en thème clair,
+  // là où le reste de l'application utilise le gris très clair.
+  const colors = useMemo(
+    () => buildColors(isDark, accentColor, { bg: '#ffffff' }),
+    [isDark, accentColor]
+  );
 
   const handleNext = () => {
     if (isLast) {

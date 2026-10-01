@@ -21,6 +21,7 @@ import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, co
 import VoiceInputButton from '../components/VoiceInputButton';
 import { parseVoiceInput } from '../../utils/voiceParser';
 import { useResponsive } from '../../utils/responsive';
+import { buildColors } from '../theme';
 
 export default function AddTransactionScreen({ navigation }) {
   const { t } = useTranslation();
@@ -65,15 +66,12 @@ export default function AddTransactionScreen({ navigation }) {
     };
   }, []);
 
-  const colors = {
-    bg:      isDark ? '#0f1015' : '#f5f6fa',
-    card:    isDark ? '#16171f' : '#ffffff',
-    text:    isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    input:   isDark ? '#222431' : '#eef0f5',
-    border:  isDark ? '#2a2b38' : '#e8eaef',
-    modalBg: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.5)',
-  };
+  // Ecart conservé : les champs de saisie de cet écran prennent la teinte
+  // `track` alors que les autres écrans utilisent `inputBg`.
+  const colors = useMemo(() => {
+    const base = buildColors(isDark, accentColor);
+    return { ...base, input: base.track };
+  }, [isDark, accentColor]);
 
   const currentCategories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
