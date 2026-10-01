@@ -17,9 +17,10 @@ import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useResponsive } from '../../utils/responsive';
+import { useColors } from '../theme';
 
 export default function LoginScreen({ onSwitchToRegister }) {
-  const { isDark, accentColor } = useFinance();
+  const { accentColor } = useFinance();
   const { login } = useAuth();
   const { t } = useTranslation();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
@@ -29,14 +30,7 @@ export default function LoginScreen({ onSwitchToRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const colors = {
-    bg:      isDark ? '#0f1015' : '#f5f6fa',
-    card:    isDark ? '#16171f' : '#ffffff',
-    text:    isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    input:   isDark ? '#1c1d28' : '#f0f1f6',
-    border:  isDark ? '#2a2b38' : '#e8eaef',
-  };
+  const colors = useColors();
 
   const handleLogin = async () => {
     const cleanEmail = email.trim().toLowerCase();

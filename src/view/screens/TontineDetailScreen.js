@@ -10,9 +10,10 @@ import { useGamification } from '../../viewmodel/GamificationContext';
 import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import { useResponsive } from '../../utils/responsive';
+import { useColors } from '../theme';
 
 export default function TontineDetailScreen({ group, onClose }) {
-  const { isDark, accentColor, devise, addTransaction } = useFinance();
+  const { accentColor, devise, addTransaction } = useFinance();
   const { markRoundPaid, markRoundReceived } = useTontines();
   const { awardTontineRound } = useGamification();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
@@ -20,17 +21,7 @@ export default function TontineDetailScreen({ group, onClose }) {
   const deviseSymbol = devise?.split(' ')[0] || 'F';
   const summary = computeTontineSummary(group);
 
-  const colors = {
-    bg: isDark ? '#0f1015' : '#f5f6fa',
-    card: isDark ? '#16171f' : '#ffffff',
-    text: isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    input: isDark ? '#1c1d28' : '#f0f1f6',
-    border: isDark ? '#2a2b38' : '#e8eaef',
-    green: '#2ecc71',
-    orange: '#f59e0b',
-    red: '#ef4444',
-  };
+  const colors = useColors();
 
   const handleMarkPaid = (round) => {
     Alert.alert(

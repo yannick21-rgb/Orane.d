@@ -11,9 +11,10 @@ import { DEBT_TABS, DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DebtFormModal from '../components/DebtFormModal';
 import { useResponsive } from '../../utils/responsive';
+import { useColors } from '../theme';
 
 export default function DebtsScreen({ onClose }) {
-  const { isDark, accentColor, devise, addTransaction } = useFinance();
+  const { accentColor, devise, addTransaction } = useFinance();
   const { debts, deleteDebt, markReimbursed } = useDebts();
   const { awardDebtReimbursed } = useGamification();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
@@ -26,17 +27,7 @@ export default function DebtsScreen({ onClose }) {
   const [showReimburse, setShowReimburse] = useState(null);
   const [reimburseAmount, setReimburseAmount] = useState('');
 
-  const colors = {
-    bg: isDark ? '#0f1015' : '#f5f6fa',
-    card: isDark ? '#16171f' : '#ffffff',
-    text: isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    input: isDark ? '#1c1d28' : '#f0f1f6',
-    border: isDark ? '#2a2b38' : '#e8eaef',
-    green: '#2ecc71',
-    orange: '#f59e0b',
-    red: '#ef4444',
-  };
+  const colors = useColors();
 
   const filtered = useMemo(() =>
     debts.filter((d) => d.type === activeTab),

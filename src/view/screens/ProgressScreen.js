@@ -7,22 +7,16 @@ import { useGamification } from '../../viewmodel/GamificationContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { useResponsive } from '../../utils/responsive';
 import { BADGE_DEFS, STREAK_DEFS } from '../../model/GamificationModel';
+import { useColors } from '../theme';
 
 export default function ProgressScreen({ onClose }) {
-  const { isDark, accentColor } = useFinance();
+  const { accentColor } = useFinance();
   const { t } = useTranslation();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const { levelInfo, streaks, badges, challenges } = useGamification();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
 
-  const colors = {
-    bg: isDark ? '#0f1015' : '#f5f6fa',
-    card: isDark ? '#16171f' : '#ffffff',
-    text: isDark ? '#ffffff' : '#131419',
-    subText: isDark ? '#8c8e9b' : '#6a6c7a',
-    border: isDark ? '#2a2b38' : '#e8eaef',
-    input: isDark ? '#1c1d28' : '#f0f1f6',
-  };
+  const colors = useColors();
 
   const unlockedIds = new Set((badges || []).map((b) => b.id));
 
