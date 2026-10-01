@@ -12,7 +12,8 @@
         "UIBackgroundModes": [
           "remote-notification"
         ]
-      }
+      },
+      "bundleIdentifier": "com.jhpy.Orane"
     },
     "android": {
       "package": "com.jhpy.Orane",
@@ -25,7 +26,9 @@
       "permissions": [
         "POST_NOTIFICATIONS",
         "SCHEDULE_EXACT_ALARM",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -34,7 +37,9 @@
     "extra": {
       "eas": {
         "projectId": "72b315e8-e3a4-435e-97ed-c6fc3b7fd91c"
-      }
+      },
+      "supabaseUrl": "https://pqyxtnywcwftcxbuefde.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxeXh0bnl3Y3dmdGN4YnVlZmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNDE2NjgsImV4cCI6MjA5ODgxNzY2OH0.jeaVceo7fX7Gn81O-knQH2SRQLEFrTeYnRHnDdQdIn0"
     },
     "owner": "yannick21",
     "plugins": [
@@ -45,13 +50,23 @@
           "color": "#3b82f6"
         }
       ],
-      "expo-sharing",
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#f5f6fa",
           "image": "./assets/icon.png",
           "imageWidth": 100
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Autoriser Orane.d à utiliser le micro pour la saisie vocale des transactions.",
+          "speechRecognitionPermission": "Autoriser Orane.d à utiliser la reconnaissance vocale pour dicter vos transactions."
         }
       ]
     ]
