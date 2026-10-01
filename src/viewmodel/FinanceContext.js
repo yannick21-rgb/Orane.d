@@ -6,12 +6,30 @@ import { exportTransactionsToCSV as exportCSV } from '../service/exportCSV';
 import { verifyPassword, hashPin, verifyPin, storePinHash, getStoredPinHash, removePinHash, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit, getRemainingAttemptsText } from '../utils/security';
 import { safeAsyncRead, safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncWrite, safeAsyncRemove, validateTransaction, filterValidRecords } from '../utils/storage';
 import { secureSet, secureGet, secureGetJSON, secureRemove, initSecureStorage } from '../utils/secureStorage';
+import { sync, mergeRecords } from '../utils/sync';
+import Constants from 'expo-constants';
 
-let Notifications;
-try {
-  Notifications = require('expo-notifications');
-} catch (e) {
-  Notifications = null;
+let Notifications = null;
+
+function isExpoGo() {
+  try {
+    return Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
+  } catch (_) {
+    return false;
+  }
+}
+
+async function loadNotifications() {
+  if (isExpoGo()) return false;
+  if (Notifications !== null) return Notifications !== false;
+  try {
+    Notifications = await import('expo-notifications');
+    return true;
+  } catch (e) {
+    if (e && e.message && e.message.includes('removed from Expo Go')) return false;
+    Notifications = false;
+    return false;
+  }
 }
 
 const normalizeType = (type) => {
@@ -33,6 +51,7 @@ export function FinanceProvider({ children }) {
   const [locale, setLocale] = useState(LanguageManager.currentLanguage);
   const [budgetLimit, setBudgetLimit] = useState(0);
   const [budgetPeriod, setBudgetPeriod] = useState('month');
+  const [budgetStartDate, setBudgetStartDate] = useState(null);
   const [reminderHour, setReminderHour] = useState(20);
   const [reminderMinute, setReminderMinute] = useState(0);
 
@@ -49,6 +68,7 @@ export function FinanceProvider({ children }) {
   const walletBalances = useMemo(() => {
     let totalMomo = 0;
     let totalCash = 0;
+    let totalBanque = 0;
     let totalDepenses = 0;
     (transactions || []).forEach((tx) => {
       if (!tx) return;
@@ -63,15 +83,17 @@ export function FinanceProvider({ children }) {
       } else if (type === 'revenu') {
         const amt = Number(tx.amount) || 0;
         if (wallet === 'momo') totalMomo += amt;
+        else if (wallet === 'banque') totalBanque += amt;
         else totalCash += amt;
       } else if (type === 'depense') {
         const amt = Number(tx.amount) || 0;
         if (wallet === 'momo') totalMomo -= amt;
+        else if (wallet === 'banque') totalBanque -= amt;
         else totalCash -= amt;
         totalDepenses += amt;
       }
     });
-    return { momoBalance: totalMomo, cashBalance: totalCash, totalDepenses };
+    return { momoBalance: totalMomo, cashBalance: totalCash, banqueBalance: totalBanque, totalDepenses };
   }, [transactions]);
 
   useEffect(() => {
@@ -80,19 +102,29 @@ export function FinanceProvider({ children }) {
         await LanguageManager.init();
         setLocale(LanguageManager.currentLanguage);
 
-        const [storedTheme, storedAccent, storedDevise, storedPeriod, storedHour, storedMinute] = await Promise.all([
+        if (await loadNotifications()) {
+          try {
+            await Notifications.getAllScheduledNotificationsAsync();
+          } catch (_) {
+            Notifications = false;
+          }
+        }
+
+        const [storedTheme, storedAccent, storedDevise, storedPeriod, storedHour, storedMinute, storedStartDate] = await Promise.all([
           safeAsyncRead('@user_theme', null),
           safeAsyncRead('@accent_color', null),
           safeAsyncRead('@devise', null),
           safeAsyncRead('@oraned_budget_period', null),
           safeAsyncRead('@oraned_reminder_hour', null),
           safeAsyncRead('@oraned_reminder_minute', null),
+          safeAsyncRead('@oraned_budget_start_date', null),
         ]);
 
         if (storedTheme) setTheme(storedTheme);
         if (storedAccent) setAccentColor(storedAccent);
         if (storedDevise) setDevise(storedDevise);
         if (storedPeriod) setBudgetPeriod(storedPeriod);
+        if (storedStartDate) setBudgetStartDate(storedStartDate);
         if (storedHour) setReminderHour(Number(storedHour));
         if (storedMinute) setReminderMinute(Number(storedMinute));
       } catch (err) {
@@ -105,7 +137,8 @@ export function FinanceProvider({ children }) {
   }, []);
 
   const scheduleMonthlyReview = useCallback(async () => {
-    if (!Notifications) return;
+    if (isExpoGo()) return;
+    if (!(await loadNotifications())) return;
     try {
       const now = new Date();
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -119,15 +152,17 @@ export function FinanceProvider({ children }) {
         content: { title: 'Bilan mensuel Orane.d', body: 'Découvre ton bilan financier du mois !' },
         trigger: { date: lastDay, channelId: 'monthly-review' },
       });
-    } catch (err) {
-      console.error('[FinanceContext] Erreur planification bilan :', err);
+    } catch (_) {
+      Notifications = false;
     }
   }, []);
 
   useEffect(() => {
     if (!userId) {
+      sync.reset();
       setTransactions([]);
       setBudgetLimit(0);
+      setBudgetStartDate(null);
       setHasPinCode(false);
       setIsDiscreteMode(true);
       setIsUserDataLoaded(false);
@@ -142,18 +177,27 @@ export function FinanceProvider({ children }) {
         const txKey = `@oraned_transactions_${userId}`;
         const storedTx = await safeAsyncReadJSON(txKey, null);
 
+        let localTx;
+
         if (storedTx && Array.isArray(storedTx)) {
-          setTransactions(filterValidRecords(storedTx, validateTransaction));
+          localTx = filterValidRecords(storedTx, validateTransaction);
         } else {
           const oldTx = await safeAsyncReadJSON('@transactions', null);
           if (oldTx && Array.isArray(oldTx)) {
-            const valid = filterValidRecords(oldTx, validateTransaction);
-            setTransactions(valid);
-            await safeAsyncWriteJSON(txKey, valid);
+            localTx = filterValidRecords(oldTx, validateTransaction);
+            await safeAsyncWriteJSON(txKey, localTx);
           } else {
-            setTransactions([]);
+            localTx = [];
           }
         }
+
+        await sync.init(userId);
+        const cloudTx = await sync.pull('transactions');
+        if (cloudTx.length > 0) {
+          localTx = mergeRecords(localTx, cloudTx);
+        }
+
+        setTransactions(localTx);
 
         const storedBudget = await safeAsyncReadJSON(`@oraned_budget_limit_${userId}`, null);
         if (storedBudget !== null) {
@@ -167,6 +211,9 @@ export function FinanceProvider({ children }) {
             setBudgetLimit(0);
           }
         }
+
+        const storedStartDate = await safeAsyncRead('@oraned_budget_start_date', null);
+        if (storedStartDate) setBudgetStartDate(storedStartDate);
 
         const storedHash = await getStoredPinHash(userId);
         if (storedHash) {
@@ -295,6 +342,15 @@ export function FinanceProvider({ children }) {
     return true;
   };
 
+  const resetPinCodeDirect = async (newPin) => {
+    if (!userId) return false;
+    const hashed = await hashPin(newPin);
+    await storePinHash(userId, hashed);
+    await resetPinRateLimit(userId);
+    setHasPinCode(true);
+    return true;
+  };
+
   const exportTransactionsAsCSV = async () => {
     const symbol = devise?.split(' ')[0] || '€';
     await exportCSV(transactions, symbol);
@@ -309,12 +365,30 @@ export function FinanceProvider({ children }) {
       const d = new Date(t.date);
       if (budgetPeriod === 'day') return d.toDateString() === now.toDateString();
       if (budgetPeriod === 'week') {
+        if (budgetStartDate) {
+          const start = new Date(budgetStartDate);
+          const diffDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+          const periodStart = new Date(start);
+          periodStart.setDate(start.getDate() + Math.floor(diffDays / 7) * 7);
+          periodStart.setHours(0, 0, 0, 0);
+          const periodEnd = new Date(periodStart);
+          periodEnd.setDate(periodStart.getDate() + 7);
+          return d >= periodStart && d < periodEnd;
+        }
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 7);
         return d >= startOfWeek && d < endOfWeek;
+      }
+      if (budgetStartDate) {
+        const startDay = new Date(budgetStartDate).getDate();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), startDay);
+        if (now < periodStart) periodStart.setMonth(periodStart.getMonth() - 1);
+        const periodEnd = new Date(periodStart);
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        return d >= periodStart && d < periodEnd;
       }
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((sum, t) => {
@@ -324,7 +398,7 @@ export function FinanceProvider({ children }) {
       }
       return sum + (Number(t.amount) || 0);
     }, 0);
-  }, [transactions, budgetPeriod]);
+  }, [transactions, budgetPeriod, budgetStartDate]);
 
   const checkBudgetPeriodAlert = useCallback((totalOverride) => {
     if (budgetLimit <= 0) return;
@@ -340,7 +414,8 @@ export function FinanceProvider({ children }) {
   }, [budgetLimit, budgetPeriod, getPeriodExpenses, devise]);
 
   const updateDailyReminderTime = async (hour, minute) => {
-    if (!Notifications) return;
+    if (isExpoGo()) return;
+    if (!(await loadNotifications())) return;
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
       setReminderHour(hour);
@@ -352,15 +427,17 @@ export function FinanceProvider({ children }) {
         content: { title: 'Orane.d', body: 'Pense à enregistrer tes dépenses du jour !' },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
       });
-    } catch (err) {
-      console.error('[FinanceContext] Erreur planification rappel :', err);
+    } catch (_) {
+      Notifications = false;
     }
   };
 
   useEffect(() => {
     if (!isLoaded || !userId) return;
     if (lastSavedUserId.current !== userId) return;
-    safeAsyncWriteJSON(`@oraned_transactions_${userId}`, transactions).catch(
+    safeAsyncWriteJSON(`@oraned_transactions_${userId}`, transactions).then(() => {
+      sync.push('transactions', transactions);
+    }).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde transactions :', err)
     );
   }, [transactions, isLoaded, userId]);
@@ -403,6 +480,13 @@ export function FinanceProvider({ children }) {
 
   useEffect(() => {
     if (!isLoaded) return;
+    safeAsyncWrite('@oraned_budget_start_date', budgetStartDate).catch(
+      (err) => console.error('[FinanceContext] Erreur sauvegarde date début budget :', err)
+    );
+  }, [budgetStartDate, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
     safeAsyncWrite('@oraned_reminder_hour', String(reminderHour)).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde heure rappel :', err)
     );
@@ -423,7 +507,8 @@ export function FinanceProvider({ children }) {
     };
     const newTxExpense = getEffectiveExpense(transaction);
     const prevTotal = getPeriodExpenses();
-    setTransactions((prev) => [transaction, ...(prev || [])]);
+    const record = { ...transaction, updated_at: new Date().toISOString() };
+    setTransactions((prev) => [record, ...(prev || [])]);
     if (budgetLimit > 0 && newTxExpense > 0) {
       checkBudgetPeriodAlert(prevTotal + newTxExpense);
     }
@@ -431,7 +516,9 @@ export function FinanceProvider({ children }) {
 
   const updateTransaction = (id, updates) => {
     setTransactions((prev) =>
-      (prev || []).map((t) => (t.id === id ? { ...t, ...updates } : t))
+      (prev || []).map((t) =>
+        t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+      )
     );
   };
 
@@ -450,13 +537,13 @@ export function FinanceProvider({ children }) {
   return (
     <FinanceContext.Provider
       value={{
-        transactions, momoBalance: walletBalances.momoBalance, cashBalance: walletBalances.cashBalance,
+        transactions, momoBalance: walletBalances.momoBalance, cashBalance: walletBalances.cashBalance, banqueBalance: walletBalances.banqueBalance,
         totalDepenses: walletBalances.totalDepenses, theme, setTheme, accentColor, setAccentColor,
         devise, setDevise, locale, changeGlobalLanguage, isDark, budgetLimit, setBudgetLimit,
         addTransaction, updateTransaction, deleteTransaction, deleteMultipleTransactions, resetAllTransactions,
         isLoaded, isUserDataLoaded, editingTransaction, setEditingTransaction, isDiscreteMode, hasPinCode, saveNewPin, unlockDiscreteMode,
-        toggleDiscreteMode, changePinCode, resetPinCodeWithPassword, exportTransactionsAsCSV,
-        budgetPeriod, setBudgetPeriod, reminderHour, reminderMinute, checkBudgetPeriodAlert,
+        toggleDiscreteMode, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, exportTransactionsAsCSV,
+        budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute, checkBudgetPeriodAlert, getPeriodExpenses,
         updateDailyReminderTime, scheduleMonthlyReview,
       }}
     >

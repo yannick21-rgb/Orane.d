@@ -3,6 +3,8 @@ import { useAuth } from './AuthContext';
 import { tontinesKey, generateRounds, ROUND_STATUS, computeTontineSummary } from '../model/TontineModel';
 import { toNumber } from '../utils/format';
 import { validateTontine, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
+import { sync, mergeRecords } from '../utils/sync';
+import Constants from 'expo-constants';
 
 const TontineContext = createContext({});
 
@@ -15,7 +17,15 @@ export function TontineProvider({ children }) {
     if (!userId) { setGroups([]); setLoaded(true); return; }
     try {
       const raw = await safeAsyncReadJSON(tontinesKey(userId), []);
-      setGroups(filterValidRecords(raw, validateTontine));
+      let local = filterValidRecords(raw, validateTontine);
+
+      await sync.init(userId);
+      const cloud = await sync.pull('tontines');
+      if (cloud.length > 0) {
+        local = mergeRecords(local, cloud);
+      }
+
+      setGroups(local);
     } catch (e) {
       console.error('[TontineContext] Erreur chargement :', e);
       setGroups([]);
@@ -30,6 +40,7 @@ export function TontineProvider({ children }) {
     if (!userId) return;
     setGroups(updated);
     await safeAsyncWriteJSON(tontinesKey(userId), updated);
+    sync.push('tontines', updated);
   }, [userId]);
 
   const addGroup = useCallback(async (data) => {
@@ -44,6 +55,7 @@ export function TontineProvider({ children }) {
       myPosition: parseInt(data.myPosition, 10) || 1,
       startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
       rounds,
+      updated_at: new Date().toISOString(),
     };
     const updated = [...groups, newGroup];
     await saveGroups(updated);
@@ -51,7 +63,9 @@ export function TontineProvider({ children }) {
   }, [groups, userId, saveGroups]);
 
   const updateGroup = useCallback(async (id, changes) => {
-    const updated = groups.map((g) => (g.id === id ? { ...g, ...changes } : g));
+    const updated = groups.map((g) =>
+      g.id === id ? { ...g, ...changes, updated_at: new Date().toISOString() } : g
+    );
     await saveGroups(updated);
   }, [groups, saveGroups]);
 
@@ -66,7 +80,7 @@ export function TontineProvider({ children }) {
       const rounds = g.rounds.map((r) =>
         r.roundNumber === roundNumber ? { ...r, status: ROUND_STATUS.PAYE } : r
       );
-      return { ...g, rounds };
+      return { ...g, rounds, updated_at: new Date().toISOString() };
     });
     await saveGroups(updated);
   }, [groups, saveGroups]);
@@ -77,13 +91,14 @@ export function TontineProvider({ children }) {
       const rounds = g.rounds.map((r) =>
         r.roundNumber === roundNumber ? { ...r, status: ROUND_STATUS.RECU } : r
       );
-      return { ...g, rounds };
+      return { ...g, rounds, updated_at: new Date().toISOString() };
     });
     await saveGroups(updated);
   }, [groups, saveGroups]);
 
   const scheduleRoundNotifications = useCallback(async (group) => {
     try {
+      try { if (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient') return; } catch (_) {}
       const Notifications = require('expo-notifications');
       const upcoming = group.rounds.filter((r) => r.status === ROUND_STATUS.A_PAYER).slice(0, 5);
       for (const round of upcoming) {
@@ -103,7 +118,7 @@ export function TontineProvider({ children }) {
         });
       }
     } catch (e) {
-      console.error('[TontineContext] Erreur notification :', e);
+      if (e && e.message && e.message.includes('removed from Expo Go')) return;
     }
   }, []);
 

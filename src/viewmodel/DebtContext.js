@@ -3,6 +3,8 @@ import { useAuth } from './AuthContext';
 import { debtsKey, computeDebtStatus, DEBT_STATUS } from '../model/DebtModel';
 import { toNumber } from '../utils/format';
 import { validateDebt, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
+import { sync, mergeRecords } from '../utils/sync';
+import Constants from 'expo-constants';
 
 const DebtContext = createContext({});
 
@@ -15,7 +17,15 @@ export function DebtProvider({ children }) {
     if (!userId) { setDebts([]); setLoaded(true); return; }
     try {
       const raw = await safeAsyncReadJSON(debtsKey(userId), []);
-      setDebts(filterValidRecords(raw, validateDebt));
+      let local = filterValidRecords(raw, validateDebt);
+
+      await sync.init(userId);
+      const cloud = await sync.pull('debts');
+      if (cloud.length > 0) {
+        local = mergeRecords(local, cloud);
+      }
+
+      setDebts(local);
     } catch (e) {
       console.error('[DebtContext] Erreur chargement :', e);
       setDebts([]);
@@ -30,6 +40,7 @@ export function DebtProvider({ children }) {
     if (!userId) return;
     setDebts(updated);
     await safeAsyncWriteJSON(debtsKey(userId), updated);
+    sync.push('debts', updated);
   }, [userId]);
 
   const addDebt = useCallback(async (debtData) => {
@@ -40,6 +51,7 @@ export function DebtProvider({ children }) {
       dateCreated: new Date().toISOString(),
       amountReimbursed: 0,
       status: DEBT_STATUS.EN_COURS,
+      updated_at: new Date().toISOString(),
     };
     const updated = [...debts, newDebt];
     await saveDebts(updated);
@@ -49,7 +61,7 @@ export function DebtProvider({ children }) {
   const updateDebt = useCallback(async (id, changes) => {
     const updated = debts.map((d) => {
       if (d.id !== id) return d;
-      const modified = { ...d, ...changes };
+      const modified = { ...d, ...changes, updated_at: new Date().toISOString() };
       modified.status = computeDebtStatus(modified);
       return modified;
     });
@@ -67,7 +79,7 @@ export function DebtProvider({ children }) {
     const newReimbursed = toNumber(debt.amountReimbursed) + toNumber(amount);
     const newStatus = computeDebtStatus({ ...debt, amountReimbursed: newReimbursed });
     const updated = debts.map((d) =>
-      d.id === id ? { ...d, amountReimbursed: newReimbursed, status: newStatus } : d
+      d.id === id ? { ...d, amountReimbursed: newReimbursed, status: newStatus, updated_at: new Date().toISOString() } : d
     );
     await saveDebts(updated);
     return { ...debt, amountReimbursed: newReimbursed, status: newStatus };
@@ -76,6 +88,7 @@ export function DebtProvider({ children }) {
   const scheduleDueDateNotification = useCallback(async (debt) => {
     if (!debt.dueDate || !debt.reminderEnabled) return;
     try {
+      try { if (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient') return; } catch (_) {}
       const Notifications = require('expo-notifications');
       const due = new Date(debt.dueDate);
       if (due <= new Date()) return;
@@ -89,7 +102,7 @@ export function DebtProvider({ children }) {
         trigger: { date: due },
       });
     } catch (e) {
-      console.error('[DebtContext] Erreur notification :', e);
+      if (e && e.message && e.message.includes('removed from Expo Go')) return;
     }
   }, []);
 
