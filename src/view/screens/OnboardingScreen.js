@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
@@ -14,8 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { APP_NAME } from '../../model/AppConstants';
-
-const { width } = Dimensions.get('window');
+import { useResponsive } from '../../utils/responsive';
+import Constants from 'expo-constants';
 
 const slides = [
   {
@@ -48,6 +47,8 @@ export default function OnboardingScreen({ onComplete }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { isDark } = useFinance();
   const insets = useSafeAreaInsets();
+  const { width, contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
 
   const isLast = currentIndex === slides.length - 1;
 
@@ -74,17 +75,20 @@ export default function OnboardingScreen({ onComplete }) {
       await AsyncStorage.setItem('@oraned_onboarding_seen', 'true');
     } catch (_) {}
     try {
+      try { if (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient') return; } catch (_) {}
       const Notifications = require('expo-notifications');
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') {
         console.log('[Onboarding] Permission notifications refusée — l\'app fonctionne sans.');
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e && e.message && e.message.includes('removed from Expo Go')) return;
+    }
     onComplete?.();
   };
 
   const onMomentumScrollEnd = (e) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / width);
+    const index = Math.round(e.nativeEvent.contentOffset.x / contentMaxWidth);
     setCurrentIndex(index);
   };
 
@@ -164,16 +168,16 @@ export default function OnboardingScreen({ onComplete }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: {
     flex: 1,
   },
   slide: {
-    width,
+    width: cp,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: cpad,
   },
   iconCircle: {
     width: 140,
@@ -195,8 +199,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: cpad,
     paddingTop: 20,
+    maxWidth: cp,
+    width: '100%',
+    alignSelf: 'center',
   },
   dotsContainer: {
     flexDirection: 'row',

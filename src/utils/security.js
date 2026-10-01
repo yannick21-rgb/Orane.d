@@ -1,5 +1,13 @@
+import { Platform } from 'react-native';
 import { safeAsyncRead, safeAsyncWriteJSON, safeAsyncReadJSON, safeAsyncRemove } from './storage';
 import { secureGetPinHash, secureStorePinHash, secureRemovePinHash } from './secureStorage';
+
+let digestStringAsync, CryptoDigestAlgorithm;
+if (Platform.OS !== 'web') {
+  const expoCrypto = require('expo-crypto');
+  digestStringAsync = expoCrypto.digestStringAsync;
+  CryptoDigestAlgorithm = expoCrypto.CryptoDigestAlgorithm;
+}
 
 const PIN_SALT_KEY = (uid) => `@oraned_pin_salt_${uid}`;
 const PIN_HASH_KEY = (uid) => `@oraned_pin_hash_legacy_${uid}`;
@@ -22,8 +30,14 @@ function fromHex(hex) {
 }
 
 async function sha256(data) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
-  return toHex(new Uint8Array(buf));
+  if (Platform.OS === 'web') {
+    const encoder = new TextEncoder();
+    const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+    return Array.from(new Uint8Array(buffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  return digestStringAsync(CryptoDigestAlgorithm.SHA256, data);
 }
 
 async function iterativeHash(saltHex, password, iterations = 1000) {

@@ -6,13 +6,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Trash2, Plus, Check, X } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
+import { useGamification } from '../../viewmodel/GamificationContext';
 import { DEBT_TABS, DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DebtFormModal from '../components/DebtFormModal';
+import { useResponsive } from '../../utils/responsive';
 
 export default function DebtsScreen({ onClose }) {
   const { isDark, accentColor, devise, addTransaction } = useFinance();
   const { debts, deleteDebt, markReimbursed } = useDebts();
+  const { awardDebtReimbursed } = useGamification();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
 
   const [activeTab, setActiveTab] = useState(DEBT_TYPES.CREDIT_ACCORDE);
@@ -60,14 +65,22 @@ export default function DebtsScreen({ onClose }) {
       `Ajouter une transaction réelle de ${amount}${deviseSymbol} ?\n\nSi l'argent a déjà été échangé hors-appli, vous pouvez laisser "Non".`,
       [
         { text: 'Non, juste marquer', style: 'cancel', onPress: async () => {
-          await markReimbursed(debt.id, amount);
+          const res = await markReimbursed(debt.id, amount);
+          if (res && res.status === DEBT_STATUS.REMBOURSEE) {
+            const dueOk = !debt.dueDate || new Date() <= new Date(debt.dueDate);
+            if (dueOk) awardDebtReimbursed(debt.id);
+          }
           setShowReimburse(null);
           setReimburseAmount('');
         }},
         {
           text: 'Oui, créer la transaction',
           onPress: async () => {
-            await markReimbursed(debt.id, amount);
+            const res2 = await markReimbursed(debt.id, amount);
+            if (res2 && res2.status === DEBT_STATUS.REMBOURSEE) {
+              const dueOk2 = !debt.dueDate || new Date() <= new Date(debt.dueDate);
+              if (dueOk2) awardDebtReimbursed(debt.id);
+            }
             const isCreditRecu = debt.type === DEBT_TYPES.CREDIT_RECU;
             const label = isCreditRecu ? 'Remboursement donné' : 'Remboursement reçu';
             addTransaction({
@@ -255,15 +268,17 @@ export default function DebtsScreen({ onClose }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1,
+    paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
+    maxWidth: cp, width: '100%', alignSelf: 'center',
   },
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   tabRow: {
     flexDirection: 'row', borderBottomWidth: 1,
+    maxWidth: cp, width: '100%', alignSelf: 'center',
   },
   tabBtn: {
     flex: 1, alignItems: 'center', paddingVertical: 14, flexDirection: 'row', justifyContent: 'center', gap: 6,
@@ -272,12 +287,12 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 13, fontWeight: '600' },
   summaryBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14, marginHorizontal: 16, marginTop: 12,
-    borderRadius: 14,
+    paddingHorizontal: cpad, paddingVertical: 14, marginHorizontal: cpad, marginTop: 12,
+    borderRadius: br,
   },
   summaryLabel: { fontSize: 13, fontWeight: '600' },
   summaryValue: { fontSize: 18, fontWeight: 'bold' },
-  list: { padding: 16, paddingBottom: 40 },
+  list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
   emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },

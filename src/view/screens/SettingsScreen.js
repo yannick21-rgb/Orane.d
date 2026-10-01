@@ -14,6 +14,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dropdown } from 'react-native-element-dropdown';
+
+let LocalAuthentication = null;
+if (Platform.OS !== 'web') {
+  try { LocalAuthentication = require('expo-local-authentication'); } catch (_) {}
+}
 import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw, Calculator } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
@@ -25,8 +30,7 @@ import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
 import PinAuthModal from '../components/PinAuthModal';
 import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
-import AccountingDashboardScreen from './Accounting/AccountingDashboardScreen';
-import { JournalListScreen, GeneralLedgerScreen, TrialBalanceScreen, ChartOfAccountsScreen } from './Accounting';
+import { useResponsive } from '../../utils/responsive';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -202,11 +206,13 @@ export default function SettingsScreen({ navigation }) {
   const {
     transactions, theme, setTheme, isDark, accentColor, setAccentColor,
     devise, setDevise, budgetLimit, setBudgetLimit,
-    budgetPeriod, setBudgetPeriod, reminderHour, reminderMinute,
-    checkBudgetPeriodAlert, updateDailyReminderTime, scheduleMonthlyReview,
-    hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, unlockDiscreteMode,
+    budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute,
+    checkBudgetPeriodAlert, getPeriodExpenses, updateDailyReminderTime, scheduleMonthlyReview,
+    hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, unlockDiscreteMode,
   } = useFinance();
   const { t, currentLanguage, changeLanguage } = useTranslation();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
 
   const [pays, setPays] = useState('BJ');
   const [isReady, setIsReady] = useState(false);
@@ -221,12 +227,12 @@ export default function SettingsScreen({ navigation }) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
   const [resetStep, setResetStep] = useState('password');
+  const [isDeviceVerified, setIsDeviceVerified] = useState(false);
+  const [hasBiometrics, setHasBiometrics] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
   const [showDebts, setShowDebts] = useState(false);
   const [showTontines, setShowTontines] = useState(false);
-  const [showAccounting, setShowAccounting] = useState(false);
-  const [accountingScreen, setAccountingScreen] = useState('dashboard');
 
   useEffect(() => {
     let isMounted = true;
@@ -251,6 +257,15 @@ export default function SettingsScreen({ navigation }) {
   useEffect(() => {
     setBudgetInput(String(budgetLimit || ''));
   }, [budgetLimit]);
+
+  useEffect(() => {
+    if (!LocalAuthentication) return;
+    (async () => {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setHasBiometrics(compatible && enrolled);
+    })();
+  }, []);
 
   const deviseDropdownValue = DEVISES_DU_MONDE.find(d => devise?.includes(d.value))?.value || 'EUR';
 
@@ -361,8 +376,24 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  const handleStartResetPin = () => {
+  const handleStartResetPin = async () => {
     setResetPassword('');
+    setIsDeviceVerified(false);
+    if (hasBiometrics && LocalAuthentication) {
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Authentifiez-vous pour réinitialiser le code PIN',
+          fallbackLabel: 'Utiliser le mot de passe',
+          cancelLabel: 'Annuler',
+        });
+        if (result.success) {
+          setIsDeviceVerified(true);
+          setResetStep('new');
+          setShowResetModal(true);
+          return;
+        }
+      } catch (_) {}
+    }
     setResetStep('password');
     setShowResetModal(true);
   };
@@ -376,10 +407,16 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleResetNewPinSave = async (newPin) => {
-    const ok = await resetPinCodeWithPassword(resetPassword, newPin);
+    let ok;
+    if (isDeviceVerified) {
+      ok = await resetPinCodeDirect(newPin);
+    } else {
+      ok = await resetPinCodeWithPassword(resetPassword, newPin);
+    }
     setShowResetModal(false);
     setResetPassword('');
     setResetStep('password');
+    setIsDeviceVerified(false);
     if (ok) {
       Alert.alert('Code PIN réinitialisé', 'Votre nouveau code PIN est en place.');
     } else {
@@ -401,7 +438,17 @@ export default function SettingsScreen({ navigation }) {
       return;
     }
     setBudgetLimit(amount);
-    Alert.alert('Budget défini', `Budget ${budgetPeriod === 'day' ? 'journalier' : budgetPeriod === 'week' ? 'hebdomadaire' : 'mensuel'} : ${amount}${devise?.split(' ')[0] || '€'}`);
+    const currentExpenses = getPeriodExpenses();
+    const symbol = devise?.split(' ')[0] || '€';
+    const periodLabel = budgetPeriod === 'day' ? 'journalier' : budgetPeriod === 'week' ? 'hebdomadaire' : 'mensuel';
+    const remaining = amount - currentExpenses;
+    let msg = `Budget ${periodLabel} : ${amount}${symbol}`;
+    if (amount > 0) {
+      msg += `\n\nDépenses actuelles : ${currentExpenses.toFixed(2)}${symbol}`;
+      msg += `\nReste : ${remaining > 0 ? remaining.toFixed(2) : '0'}${symbol}`;
+      if (remaining < 0) msg += '\n⚠️ Budget déjà dépassé !';
+    }
+    Alert.alert('Budget défini', msg);
   };
 
   return (
@@ -669,6 +716,25 @@ export default function SettingsScreen({ navigation }) {
               })}
             </View>
 
+            {budgetPeriod !== 'day' && (
+              <>
+                <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>Date de début</Text>
+                <CrossPlatformDatePicker
+                  value={budgetStartDate ? new Date(budgetStartDate) : new Date()}
+                  mode="date"
+                  isDark={isDark}
+                  colors={{
+                    inputBg: colors.inputBg,
+                    border: colors.border,
+                    text: colors.text,
+                  }}
+                  onChange={(_, d) => {
+                    if (d) setBudgetStartDate(d.toISOString().split('T')[0]);
+                  }}
+                />
+              </>
+            )}
+
             <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>Montant maximum</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <TextInput
@@ -686,6 +752,32 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={{ color: '#fff', fontWeight: '600' }}>OK</Text>
               </TouchableOpacity>
             </View>
+
+            {budgetLimit > 0 && (
+              <View style={{ marginTop: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={{ color: colors.subText, fontSize: 13 }}>
+                    Dépenses: {getPeriodExpenses().toFixed(2)} {devise?.split(' ')[0] || '€'}
+                  </Text>
+                  <Text style={{ color: colors.subText, fontSize: 13 }}>
+                    Limite: {budgetLimit} {devise?.split(' ')[0] || '€'}
+                  </Text>
+                </View>
+                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{
+                    height: '100%',
+                    width: `${Math.min((getPeriodExpenses() / budgetLimit) * 100, 100)}%`,
+                    backgroundColor: getPeriodExpenses() >= budgetLimit ? '#ef4444' : getPeriodExpenses() >= budgetLimit * 0.8 ? '#f59e0b' : '#2ecc71',
+                    borderRadius: 4,
+                  }} />
+                </View>
+                <Text style={{ color: colors.subText, fontSize: 12, marginTop: 4, textAlign: 'right' }}>
+                  {budgetLimit - getPeriodExpenses() > 0
+                    ? `Reste: ${(budgetLimit - getPeriodExpenses()).toFixed(2)} ${devise?.split(' ')[0] || '€'}`
+                    : '⚠️ Budget dépassé'}
+                </Text>
+              </View>
+            )}
 
             <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>
               Rappel quotidien ({String(reminderHour).padStart(2, '0')}h{String(reminderMinute).padStart(2, '0')})
@@ -781,18 +873,6 @@ export default function SettingsScreen({ navigation }) {
 
           <TouchableOpacity
             style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-            onPress={() => { setShowAccounting(true); setAccountingScreen('dashboard'); }}
-            activeOpacity={0.7}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Calculator size={18} color={accentColor} style={{ marginRight: 10 }} />
-              <Text style={[styles.aboutLabel, { color: colors.text }]}>Comptabilité (Partie double)</Text>
-            </View>
-            <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
             onPress={handleAbout}
             activeOpacity={0.7}
           >
@@ -834,7 +914,9 @@ export default function SettingsScreen({ navigation }) {
           <View style={[styles.pwdModal, { backgroundColor: colors.cardBg }]}>
             <Text style={[styles.pwdTitle, { color: colors.text }]}>Réinitialisation du code PIN</Text>
             <Text style={[styles.pwdSubtitle, { color: colors.subText }]}>
-              Entrez votre mot de passe de session pour vérifier votre identité.
+              {hasBiometrics
+                ? 'L\'authentification biométrique a échoué. Entrez votre mot de passe de session pour vérifier votre identité.'
+                : 'Aucune donnée biométrique disponible. Entrez votre mot de passe de session pour vérifier votre identité.'}
             </Text>
             <TextInput
               style={[styles.pwdInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
@@ -848,7 +930,7 @@ export default function SettingsScreen({ navigation }) {
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <TouchableOpacity
                 style={[styles.pwdBtn, { backgroundColor: colors.unselectedPill }]}
-                onPress={() => { setShowResetModal(false); setResetPassword(''); }}
+                onPress={() => { setShowResetModal(false); setResetPassword(''); setIsDeviceVerified(false); }}
               >
                 <Text style={{ color: colors.subText, fontWeight: '600' }}>Annuler</Text>
               </TouchableOpacity>
@@ -881,6 +963,7 @@ export default function SettingsScreen({ navigation }) {
           setShowResetModal(false);
           setChangeStep('verify');
           setResetStep('password');
+          setIsDeviceVerified(false);
         }}
         onUnlock={() => true}
         onSaveNewPin={(pin) => {
@@ -904,38 +987,15 @@ export default function SettingsScreen({ navigation }) {
           <TontinesScreen onClose={() => setShowTontines(false)} />
         </View>
       )}
-
-      {showAccounting && (
-        <View style={StyleSheet.absoluteFill}>
-          {accountingScreen === 'dashboard' && (
-            <AccountingDashboardScreen
-              onNavigate={(screen) => setAccountingScreen(screen)}
-              onClose={() => { setShowAccounting(false); setAccountingScreen('dashboard'); }}
-            />
-          )}
-          {accountingScreen === 'journal' && (
-            <JournalListScreen />
-          )}
-          {accountingScreen === 'ledger' && (
-            <GeneralLedgerScreen onClose={() => setAccountingScreen('dashboard')} />
-          )}
-          {accountingScreen === 'trial' && (
-            <TrialBalanceScreen onClose={() => setAccountingScreen('dashboard')} />
-          )}
-          {accountingScreen === 'chart' && (
-            <ChartOfAccountsScreen onClose={() => setAccountingScreen('dashboard')} />
-          )}
-        </View>
-      )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
-  scrollContainer: { padding: 16 },
+  scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  card: { padding: 16, borderRadius: 12, marginBottom: 16 },
+  card: { padding: cardP, borderRadius: br, marginBottom: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -955,8 +1015,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
+    padding: cardP,
+    borderRadius: br,
     borderWidth: 1,
     marginBottom: 10,
   },

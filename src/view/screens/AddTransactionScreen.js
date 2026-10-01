@@ -13,13 +13,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { useGamification } from '../../viewmodel/GamificationContext';
 import { useTranslation } from '../../utils/LanguageManager';
+import { XP_REWARDS } from '../../model/GamificationModel';
 import { toNumber } from '../../utils/format';
 import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, computeTransferFee } from '../../model/TransactionModel';
+import VoiceInputButton from '../components/VoiceInputButton';
+import { parseVoiceInput } from '../../utils/voiceParser';
+import { useResponsive } from '../../utils/responsive';
 
 export default function AddTransactionScreen({ navigation }) {
   const { t } = useTranslation();
   const { isDark, accentColor, addTransaction, updateTransaction, editingTransaction, setEditingTransaction, devise } = useFinance();
+  const { awardXp } = useGamification();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
 
   const isEditing = !!editingTransaction;
@@ -35,6 +43,7 @@ export default function AddTransactionScreen({ navigation }) {
   const [incomeFrequency,  setIncomeFrequency]  = useState('monthly');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  const [voicePreview, setVoicePreview] = useState(null);
   const navTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -75,6 +84,32 @@ export default function AddTransactionScreen({ navigation }) {
     return computeTransferFee(parsed, selectedNetwork);
   }, [amount, selectedNetwork, type]);
 
+  const handleVoiceResult = (text) => {
+    if (!text || !text.trim()) return;
+    const parsed = parseVoiceInput(text);
+    setVoicePreview({ raw: text, parsed });
+  };
+
+  const applyVoicePreview = () => {
+    if (!voicePreview) return;
+    const p = voicePreview.parsed;
+
+    if (p.amount > 0) setAmount(String(p.amount));
+    if (p.type === 'income') setType('income');
+    else setType('expense');
+    if (p.account) setWallet(p.account);
+
+    if (p.type === 'income') {
+      setCategory(INCOME_CATEGORIES.some((c) => c.key === p.category) ? p.category : 'Salaire / Coaching');
+    } else {
+      setCategory(EXPENSE_CATEGORIES.some((c) => c.key === p.category) ? p.category : 'Alimentation');
+    }
+
+    if (p.title) setTitle(p.title);
+    if (p.note) setNote(p.note);
+    setVoicePreview(null);
+  };
+
   const handleSave = () => {
     if (!title.trim()) {
       Alert.alert(t('champ_requis'), t('veuillez_titre'));
@@ -101,6 +136,8 @@ export default function AddTransactionScreen({ navigation }) {
       finalCategory = 'Retrait MoMo';
     }
 
+    const hadCategoryBefore = isEditing ? !!(editingTransaction.category && String(editingTransaction.category).trim()) : false;
+    const hasCategoryNow = !!(finalCategory && String(finalCategory).trim() && finalCategory !== 'Autres');
     if (isEditing) {
       updateTransaction(editingTransaction.id, {
         title:           title.trim(),
@@ -112,6 +149,7 @@ export default function AddTransactionScreen({ navigation }) {
         momoNetwork:     type === 'transfert' ? selectedNetwork : null,
         incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
       });
+      if (!hadCategoryBefore && hasCategoryNow) awardXp(XP_REWARDS.CATEGORIZE, 'Catégorisation');
     } else {
       const txId = Date.now().toString();
 
@@ -146,6 +184,8 @@ export default function AddTransactionScreen({ navigation }) {
       }
     }
 
+    if (!isEditing) awardXp(XP_REWARDS.ADD_TRANSACTION, hasCategoryNow ? 'Transaction ajoutée' : 'Transaction ajoutée');
+
     setShowSuccessModal(true);
 
     setEditingTransaction(null);
@@ -176,6 +216,80 @@ export default function AddTransactionScreen({ navigation }) {
         </View>
       </Modal>
 
+      <Modal transparent visible={!!voicePreview} animationType="fade" onRequestClose={() => setVoicePreview(null)}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modalBg }]}>
+          <View style={[styles.voiceModal, { backgroundColor: colors.card }]}>
+            <Text style={[styles.voiceTitle, { color: colors.text }]}>Confirmer la dictée</Text>
+            <Text style={[styles.voiceHint, { color: colors.subText }]}>
+              Vérifiez les informations avant de remplir le formulaire
+            </Text>
+
+            {voicePreview && (() => {
+              const p = voicePreview.parsed;
+              const hasExtracted = p.amount > 0 || p.type || p.category || p.account || p.title || p.note;
+              return (
+                <>
+                  <View style={[styles.voiceQuote, { backgroundColor: colors.input }]}>
+                    <Text style={[styles.voiceQuoteText, { color: colors.text }]}>« {voicePreview.raw} »</Text>
+                  </View>
+
+                  {!hasExtracted && (
+                    <Text style={[styles.voiceNothing, { color: '#ff5c5c' }]}>
+                      Aucune information détectée dans cette dictée.
+                    </Text>
+                  )}
+
+                  <View style={[styles.voiceRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.voiceRowLabel, { color: colors.subText }]}>Montant</Text>
+                    <Text style={[styles.voiceRowValue, { color: colors.text }]}>
+                      {p.amount > 0 ? `${p.amount} ${deviseSymbol}` : '—'}
+                    </Text>
+                  </View>
+                  <View style={[styles.voiceRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.voiceRowLabel, { color: colors.subText }]}>Type</Text>
+                    <Text style={[styles.voiceRowValue, { color: colors.text }]}>
+                      {p.type === 'income' ? '▲ Revenu' : p.type === 'expense' ? '▼ Dépense' : '—'}
+                    </Text>
+                  </View>
+                  <View style={[styles.voiceRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.voiceRowLabel, { color: colors.subText }]}>Catégorie</Text>
+                    <Text style={[styles.voiceRowValue, { color: colors.text }]}>{p.category || '—'}</Text>
+                  </View>
+                  <View style={[styles.voiceRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.voiceRowLabel, { color: colors.subText }]}>Compte</Text>
+                    <Text style={[styles.voiceRowValue, { color: colors.text }]}>
+                      {p.account === 'momo' ? '📱 MoMo' : p.account === 'cash' ? '💵 Espèces' : p.account === 'banque' ? '🏦 Banque' : '—'}
+                    </Text>
+                  </View>
+                  <View style={[styles.voiceRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.voiceRowLabel, { color: colors.subText }]}>Note</Text>
+                    <Text style={[styles.voiceRowValue, { color: colors.text }]}>{p.note || '—'}</Text>
+                  </View>
+                </>
+              );
+            })()}
+
+            <View style={styles.voiceActions}>
+              <TouchableOpacity
+                style={[styles.voiceBtnSecondary, { backgroundColor: colors.input }]}
+                onPress={() => setVoicePreview(null)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.voiceBtnText, { color: colors.subText }]}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.voiceBtnPrimary, { backgroundColor: accentColor, opacity: voicePreview?.parsed && (voicePreview.parsed.amount > 0 || voicePreview.parsed.title || voicePreview.parsed.note) ? 1 : 0.45 }]}
+                onPress={applyVoicePreview}
+                activeOpacity={0.85}
+                disabled={!voicePreview || (!voicePreview.parsed.amount && !voicePreview.parsed.title && !voicePreview.parsed.note)}
+              >
+                <Text style={[styles.voiceBtnText, { color: '#fff', fontWeight: '700' }]}>Remplir le formulaire</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -187,6 +301,24 @@ export default function AddTransactionScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.pageTitle, { color: colors.text }]}>{isEditing ? 'Modifier' : t('nouvelle_operation')}</Text>
+
+        {!isEditing && (
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.label, { color: colors.subText }]}>🎙️ SAISIE VOCALE EXPRESS</Text>
+            <Text style={[styles.voiceCardHint, { color: colors.subText }]}>
+              Appuyez sur le micro puis dictez, par exemple : « j'ai payé 2000 pour le pain avec MoMo »
+            </Text>
+            <VoiceInputButton
+              onResult={handleVoiceResult}
+              onError={(msg) => Alert.alert('Reconnaissance vocale', msg)}
+              accentColor={accentColor}
+              textColor={colors.text}
+              subTextColor={colors.subText}
+              backgroundColor={colors.input}
+              cardColor={colors.card}
+            />
+          </View>
+        )}
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.label, { color: colors.subText }]}>{t('type_operation')}</Text>
@@ -237,6 +369,14 @@ export default function AddTransactionScreen({ navigation }) {
             >
               <Text style={[styles.toggleText, { color: wallet === 'cash' ? '#fff' : colors.subText }, wallet === 'cash' && { fontWeight: '700' }]}>
                 {'💵 Espèces'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, wallet === 'banque' && { backgroundColor: accentColor }]}
+              onPress={() => setWallet('banque')}
+            >
+              <Text style={[styles.toggleText, { color: wallet === 'banque' ? '#fff' : colors.subText }, wallet === 'banque' && { fontWeight: '700' }]}>
+                {'🏦 Banque'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -406,11 +546,11 @@ export default function AddTransactionScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container:     { flex: 1 },
-  scroll:        { paddingHorizontal: 20 },
+  scroll:        { paddingHorizontal: cpad, maxWidth: cp, width: '100%', alignSelf: 'center' },
   pageTitle:     { fontSize: 32, fontWeight: 'bold', marginTop: 20, marginBottom: 20 },
-  card:          { padding: 22, borderRadius: 28, marginBottom: 16 },
+  card:          { padding: cardP, borderRadius: br, marginBottom: 16 },
   label:         { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
   optionalBadge: { fontSize: 10, fontWeight: '400', letterSpacing: 0 },
   toggle:        { flexDirection: 'row', borderRadius: 16, padding: 4, gap: 4 },
@@ -433,9 +573,24 @@ const styles = StyleSheet.create({
   frequencyChip:      { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   frequencyChipLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 
-  modalOverlay:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalOverlay:     { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   modalContent:     { padding: 30, borderRadius: 24, alignItems: 'center', justifyContent: 'center', width: 160, height: 160, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
   successCircle:    { width: 60, height: 60, borderRadius: 30, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   successCheckmark: { fontSize: 28, fontWeight: 'bold' },
   modalText:        { fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+
+  voiceCardHint:    { fontSize: 13, lineHeight: 19, marginBottom: 16, textAlign: 'center' },
+  voiceModal:       { padding: 24, borderRadius: 24, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
+  voiceTitle:       { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+  voiceHint:        { fontSize: 13, color: '#6a6c7a', textAlign: 'center', marginTop: 6, marginBottom: 16 },
+  voiceQuote:       { borderRadius: 16, padding: 14, marginBottom: 16 },
+  voiceQuoteText:   { fontSize: 15, fontWeight: '600', fontStyle: 'italic', lineHeight: 22 },
+  voiceNothing:     { fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 14 },
+  voiceRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1 },
+  voiceRowLabel:    { fontSize: 13, fontWeight: '600' },
+  voiceRowValue:    { fontSize: 14, fontWeight: '700', maxWidth: '60%', textAlign: 'right' },
+  voiceActions:     { flexDirection: 'row', gap: 10, marginTop: 20 },
+  voiceBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  voiceBtnPrimary:   { flex: 1.4, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  voiceBtnText:      { fontSize: 15, fontWeight: '600' },
 });

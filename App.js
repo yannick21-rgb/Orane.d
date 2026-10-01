@@ -18,8 +18,9 @@ import { AuthProvider, useAuth } from './src/viewmodel/AuthContext';
 import { FinanceProvider, useFinance } from './src/viewmodel/FinanceContext';
 import { DebtProvider } from './src/viewmodel/DebtContext';
 import { TontineProvider } from './src/viewmodel/TontineContext';
-import { AccountingProvider } from './src/viewmodel/AccountingContext';
+import { GamificationProvider } from './src/viewmodel/GamificationContext';
 import { useTranslation } from './src/utils/LanguageManager';
+import GamificationToast from './src/view/components/GamificationToast';
 
 import HomeScreen from './src/view/screens/HomeScreen';
 import AddTransactionScreen from './src/view/screens/AddTransactionScreen';
@@ -123,6 +124,7 @@ function MainTabs() {
           </View>
         ))}
       </CrossPlatformPager>
+      <GamificationToast />
       <View style={{
         flexDirection: 'row',
         backgroundColor: colors.barBg,
@@ -230,9 +232,9 @@ export default function App() {
         <FinanceProvider>
           <DebtProvider>
             <TontineProvider>
-              <AccountingProvider>
+              <GamificationProvider>
                 <RootNavigator />
-              </AccountingProvider>
+              </GamificationProvider>
             </TontineProvider>
           </DebtProvider>
         </FinanceProvider>

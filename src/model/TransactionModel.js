@@ -50,6 +50,8 @@ export const EXPENSE_CATEGORIES = [
   { key: 'Épargne',            tKey: 'epargne',            icon: '🏦' },
   { key: 'Remboursement',      tKey: 'remboursement',      icon: '💸' },
   { key: 'Frais & Retraits',   tKey: 'frais_retraits_cat', icon: '🪙' },
+  { key: 'Education/Formation', tKey: 'education_formation', icon: '📚' },
+  { key: 'Autres',             tKey: 'autres',             icon: '📌' },
 ];
 
 export const INCOME_CATEGORIES = [

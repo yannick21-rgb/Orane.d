@@ -20,24 +20,30 @@ try {
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
 import { useTontines } from '../../viewmodel/TontineContext';
+import { useGamification } from '../../viewmodel/GamificationContext';
 import { useAuth } from '../../viewmodel/AuthContext';
+import ProgressScreen from './ProgressScreen';
 import { checkPinRateLimit, getRemainingAttemptsText } from '../../utils/security';
+import { sync } from '../../utils/sync';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
 import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
+import { useResponsive } from '../../utils/responsive';
 import { Trash2, CheckSquare, Square, X, Eye, EyeOff, Search } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
 
 const CATEGORY_ICONS = {
-  'Alimentation': '🛒',
-  'Transport':    '🚗',
-  'Logement':     '🏠',
-  'Santé':        '💊',
-  'Loisirs':      '🎮',
-  'Vêtements':    '👗',
-  'Salaire':      '💼',
-  'Épargne':      '🏦',
-  'Général':      '📦',
+  'Alimentation':        '🛒',
+  'Transport':           '🚗',
+  'Logement':            '🏠',
+  'Santé':               '💊',
+  'Loisirs':             '🎮',
+  'Vêtements':           '👗',
+  'Salaire':             '💼',
+  'Épargne':             '🏦',
+  'Général':             '📦',
+  'Education/Formation': '📚',
+  'Autres':              '📌',
 };
 
 const CATEGORY_KEY_MAP = {
@@ -49,8 +55,10 @@ const CATEGORY_KEY_MAP = {
   'Vêtements':    'vetements',
   'Salaire':      'salaire',
   'Épargne':      'epargne',
-  'Général':      'general',
-  'Retrait MoMo': 'frais_retraits_cat',
+  'Général':             'general',
+  'Retrait MoMo':        'frais_retraits_cat',
+  'Education/Formation': 'education_formation',
+  'Autres':              'autres',
 };
 
 export default function HomeScreen({ navigation }) {
@@ -58,6 +66,7 @@ export default function HomeScreen({ navigation }) {
   const { t, currentLanguage } = useTranslation();
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinRemainingText, setPinRemainingText] = useState('');
+  const [syncStatus, setSyncStatus] = useState({ pendingCount: 0 });
 
   const {
     transactions = [],
@@ -75,11 +84,15 @@ export default function HomeScreen({ navigation }) {
     toggleDiscreteMode,
     momoBalance,
     cashBalance,
+    banqueBalance,
   } = useFinance();
 
   const { totalToReceive, totalToRepay } = useDebts();
   const { overallSummary } = useTontines();
-  const { userId } = useAuth();
+  const { levelInfo, streaks } = useGamification();
+  const { userId, loading } = useAuth();
+  const { contentMaxWidth, isWide, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
 
   const hasCheckedPinRef = useRef(false);
 
@@ -103,11 +116,20 @@ export default function HomeScreen({ navigation }) {
     }
   }, [hasPinCode, userId]);
 
+  useEffect(() => {
+    if (!userId || loading) return;
+    setSyncStatus(sync.getStatus());
+    const unsub = sync.subscribe(setSyncStatus);
+    return unsub;
+  }, [userId, loading]);
+
   const deviseSymbol = devise?.split(' ')[0] || '€';
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [walletIndex, setWalletIndex] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
 
   const colors = {
     bg:      isDark ? '#0f1015' : '#f5f6fa',
@@ -232,10 +254,18 @@ export default function HomeScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerLeft}>
               <Text style={[styles.title, { color: colors.text }]}>
                 {t('home')}
               </Text>
+              {userId && syncStatus.pendingCount > 0 && (
+                <View style={styles.syncBadge}>
+                  <View style={styles.syncDot} />
+                  <Text style={[styles.syncText, { color: colors.subText }]}>
+                    {syncStatus.pendingCount}
+                  </Text>
+                </View>
+              )}
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -256,30 +286,109 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
+        {!isDiscreteMode && (
+          <TouchableOpacity
+            onPress={() => setShowProgress(true)}
+            activeOpacity={0.85}
+            style={[styles.gamifCard, { backgroundColor: colors.cardBg, borderColor: colors.border, borderWidth: isDark ? 0 : 1 }]}
+          >
+            <View style={styles.gamifHeader}>
+              <View style={[styles.gamifLevelBadge, { backgroundColor: accentColor }]}>
+                <Text style={styles.gamifLevelText}>{levelInfo.level}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={[styles.gamifTitle, { color: colors.text }]}>{t('niveau')} {levelInfo.level} · {levelInfo.totalXp} XP</Text>
+                <Text style={[styles.gamifSub, { color: colors.subText }]}>{levelInfo.xpInCurrentLevel}/{levelInfo.xpToNextLevel} XP → {t('niveau')} {levelInfo.level + 1}</Text>
+              </View>
+              <Text style={[styles.gamifArrow, { color: accentColor }]}>›</Text>
+            </View>
+            <View style={[styles.gamifTrack, { backgroundColor: isDark ? '#222431' : '#eef0f5' }]}>
+              <View style={[styles.gamifFill, { backgroundColor: accentColor, width: `${Math.round(levelInfo.progress * 100)}%` }]} />
+            </View>
+            <View style={styles.gamifStreakRow}>
+              <Text style={[styles.gamifStreakText, { color: colors.subText }]}>🔥 {streaks?.categorization?.current || 0}j · 💰 {streaks?.budgetMastered?.current || 0}m · ⚖️ {streaks?.balancedMonth?.current || 0}m</Text>
+              <Text style={[styles.gamifLink, { color: accentColor }]}>{t('voir_progres')}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Wallet Cards */}
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={(e) => {
+            const cardWidth = contentMaxWidth - contentPadding * 2;
+            const index = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12));
+            setWalletIndex(index);
+          }}
+          scrollEventThrottle={16}
+          style={{ marginBottom: 8 }}
+          contentContainerStyle={{ gap: 12 }}
+        >
+          {/* Solde MoMo */}
+          <View
+            style={[
+              styles.walletCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border, borderWidth: isDark ? 0 : 1 },
+            ]}
+          >
+            <Text style={{ fontSize: 22 }}>📱</Text>
+            <Text style={[styles.walletLabel, { color: colors.subText }]}>Solde MoMo</Text>
+            <Text style={[styles.walletValue, { color: colors.text }]}>
+              {isDiscreteMode ? '••••' : `${momoBalance >= 0 ? '+' : '-'}${Math.abs(momoBalance).toFixed(2)} ${deviseSymbol}`}
+            </Text>
+          </View>
+
+          {/* Solde Espèces */}
+          <View
+            style={[
+              styles.walletCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border, borderWidth: isDark ? 0 : 1 },
+            ]}
+          >
+            <Text style={{ fontSize: 22 }}>💵</Text>
+            <Text style={[styles.walletLabel, { color: colors.subText }]}>Espèces</Text>
+            <Text style={[styles.walletValue, { color: colors.text }]}>
+              {isDiscreteMode ? '••••' : `${cashBalance >= 0 ? '+' : '-'}${Math.abs(cashBalance).toFixed(2)} ${deviseSymbol}`}
+            </Text>
+          </View>
+
+          {/* Compte Bancaire */}
+          <View
+            style={[
+              styles.walletCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border, borderWidth: isDark ? 0 : 1 },
+            ]}
+          >
+            <Text style={{ fontSize: 22 }}>🏦</Text>
+            <Text style={[styles.walletLabel, { color: colors.subText }]}>Banque</Text>
+            <Text style={[styles.walletValue, { color: colors.text }]}>
+              {isDiscreteMode ? '••••' : `${banqueBalance >= 0 ? '+' : '-'}${Math.abs(banqueBalance).toFixed(2)} ${deviseSymbol}`}
+            </Text>
+          </View>
+        </ScrollView>
+
+        {/* Pagination dots */}
+        <View style={styles.paginationDots}>
+          {[0, 1, 2].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                { backgroundColor: walletIndex === i ? colors.text : (isDark ? '#444' : '#ccc') },
+              ]}
+            />
+          ))}
+        </View>
+
+        {/* Revenus / Dépenses */}
         <View
           style={[
             styles.mainCard,
             { backgroundColor: colors.cardBg, borderColor: colors.border, borderWidth: isDark ? 0 : 1 },
           ]}
         >
-          {/* Solde MoMo */}
-          <View style={{ marginBottom: 16 }}>
-            <Text style={[styles.mainLabel, { color: colors.subText }]}>📱 Solde MoMo</Text>
-            <Text style={[styles.mainValue, { color: colors.text }]}>
-              {isDiscreteMode ? '••••' : `${momoBalance >= 0 ? '+' : '-'}${Math.abs(momoBalance).toFixed(2)} ${deviseSymbol}`}
-            </Text>
-          </View>
-
-          <View style={{ height: 1, backgroundColor: isDark ? '#222431' : '#eef0f5' }} />
-
-          {/* Solde Cash */}
-          <View style={{ marginTop: 16, marginBottom: 16 }}>
-            <Text style={[styles.mainLabel, { color: colors.subText }]}>💵 Solde Espèces</Text>
-            <Text style={[styles.mainValue, { color: colors.text }]}>
-              {isDiscreteMode ? '••••' : `${cashBalance >= 0 ? '+' : '-'}${Math.abs(cashBalance).toFixed(2)} ${deviseSymbol}`}
-            </Text>
-          </View>
-
           <View style={styles.rowStats}>
             <View style={styles.statContainer}>
               <Text style={[styles.statLabel, { color: colors.subText }]}>{t('revenus')}</Text>
@@ -295,13 +404,6 @@ export default function HomeScreen({ navigation }) {
               </Text>
             </View>
           </View>
-        </View>
-
-        {/* Solde total combiné (compact) */}
-        <View style={{ marginTop: -20, marginBottom: 24, alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 12, color: colors.subText }}>
-            Total : {isDiscreteMode ? '••••' : `${(momoBalance + cashBalance) >= 0 ? '+' : '-'}${Math.abs(momoBalance + cashBalance).toFixed(2)} ${deviseSymbol}`}
-          </Text>
         </View>
 
         {(totalToReceive > 0 || totalToRepay > 0 || overallSummary.totalPaid > 0) && !isDiscreteMode && (
@@ -507,23 +609,38 @@ export default function HomeScreen({ navigation }) {
         isDark={isDark}
         accentColor={accentColor}
       />
+      {showProgress && (
+        <View style={StyleSheet.absoluteFill}>
+          <ProgressScreen onClose={() => setShowProgress(false)} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container:       { flex: 1 },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 25 },
+  headerLeft:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title:           { fontSize: 32, fontWeight: 'bold', marginTop: 2 },
+  syncBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(245,158,11,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  syncDot:         { width: 6, height: 6, borderRadius: 3, backgroundColor: '#f59e0b' },
+  syncText:        { fontSize: 11, fontWeight: '600' },
 
   selectionBar:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 25 },
   selectionCount:  { fontSize: 16, fontWeight: 'bold' },
 
-  mainCard:    { padding: 24, borderRadius: 28, marginBottom: 30 },
+  mainCard:    { padding: cardP, borderRadius: br, marginBottom: 16 },
   mainLabel:   { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   mainValue:   { fontSize: 36, fontWeight: 'bold', marginTop: 8 },
-  rowStats:    { flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.08)' },
+  walletRow:   { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  walletCard:  { width: cp - cpad * 2, padding: 24, borderRadius: 24, alignItems: 'center' },
+  walletLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 8 },
+  walletValue: { fontSize: 18, fontWeight: 'bold', marginTop: 4 },
+  paginationDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 16 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  rowStats:    { flexDirection: 'row', alignItems: 'center', marginTop: 0 },
   statContainer: { flex: 1 },
   statLabel:   { fontSize: 12, fontWeight: '500', marginBottom: 4 },
   statValue:   { fontSize: 16, fontWeight: '700' },
@@ -563,4 +680,16 @@ const styles = StyleSheet.create({
   debtBadgeIcon: { fontSize: 22 },
   debtBadgeLabel: { fontSize: 11, fontWeight: '600' },
   debtBadgeValue: { fontSize: 16, fontWeight: 'bold', marginTop: 2 },
+  gamifCard:       { padding: 16, borderRadius: 20, marginBottom: 12 },
+  gamifHeader:     { flexDirection: 'row', alignItems: 'center' },
+  gamifLevelBadge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  gamifLevelText:  { color: '#fff', fontSize: 15, fontWeight: '800' },
+  gamifTitle:      { fontSize: 14, fontWeight: '700' },
+  gamifSub:        { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  gamifArrow:      { fontSize: 22, fontWeight: '300', marginLeft: 8 },
+  gamifTrack:      { height: 8, borderRadius: 999, overflow: 'hidden', marginTop: 10 },
+  gamifFill:       { height: 8, borderRadius: 999 },
+  gamifStreakRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  gamifStreakText: { fontSize: 11, fontWeight: '600' },
+  gamifLink:       { fontSize: 11, fontWeight: '700' },
 });

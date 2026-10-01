@@ -10,10 +10,13 @@ import { computeTontineSummary } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import TontineFormModal from '../components/TontineFormModal';
 import TontineDetailScreen from './TontineDetailScreen';
+import { useResponsive } from '../../utils/responsive';
 
 export default function TontinesScreen({ onClose }) {
   const { isDark, accentColor, devise } = useFinance();
   const { groups, deleteGroup, overallSummary } = useTontines();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
 
   const [showForm, setShowForm] = useState(false);
@@ -148,28 +151,30 @@ export default function TontinesScreen({ onClose }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1,
+    paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
+    maxWidth: cp, width: '100%', alignSelf: 'center',
   },
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  list: { padding: 16, paddingBottom: 40 },
+  list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
   emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },
   emptyBtnText: { fontSize: 13, fontWeight: '600' },
   summaryBar: {
-    flexDirection: 'row', marginHorizontal: 16, marginTop: 12,
-    padding: 16, borderRadius: 16, marginBottom: 4,
+    flexDirection: 'row', marginHorizontal: cpad, marginTop: 12,
+    padding: cardP, borderRadius: br, marginBottom: 4,
+    maxWidth: cp, width: '100%', alignSelf: 'center',
   },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryLabel: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
   summaryValue: { fontSize: 18, fontWeight: 'bold' },
   summaryDivider: { width: 1, marginHorizontal: 16 },
   groupCard: {
-    padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1,
+    padding: cardP, borderRadius: br, marginBottom: 12, borderWidth: 1,
   },
   groupHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   groupName: { fontSize: 16, fontWeight: '700' },

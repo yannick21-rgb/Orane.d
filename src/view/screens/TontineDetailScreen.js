@@ -6,12 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Check } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTontines } from '../../viewmodel/TontineContext';
+import { useGamification } from '../../viewmodel/GamificationContext';
 import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
+import { useResponsive } from '../../utils/responsive';
 
 export default function TontineDetailScreen({ group, onClose }) {
   const { isDark, accentColor, devise, addTransaction } = useFinance();
   const { markRoundPaid, markRoundReceived } = useTontines();
+  const { awardTontineRound } = useGamification();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
   const summary = computeTontineSummary(group);
 
@@ -32,11 +37,13 @@ export default function TontineDetailScreen({ group, onClose }) {
       'Marquer cotisation payée',
       `Confirmer le paiement du tour ${round.roundNumber} (${group.amountPerTour} ${deviseSymbol}) ?\n\nAjouter une transaction réelle correspondante ?`,
       [
-        { text: 'Non', style: 'cancel', onPress: () => markRoundPaid(group.id, round.roundNumber) },
+        { text: 'Non', style: 'cancel', onPress: async () => { await markRoundPaid(group.id, round.roundNumber); const dueOk = !round.dueDate || new Date() <= new Date(round.dueDate); if (dueOk) awardTontineRound(group.id, round.roundNumber); } },
         {
           text: 'Oui, créer la dépense',
           onPress: async () => {
             await markRoundPaid(group.id, round.roundNumber);
+            const dueOk2 = !round.dueDate || new Date() <= new Date(round.dueDate);
+            if (dueOk2) awardTontineRound(group.id, round.roundNumber);
             addTransaction({
               id: Date.now().toString(),
               title: `Cotisation tontine — ${group.groupName} (tour ${round.roundNumber})`,
@@ -199,24 +206,25 @@ export default function TontineDetailScreen({ group, onClose }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1,
+    paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
+    maxWidth: cp, width: '100%', alignSelf: 'center',
   },
   headerTitle: { fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center', marginHorizontal: 12 },
-  infoCard: { marginHorizontal: 16, marginTop: 16, padding: 16, borderRadius: 16 },
+  infoCard: { marginHorizontal: cpad, marginTop: 16, padding: cardP, borderRadius: br, maxWidth: cp, width: '100%', alignSelf: 'center' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
   infoLabel: { fontSize: 13, fontWeight: '500' },
   infoValue: { fontSize: 15, fontWeight: '700' },
   infoDivider: { height: 1, marginVertical: 6 },
-  summaryRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 12 },
+  summaryRow: { flexDirection: 'row', gap: 10, marginHorizontal: cpad, marginTop: 12, maxWidth: cp, width: '100%', alignSelf: 'center' },
   summaryBadge: { flex: 1, padding: 12, borderRadius: 14, alignItems: 'center' },
   summaryBadgeLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
   summaryBadgeValue: { fontSize: 14, fontWeight: 'bold' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', paddingHorizontal: 20, marginTop: 20, marginBottom: 8 },
-  roundsList: { padding: 16, paddingBottom: 40 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', paddingHorizontal: cpad, marginTop: 20, marginBottom: 8 },
+  roundsList: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   roundCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 14, borderRadius: 14, marginBottom: 8, borderWidth: 1,

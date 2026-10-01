@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  useWindowDimensions,
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
@@ -15,9 +14,12 @@ import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText, G } from 
 import { Dropdown } from 'react-native-element-dropdown';
 import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { useGamification } from '../../viewmodel/GamificationContext';
 import { useTranslation } from '../../utils/LanguageManager';
+import ProgressScreen from './ProgressScreen';
 import { toNumber } from '../../utils/format';
 import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
+import { useResponsive } from '../../utils/responsive';
 import {
   isTransactionInLastNDays,
   isTransactionInCurrentWeek,
@@ -34,9 +36,12 @@ const PERIODS = [
 const NETWORK_COLORS = ['#ff9f43', '#0abde3', '#10ac84', '#ee5253', '#5f27cd', '#341f97'];
 
 export default function StatsScreen() {
-  const { transactions, isDark, accentColor, devise } = useFinance();
+  const { transactions, isDark, accentColor, devise, isDiscreteMode } = useFinance();
+  const { levelInfo, badges } = useGamification();
   const { t, currentLanguage } = useTranslation();
-  const { width: screenW } = useWindowDimensions();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius, chartWidth: responsiveChartWidth } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
+  const [showProgress, setShowProgress] = useState(false);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
 
   const [period, setPeriod]                   = useState('mois');
@@ -180,11 +185,8 @@ export default function StatsScreen() {
     propsForBackgroundLines: { stroke: colors.line, strokeDasharray: '' },
   };
 
-  // ✅ BUG #2 CORRIGÉ : on retire les paddings du conteneur ET des cards (20+20 = 40 par côté)
-  // scrollContainer paddingHorizontal 20 × 2 = 40
-  // card padding 20 × 2 = 40
-  // Total à soustraire : 80px
-  const chartWidth = screenW - 80;
+  // responsiveChartWidth already accounts for padding from useResponsive
+  const chartWidth = responsiveChartWidth;
 
   const localeDateStr = currentLanguage === 'en' ? 'en-US' : (currentLanguage === 'es' ? 'es-ES' : 'fr-FR');
 
@@ -267,6 +269,28 @@ export default function StatsScreen() {
             colors={{ inputBg: colors.inputBg, border: colors.border, text: colors.text }}
             onChange={(_, d) => { setShowEndPicker(false); if (d) setEndDate(d); }}
           />
+        )}
+
+        {!isDiscreteMode && (
+          <TouchableOpacity onPress={() => setShowProgress(true)} activeOpacity={0.85} style={[styles.card, { backgroundColor: colors.card }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: accentColor, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{levelInfo.level}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{t('niveau')} {levelInfo.level} · {levelInfo.totalXp} XP</Text>
+                <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{levelInfo.xpInCurrentLevel}/{levelInfo.xpToNextLevel} XP → {t('niveau')} {levelInfo.level + 1}</Text>
+              </View>
+              <Text style={{ color: accentColor, fontSize: 20 }}>›</Text>
+            </View>
+            <View style={{ height: 8, borderRadius: 999, backgroundColor: colors.inputBg, overflow: 'hidden', marginTop: 12 }}>
+              <View style={{ height: 8, borderRadius: 999, backgroundColor: accentColor, width: `${Math.round(levelInfo.progress * 100)}%` }} />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+              <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600' }}>{(badges || []).length} {t('badges')}</Text>
+              <Text style={{ color: accentColor, fontSize: 11, fontWeight: '700' }}>{t('voir_progres')}</Text>
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* ── Synthèse financière ───────────────────────────────────────────── */}
@@ -418,6 +442,11 @@ export default function StatsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      {showProgress && (
+        <View style={StyleSheet.absoluteFill}>
+          <ProgressScreen onClose={() => setShowProgress(false)} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -496,9 +525,9 @@ const DailyAreaChart = React.memo(({ data, chartWidth, colors }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container:       { flex: 1 },
-  scrollContainer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
+  scrollContainer: { paddingHorizontal: cpad, paddingTop: 10, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   headerTitle:     { fontSize: 32, fontWeight: 'bold', marginTop: 10, marginBottom: 16 },
   selectionRow:    { flexDirection: 'row', gap: 10, marginBottom: 20, alignItems: 'center' },
   dayButton:       { paddingHorizontal: 20, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
@@ -513,8 +542,8 @@ const styles = StyleSheet.create({
   dateSelectorValue:   { fontSize: 14, fontWeight: 'bold' },
   dateSeparator:       { width: 1, height: 30 },
   row:      { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  halfCard: { flex: 1, padding: 20, borderRadius: 24 },
-  card:     { padding: 20, borderRadius: 24, marginBottom: 12 },
+  halfCard: { flex: 1, padding: cardP, borderRadius: br },
+  card:     { padding: cardP, borderRadius: br, marginBottom: 12 },
   cardLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
   cardValue: { fontSize: 18, fontWeight: 'bold', marginTop: 8 },
   bigValue:  { fontSize: 28, fontWeight: 'bold', marginTop: 8 },

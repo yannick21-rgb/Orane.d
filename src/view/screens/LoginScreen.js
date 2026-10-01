@@ -9,17 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { useResponsive } from '../../utils/responsive';
 
 export default function LoginScreen({ onSwitchToRegister }) {
   const { isDark, accentColor } = useFinance();
   const { login } = useAuth();
   const { t } = useTranslation();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,13 +39,19 @@ export default function LoginScreen({ onSwitchToRegister }) {
   };
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !password.trim()) {
       Alert.alert(t('erreur'), 'Veuillez remplir tous les champs.');
+      return;
+    }
+    if (!emailRegex.test(cleanEmail)) {
+      Alert.alert(t('erreur'), "Format d'email invalide.");
       return;
     }
     setLoading(true);
     try {
-      await login(email.trim(), password.trim());
+      await login(cleanEmail, password.trim());
     } catch (e) {
       Alert.alert(t('erreur'), e.message || 'Identifiants invalides.');
     } finally {
@@ -58,8 +68,7 @@ export default function LoginScreen({ onSwitchToRegister }) {
       >
         <View style={styles.content}>
           <View style={styles.headerSection}>
-            <Text style={[styles.logo]}>{'💰'}</Text>
-            <Text style={[styles.appName, { color: colors.text }]}>Orane.d</Text>
+            <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
             <Text style={[styles.subtitle, { color: colors.subText }]}>{t('Bienvenue') || 'Bienvenue'}</Text>
           </View>
 
@@ -120,23 +129,25 @@ export default function LoginScreen({ onSwitchToRegister }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: cpad,
+    maxWidth: cp,
+    width: '100%',
+    alignSelf: 'center',
   },
   headerSection: {
     alignItems: 'center',
     marginBottom: 36,
   },
-  logo: { fontSize: 48, marginBottom: 12 },
-  appName: { fontSize: 28, fontWeight: 'bold' },
+  logo: { width: 120, height: 120, marginBottom: 16 },
   subtitle: { fontSize: 14, marginTop: 6 },
   card: {
-    padding: 24,
-    borderRadius: 28,
+    padding: cardP,
+    borderRadius: br,
     borderWidth: 1,
   },
   label: {

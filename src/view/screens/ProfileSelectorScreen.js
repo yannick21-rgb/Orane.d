@@ -1,16 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Modal, Alert, StatusBar,
+  ScrollView, Modal, Alert, StatusBar, Image, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as LocalAuthentication from 'expo-local-authentication';
+
+let LocalAuthentication = null;
+if (Platform.OS !== 'web') {
+  try { LocalAuthentication = require('expo-local-authentication'); } catch (_) {}
+}
 import { useAuth } from '../../viewmodel/AuthContext';
+import { useResponsive } from '../../utils/responsive';
 
 const PIN_LENGTH = 5;
 
 export default function ProfileSelectorScreen({ navigation }) {
   const { accountsIndex, loginToUser } = useAuth();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -21,6 +28,7 @@ export default function ProfileSelectorScreen({ navigation }) {
   const biometricAttempted = useRef(false);
 
   useEffect(() => {
+    if (!LocalAuthentication) return;
     (async () => {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
@@ -30,7 +38,7 @@ export default function ProfileSelectorScreen({ navigation }) {
 
   const handleProfilePress = async (id, name) => {
     biometricAttempted.current = false;
-    if (hasBiometrics) {
+    if (hasBiometrics && LocalAuthentication) {
       biometricAttempted.current = true;
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authentification requise pour ouvrir ce compte',
@@ -75,7 +83,7 @@ export default function ProfileSelectorScreen({ navigation }) {
       <StatusBar barStyle="light-content" />
 
       <View style={styles.head}>
-        <Text style={styles.appName}>Orane.d</Text>
+        <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.tagline}>Connecte-toi pour continuer</Text>
       </View>
 
@@ -146,19 +154,22 @@ export default function ProfileSelectorScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0f1015' },
 
   head: { alignItems: 'center', paddingTop: 50, paddingBottom: 32 },
-  appName: { fontSize: 30, fontWeight: 'bold', color: '#fff', letterSpacing: 0.5 },
+  logo: { width: 140, height: 140, marginBottom: 8 },
   tagline: { fontSize: 14, color: '#8c8e9b', marginTop: 6 },
 
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: cpad,
     gap: 18,
+    maxWidth: cp,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   card: {

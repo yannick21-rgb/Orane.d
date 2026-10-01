@@ -10,17 +10,21 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { useResponsive } from '../../utils/responsive';
 
 export default function RegisterScreen({ onSwitchToLogin }) {
   const { isDark, accentColor } = useFinance();
   const { register } = useAuth();
   const { t } = useTranslation();
+  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,8 +50,19 @@ export default function RegisterScreen({ onSwitchToLogin }) {
   };
 
   const handleRegister = async () => {
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanName || !cleanEmail || !password.trim() || !confirmPassword.trim()) {
       Alert.alert(t('erreur'), 'Veuillez remplir tous les champs.');
+      return;
+    }
+    if (!emailRegex.test(cleanEmail)) {
+      Alert.alert(t('erreur'), "Format d'email invalide.");
+      return;
+    }
+    if (cleanName.length < 2) {
+      Alert.alert(t('erreur'), 'Le nom doit contenir au moins 2 caractères.');
       return;
     }
     if (password !== confirmPassword) {
@@ -61,9 +76,18 @@ export default function RegisterScreen({ onSwitchToLogin }) {
     }
     setLoading(true);
     try {
-      await register(name.trim(), email.trim(), password);
+      const result = await register(cleanName, cleanEmail, password);
+      if (result?.needsConfirmation) {
+        Alert.alert(
+          'Vérifie ton email',
+          "Un email de confirmation a été envoyé à " + cleanEmail + ". Clique sur le lien puis connecte-toi."
+        );
+      } else {
+        Alert.alert('Bienvenue', 'Compte créé avec succès !');
+      }
+      onSwitchToLogin();
     } catch (e) {
-      Alert.alert(t('erreur'), "Erreur lors de l'inscription.");
+      Alert.alert(t('erreur'), e.message || "Erreur lors de l'inscription.");
     } finally {
       setLoading(false);
     }
@@ -82,8 +106,7 @@ export default function RegisterScreen({ onSwitchToLogin }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerSection}>
-            <Text style={styles.logo}>{'💰'}</Text>
-            <Text style={[styles.appName, { color: colors.text }]}>Orane.d</Text>
+            <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
             <Text style={[styles.subtitle, { color: colors.subText }]}>
               {t('Créer un compte') || 'Créez votre compte'}
             </Text>
@@ -185,24 +208,26 @@ export default function RegisterScreen({ onSwitchToLogin }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: cpad,
     paddingTop: 40,
+    maxWidth: cp,
+    width: '100%',
+    alignSelf: 'center',
   },
   headerSection: {
     alignItems: 'center',
     marginBottom: 32,
   },
-  logo: { fontSize: 48, marginBottom: 12 },
-  appName: { fontSize: 28, fontWeight: 'bold' },
+  logo: { width: 120, height: 120, marginBottom: 16 },
   subtitle: { fontSize: 14, marginTop: 6 },
   card: {
-    padding: 24,
-    borderRadius: 28,
+    padding: cardP,
+    borderRadius: br,
     borderWidth: 1,
   },
   label: {

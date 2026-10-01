@@ -60,7 +60,7 @@ Attributs : `id`, `type`, `amount`, `category`, `wallet`, `date`, `title`, `note
 - **Types :** `expense` (dépense), `income` (revenu), `transfert` (transfert MoMo→Cash)
 - **Portefeuilles :** `momo` (Mobile Money), `cash` (espèces)
 - **Réseaux MoMo :** MTN (frais 2%), MOOV (2%), CELTIIS (2.5%)
-- **Catégories dépenses (11) :** Alimentation, Logement, Transport, Abonnements & Tech, Sport, Loisirs, Habillement, Santé, Épargne, Remboursement, Frais & Retraits
+- **Catégories dépenses (13) :** Alimentation, Logement, Transport, Abonnements & Tech, Sport, Loisirs, Habillement, Santé, Épargne, Remboursement, Frais & Retraits, Education/Formation, Autres
 - **Catégories revenus (6) :** Salaire/Coaching, Freelance/Dev, Projets Web, Cadeau, Emprunt, Ventes
 - **Fonction :** `computeTransferFee(amount, networkKey)` calcule les frais de retrait
 

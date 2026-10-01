@@ -124,17 +124,26 @@ export async function safeAsyncReadJSON(key, fallback = null) {
 }
 
 export async function safeAsyncWrite(key, value) {
+  if (value === null || value === undefined) {
+    try {
+      await AsyncStorage.removeItem(key);
+      await AsyncStorage.removeItem(`${key}_tmp`);
+    } catch (_) {}
+    return true;
+  }
+  const strValue = String(value);
   const tmpKey = `${key}_tmp`;
   try {
-    await AsyncStorage.setItem(tmpKey, value);
+    await AsyncStorage.setItem(tmpKey, strValue);
     const verify = await AsyncStorage.getItem(tmpKey);
-    if (verify !== value) {
+    if (verify !== strValue) {
       throw new Error('La vérification de l\'écriture temporaire a échoué');
     }
-    await AsyncStorage.setItem(key, value);
+    await AsyncStorage.setItem(key, strValue);
     await AsyncStorage.removeItem(tmpKey);
     return true;
   } catch (e) {
+    if (e.message && e.message.includes('removed from Expo Go')) return true;
     console.error(`[safeAsyncWrite] Erreur écriture ${key} :`, e.message);
     try { await AsyncStorage.removeItem(tmpKey); } catch (_) {}
     throw e;

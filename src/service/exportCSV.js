@@ -1,5 +1,4 @@
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { toNumber } from '../utils/format';
 
 export async function exportTransactionsToCSV(transactions, devise = '€') {
@@ -21,6 +20,22 @@ export async function exportTransactionsToCSV(transactions, devise = '€') {
   });
 
   const csvContent = `${headers}\n${rows.join('\n')}`;
+
+  if (Platform.OS === 'web') {
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `oraned_export_${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  const FileSystem = require('expo-file-system');
+  const Sharing = require('expo-sharing');
   const fileUri = `${FileSystem.cacheDirectory}oraned_export_${Date.now()}.csv`;
 
   await FileSystem.writeAsStringAsync(fileUri, csvContent, {
