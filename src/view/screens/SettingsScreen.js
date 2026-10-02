@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Alert,
   KeyboardAvoidingView,
   Modal,
@@ -32,6 +31,7 @@ import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
 import { useColors } from '../theme';
+import { Button, Card, Input } from '../components/ui';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -457,7 +457,7 @@ export default function SettingsScreen({ navigation }) {
             {t('settings')}
           </Text>
 
-          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
+          <Card padding={cardP} radius={br}>
             <View style={styles.sectionHeaderBetween}>
               <View style={styles.sectionHeaderLeft}>
                 <User size={20} color={colors.subText} />
@@ -491,45 +491,43 @@ export default function SettingsScreen({ navigation }) {
             ) : (
               <View style={styles.editForm}>
                 <Text style={[styles.inputLabel, { color: colors.subText }]}>{t('nom')}</Text>
-                <TextInput
-                  style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+                <Input
                   value={editName}
                   onChangeText={setEditName}
                   placeholder={t('votre_nom')}
-                  placeholderTextColor={colors.subText}
                 />
 
                 <Text style={[styles.inputLabel, { color: colors.subText, marginTop: 10 }]}>{t('adresse_email')}</Text>
-                <TextInput
-                  style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.subText, borderColor: colors.border }]}
+                <Input
                   value={editEmail}
                   editable={false}
+                  textColor="subText"
                   placeholder={t('votre_email')}
-                  placeholderTextColor={colors.subText}
                 />
 
                 <View style={styles.actionFormRow}>
-                  <TouchableOpacity style={[styles.formBtn, { backgroundColor: colors.unselectedPill }]} onPress={handleCancelEdit}>
-                    <X size={16} color={colors.subText} style={{ marginRight: 6 }} />
-                    <Text style={{ color: colors.subText, fontWeight: '600' }}>{t('annuler')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.formBtn, { backgroundColor: accentColor }]} onPress={handleSaveProfile}>
-                    <Check size={16} color="#fff" style={{ marginRight: 6 }} />
-                    <Text style={{ color: '#fff', fontWeight: '600' }}>{t('enregistrer')}</Text>
-                  </TouchableOpacity>
+                  <Button
+                    label={t('annuler')}
+                    variant="secondary"
+                    onPress={handleCancelEdit}
+                    icon={<X size={16} color={colors.subText} />}
+                  />
+                  <Button
+                    label={t('enregistrer')}
+                    onPress={handleSaveProfile}
+                    icon={<Check size={16} color="#fff" />}
+                  />
                 </View>
               </View>
             )}
-          </View>
+          </Card>
 
           {allUsers.length > 1 && (
-            <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
-              <View style={styles.sectionHeader}>
-                <Users size={20} color={colors.subText} />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Gestion des Comptes
-                </Text>
-              </View>
+            <Card padding={cardP} radius={br}>
+              <SectionHeader
+                icon={<Users size={20} color={colors.subText} />}
+                title={`Gestion des Comptes`}
+               />
               {allUsers.map((account) => {
                 const isActive = account.email === authUser?.email;
                 return (
@@ -571,16 +569,14 @@ export default function SettingsScreen({ navigation }) {
                   </View>
                 );
               })}
-            </View>
+            </Card>
           )}
 
-          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
-            <View style={styles.sectionHeader}>
-              <Palette size={20} color={colors.subText} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {t('visualCustom')}
-              </Text>
-            </View>
+          <Card padding={cardP} radius={br}>
+            <SectionHeader
+              icon={<Palette size={20} color={colors.subText} />}
+              title={t('visualCustom')}
+             />
 
             <Text style={[styles.label, { color: colors.subText }]}>{t('theme')}</Text>
             <View style={styles.pillRow}>
@@ -619,15 +615,13 @@ export default function SettingsScreen({ navigation }) {
                 })}
               </View>
             </ScrollView>
-          </View>
+          </Card>
 
-          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
-            <View style={styles.sectionHeader}>
-              <Globe size={20} color={colors.subText} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {t('locPreferences')}
-              </Text>
-            </View>
+          <Card padding={cardP} radius={br}>
+            <SectionHeader
+              icon={<Globe size={20} color={colors.subText} />}
+              title={t('locPreferences')}
+             />
 
             <Text style={[styles.label, { color: colors.subText }]}>{t('language')}</Text>
             <Dropdown
@@ -679,14 +673,10 @@ export default function SettingsScreen({ navigation }) {
               value={pays}
               onChange={(item) => setPays(item.value)}
             />
-          </View>
+          </Card>
 
-          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Budget & Rappels
-              </Text>
-            </View>
+          <Card padding={cardP} radius={br}>
+            <SectionHeader title="Budget & Rappels" />
 
             <Text style={[styles.label, { color: colors.subText }]}>Période du budget</Text>
             <View style={styles.pillRow}>
@@ -728,20 +718,14 @@ export default function SettingsScreen({ navigation }) {
 
             <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>Montant maximum</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <TextInput
-                style={[styles.textInput, { flex: 1, backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+              <Input
+                style={{ flex: 1 }}
                 value={budgetInput}
                 onChangeText={setBudgetInput}
                 keyboardType="numeric"
                 placeholder="0"
-                placeholderTextColor={colors.subText}
               />
-              <TouchableOpacity
-                style={[styles.formBtn, { backgroundColor: accentColor }]}
-                onPress={handleBudgetSave}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>OK</Text>
-              </TouchableOpacity>
+              <Button label="OK" onPress={handleBudgetSave} />
             </View>
 
             {budgetLimit > 0 && (
@@ -795,15 +779,13 @@ export default function SettingsScreen({ navigation }) {
                 onChange={handleTimeChange}
               />
             )}
-          </View>
+          </Card>
 
-          <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
-            <View style={styles.sectionHeader}>
-              <Lock size={20} color={colors.subText} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Sécurité & Code PIN
-              </Text>
-            </View>
+          <Card padding={cardP} radius={br}>
+            <SectionHeader
+              icon={<Lock size={20} color={colors.subText} />}
+              title={`Sécurité & Code PIN`}
+             />
 
             <Text style={[styles.pinStatus, { color: hasPinCode ? '#2ecc71' : colors.subText }]}>
               {hasPinCode ? '🔒 Code PIN actif' : '🔓 Aucun code PIN configuré'}
@@ -836,7 +818,7 @@ export default function SettingsScreen({ navigation }) {
               </View>
               <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
             </TouchableOpacity>
-          </View>
+          </Card>
 
           <TouchableOpacity
             style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
@@ -909,28 +891,25 @@ export default function SettingsScreen({ navigation }) {
                 ? 'L\'authentification biométrique a échoué. Entrez votre mot de passe de session pour vérifier votre identité.'
                 : 'Aucune donnée biométrique disponible. Entrez votre mot de passe de session pour vérifier votre identité.'}
             </Text>
-            <TextInput
-              style={[styles.pwdInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+            <Input
+              height={48}
+              radius={12}
+              paddingHorizontal={14}
+              style={{ width: '100%' }}
               value={resetPassword}
               onChangeText={setResetPassword}
               placeholder="Mot de passe"
-              placeholderTextColor={colors.subText}
               secureTextEntry
               autoCapitalize="none"
             />
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <TouchableOpacity
-                style={[styles.pwdBtn, { backgroundColor: colors.unselectedPill }]}
+              <Button
+                label="Annuler"
+                variant="secondary"
+                flex
                 onPress={() => { setShowResetModal(false); setResetPassword(''); setIsDeviceVerified(false); }}
-              >
-                <Text style={{ color: colors.subText, fontWeight: '600' }}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pwdBtn, { backgroundColor: accentColor }]}
-                onPress={handleResetPasswordSubmit}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Vérifier</Text>
-              </TouchableOpacity>
+              />
+              <Button label="Vérifier" flex onPress={handleResetPasswordSubmit} />
             </View>
           </View>
         </View>
@@ -986,8 +965,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  card: { padding: cardP, borderRadius: br, marginBottom: 16 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
@@ -999,9 +976,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   userEmail: { fontSize: 14, marginTop: 2 },
   editForm: { marginTop: 4 },
   inputLabel: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
-  textInput: { height: 44, borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, fontSize: 15 },
   actionFormRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 14 },
-  formBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
   aboutRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1075,78 +1050,4 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   pwdTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   pwdSubtitle: { fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
-  pwdInput: {
-    width: '100%',
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    fontSize: 15,
-  },
-  pwdBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-  },
-  accountInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  accountAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  accountAvatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  accountName: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  accountEmail: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  activeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2ecc71',
-    marginRight: 6,
-  },
-  activeLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  switchBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  switchBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
 });
