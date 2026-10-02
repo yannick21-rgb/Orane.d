@@ -9,6 +9,7 @@ import { TONTINE_FREQUENCIES } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColors } from '../theme';
+import { Button } from './ui';
 
 export default function TontineFormModal({ visible, initialData, onClose }) {
   const { accentColor } = useFinance();
@@ -165,13 +166,13 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
                 : ''}
             </Text>
 
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: accentColor }]}
+            <Button
+              size="xl"
+              fullWidth
+              label={isEdit ? 'Enregistrer' : 'Créer la tontine'}
               onPress={handleSave}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.saveBtnText}>{isEdit ? 'Enregistrer' : 'Créer la tontine'}</Text>
-            </TouchableOpacity>
+              style={styles.saveBtn}
+            />
           </ScrollView>
         </View>
       </View>
@@ -192,6 +193,5 @@ const styles = StyleSheet.create({
   hint: { fontSize: 11, marginTop: 6, lineHeight: 16 },
   dateBtn: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center' },
   previewText: { fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 16 },
-  saveBtn: { height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 24, marginBottom: 12 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtn: { marginTop: 24, marginBottom: 12 },
 });

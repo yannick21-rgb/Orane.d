@@ -9,6 +9,7 @@ import { DEBT_TYPES } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColors } from '../theme';
+import { Button } from './ui';
 
 export default function DebtFormModal({ visible, onClose, initialData, defaultType }) {
   const { accentColor } = useFinance();
@@ -172,13 +173,13 @@ export default function DebtFormModal({ visible, onClose, initialData, defaultTy
               textAlignVertical="top"
             />
 
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: accentColor }]}
+            <Button
+              size="xl"
+              fullWidth
+              label={isEdit ? 'Enregistrer' : 'Ajouter'}
               onPress={handleSave}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.saveBtnText}>{isEdit ? 'Enregistrer' : 'Ajouter'}</Text>
-            </TouchableOpacity>
+              style={styles.saveBtn}
+            />
           </ScrollView>
         </View>
       </View>
@@ -208,6 +209,7 @@ const styles = StyleSheet.create({
     height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500',
   },
   noteInput: { height: 80, paddingTop: 14 },
+  saveBtn: { marginTop: 24, marginBottom: 12 },
   dateBtn: {
     height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14,
     justifyContent: 'center',
@@ -217,8 +219,4 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   switchLabel: { fontSize: 15, fontWeight: '600' },
-  saveBtn: {
-    height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 24, marginBottom: 12,
-  },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

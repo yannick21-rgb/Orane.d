@@ -14,6 +14,9 @@ const SIZES = {
   sm: { paddingVertical: 8, paddingHorizontal: 14, radius: 8, fontSize: 15, minHeight: 34 },
   md: { paddingVertical: 12, paddingHorizontal: 16, radius: 12, fontSize: 15, minHeight: 44 },
   lg: { paddingVertical: 14, paddingHorizontal: 20, radius: 12, fontSize: 17, minHeight: 52 },
+  // Bouton d'enregistrement pleine largeur des modales de formulaire
+  // (saveBtn de DebtFormModal / TontineFormModal)
+  xl: { paddingVertical: 0, paddingHorizontal: 20, radius: 16, fontSize: 16, minHeight: 52, weight: '700' },
 };
 
 const VARIANTS = {
@@ -37,6 +40,7 @@ export function Button({
   disabled = false,
   loading = false,
   flex = false,
+  fullWidth = false,
   style,
   textStyle,
   ...props
@@ -59,6 +63,7 @@ export function Button({
           minHeight: s.minHeight,
         },
         flex && styles.flex,
+        fullWidth && styles.fullWidth,
         inert && styles.disabled,
         style,
       ]}
@@ -78,7 +83,13 @@ export function Button({
               <View style={styles.spacer} />
             </>
           )}
-          <Text style={[styles.label, { color, fontSize: s.fontSize }, textStyle]}>
+          <Text
+            style={[
+              styles.label,
+              { color, fontSize: s.fontSize, fontWeight: s.weight || '600' },
+              textStyle,
+            ]}
+          >
             {label}
           </Text>
           {iconRight && (
@@ -100,8 +111,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flex: { flex: 1 },
+  fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
-  label: { fontWeight: '600', textAlign: 'center' },
+  label: { textAlign: 'center' },
   spacer: { width: 6 },
 });
 
