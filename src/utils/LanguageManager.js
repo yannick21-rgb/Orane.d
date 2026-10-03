@@ -1752,6 +1752,28 @@ export const translations = {
     defi_termine: 'Défi terminé !',
     record: 'Record',
     actuel: 'Actuel',
+
+    // Écran d'accueil — refonte « le carnet ».
+    // Les libellés ci-dessous ne portent plus de glyphe décoratif (pas de
+    // ▲ devant « Revenus ») : le sens vient du signe du montant et de sa
+    // couleur, pas d'un symbole dans le texte du libellé.
+    label_revenus: 'Revenus',
+    label_depenses: 'Dépenses',
+    solde_disponible: 'Solde disponible',
+    pocket_momo: 'MoMo',
+    pocket_especes: 'Espèces',
+    pocket_banque: 'Banque',
+    en_attente: 'en attente',
+    rechercher: 'Rechercher',
+    aucun_resultat: 'Aucun résultat pour',
+    serie: 'Série',
+    xp_unit: 'XP',
+    jours_abrege: 'j',
+    a_recevoir: 'À recevoir',
+    a_rembourser: 'À rembourser',
+    tontine: 'Tontine',
+    mode_discret: 'Afficher les montants',
+    mode_visible: 'Masquer les montants',
   },
 
   af: {

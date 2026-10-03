@@ -1,34 +1,40 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { useColors } from '../../theme';
+import { fonts } from '../../theme/type';
+import { radius, touchTarget } from '../../theme/tokens';
 
 /**
  * Bouton de base.
  *
- * Les dimensions par défaut reprennent celles qui étaient codées en dur dans
- * les écrans (`formBtn` / `pwdBtn` de SettingsScreen) : paddingVertical 8,
- * paddingHorizontal 14, borderRadius 8 et fontSize 15 en taille `sm`.
+ * Le libellé est un nom d'action court — « Enregistrer », « Vérifier » — donc
+ * il est écrit comme un mot du carnet, en Space Grotesk. L'encre du texte
+ * vient de la variante, jamais d'un `#fff` posé en dur : sur une accent
+ * clair, du blanc serait illisible, et `accentFg` tranche pour nous.
  */
 
 const SIZES = {
-  sm: { paddingVertical: 8, paddingHorizontal: 14, radius: 8, fontSize: 15, minHeight: 34 },
-  md: { paddingVertical: 12, paddingHorizontal: 16, radius: 12, fontSize: 15, minHeight: 44 },
-  lg: { paddingVertical: 14, paddingHorizontal: 20, radius: 12, fontSize: 17, minHeight: 52 },
+  sm: { paddingVertical: 7, paddingHorizontal: 14, radius: radius.xs, fontSize: 14, minHeight: 34 },
+  md: { paddingVertical: 11, paddingHorizontal: 16, radius: radius.sm, fontSize: 15, minHeight: touchTarget },
+  lg: { paddingVertical: 14, paddingHorizontal: 20, radius: radius.md, fontSize: 17, minHeight: 52 },
   // Bouton d'enregistrement pleine largeur des modales de formulaire
   // (saveBtn de DebtFormModal / TontineFormModal)
-  xl: { paddingVertical: 0, paddingHorizontal: 20, radius: 16, fontSize: 16, minHeight: 52, weight: '700' },
+  xl: { paddingVertical: 0, paddingHorizontal: 20, radius: radius.md, fontSize: 16, minHeight: 52 },
 };
 
 const VARIANTS = {
-  primary: { bg: 'accent', fg: '#fff' },
-  secondary: { bg: 'unselectedPill', fg: 'subText' },
-  ghost: { bg: 'transparent', fg: 'accent' },
-  danger: { bg: 'danger', fg: '#fff' },
+  // accent / accentFg : l'encre est calculée pour garantir le contraste
+  primary: { bg: 'accent', fg: 'accentFg' },
+  secondary: { bg: 'sunken', fg: 'ink' },
+  ghost: { bg: 'transparent', fg: 'inkMid' },
+  // Clés de palette uniquement — une valeur littérale ici est résolue en
+  // `colors['#ffffff']`, c'est-à-dire en `undefined`, donc en texte noir.
+  danger: { bg: 'danger', fg: 'dangerFg' },
 };
 
 /**
  * @param {'primary'|'secondary'|'ghost'|'danger'} variant
- * @param {'sm'|'md'|'lg'} size
+ * @param {'sm'|'md'|'lg'|'xl'} size
  */
 export function Button({
   label,
@@ -86,7 +92,7 @@ export function Button({
           <Text
             style={[
               styles.label,
-              { color, fontSize: s.fontSize, fontWeight: s.weight || '600' },
+              { fontFamily: fonts.semibold, color, fontSize: s.fontSize, letterSpacing: -0.1 },
               textStyle,
             ]}
           >

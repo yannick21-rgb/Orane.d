@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { useColorScheme, Alert, Platform } from 'react-native';
 import { useAuth } from './AuthContext';
 import { LanguageManager } from '../utils/LanguageManager';
+import { DEFAULT_ACCENT } from '../model/ThemeModel';
 import { exportTransactionsToCSV as exportCSV } from '../service/exportCSV';
 import { verifyPassword, hashPin, verifyPin, storePinHash, getStoredPinHash, removePinHash, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit, getRemainingAttemptsText } from '../utils/security';
 import { safeAsyncRead, safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncWrite, safeAsyncRemove, validateTransaction, filterValidRecords } from '../utils/storage';
@@ -46,7 +47,7 @@ export function FinanceProvider({ children }) {
 
   const [transactions, setTransactions] = useState([]);
   const [theme, setTheme] = useState('Système');
-  const [accentColor, setAccentColor] = useState('#3b82f6');
+  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
   const [devise, setDevise] = useState('€ (EUR)');
   const [locale, setLocale] = useState(LanguageManager.currentLanguage);
   const [budgetLimit, setBudgetLimit] = useState(0);

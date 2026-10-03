@@ -1,22 +1,37 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '../../theme';
+import { type } from '../../theme/type';
 
 /**
- * En-tête de section : icône optionnelle + titre.
- * Reprend `sectionHeader` / `sectionTitle` des écrans.
+ * En-tête de section : libellé optionnel + titre.
  *
- * La marge gauche de 8px est appliquée au titre dans tous les cas, comme
- * auparavant — y compris lorsqu'aucune icône n'est fournie. Un titre sans
- * icône reste donc décalé de 8px, ce qui est le rendu d'origine.
+ * Le titre est un mot du carnet, en Space Grotesk. Il n'y a pas d'exergue en
+ * capitales au-dessus : le titre est le titre, il n'a pas besoin d'être
+ * oxidase pour exister.
+ *
+ * `trailing` aligne un élément à droite sur la même ligne — c'est ainsi que
+ * la recherche s'est Integrate au titre « Toutes les opérations » au lieu
+ * d'occuper une carte à elle seule.
  */
-export function SectionHeader({ icon, title, titleColor = 'text', style, titleStyle, ...props }) {
+export function SectionHeader({
+  icon,
+  title,
+  trailing,
+  titleColor = 'ink',
+  style,
+  titleStyle,
+  ...props
+}) {
   const colors = useColors();
 
   return (
     <View style={[styles.base, style]} {...props}>
       {icon}
-      <Text style={[styles.title, { color: colors[titleColor] }, titleStyle]}>{title}</Text>
+      <Text style={[styles.title, type.title, { color: colors[titleColor] }, titleStyle]} numberOfLines={1}>
+        {title}
+      </Text>
+      {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
     </View>
   );
 }
@@ -28,9 +43,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    flexShrink: 1,
     marginLeft: 8,
+  },
+  trailing: {
+    marginLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 

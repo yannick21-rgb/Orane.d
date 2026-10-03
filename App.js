@@ -1,7 +1,9 @@
 import './src/utils/cryptoPolyfill';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated } from 'react-native';
+import {
+  StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated,
+} from 'react-native';
 import CrossPlatformPager from './src/view/components/CrossPlatformPager';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,6 +34,15 @@ import OnboardingScreen from './src/view/screens/OnboardingScreen';
 
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
 import { buildColors, useColors } from './src/view/theme';
+import { type } from './src/view/theme/type';
+import { ruleWidth, touchTarget } from './src/view/theme/tokens';
+import {
+  useFonts,
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
 
 const LOADING_TIMEOUT = 5000;
 
@@ -72,15 +83,9 @@ function MainTabs() {
   const icons = [Home, PlusCircle, PieChart, SettingsIcon];
   const tabLabels = [t('home'), t('add'), t('stats'), t('settings')];
 
-  const scaleAnims = useRef(screens.map(() => new Animated.Value(1))).current;
-
   const onTabPress = (i) => {
     pagerRef.current?.setPage(i);
     setActiveIndex(i);
-    Animated.sequence([
-      Animated.spring(scaleAnims[i], { toValue: 1.15, useNativeDriver: true, friction: 3 }),
-      Animated.spring(scaleAnims[i], { toValue: 1, useNativeDriver: true, friction: 3 }),
-    ]).start();
   };
 
   const navigateToTab = useCallback((name) => {
@@ -99,16 +104,12 @@ function MainTabs() {
 
   const insets = useSafeAreaInsets();
 
-  // Écarts conservés : la barre d'onglets a sa propre teinte de bordure et
-  // un gris inactif plus contrasté que le `subText` de la palette.
+  // Écart conservé : la barre d'onglets se pose sur la bande réglée
+  // (`card`) et non sur le fond, et son filet supérieur est le filet
+  // d'usage — celui qui sépare deux registres.
   const colors = useMemo(() => {
     const base = buildColors(isDark, accentColor);
-    return {
-      ...base,
-      barBg: base.card,
-      inactive: isDark ? '#555660' : '#8c8e9b',
-      border: isDark ? '#1e202c' : base.borderSoft,
-    };
+    return { ...base, barBg: base.card };
   }, [isDark, accentColor]);
 
   return (
@@ -130,33 +131,31 @@ function MainTabs() {
         ))}
       </CrossPlatformPager>
       <GamificationToast />
-      <View style={{
-        flexDirection: 'row',
+      <View style={[styles.tabBar, {
         backgroundColor: colors.barBg,
-        borderTopWidth: isDark ? 0 : 1,
-        borderTopColor: colors.border,
+        borderTopColor: colors.rule,
         height: TAB_BAR_HEIGHT + insets.bottom,
         paddingBottom: insets.bottom + 8,
-        paddingTop: 6,
-      }}>
+      }]}>
         {screens.map((s, i) => {
           const focused = activeIndex === i;
           const IconComp = icons[i];
+          // Onglet courant : l'accent sur le filet et sur l'encre du libellé.
+          // Ni pastille, ni halo, ni rebond au press — le changement d'encre
+          // dit déjà ce qui a changé.
+          const ink = focused ? accentColor : colors.inkFaint;
           return (
             <TouchableOpacity
               key={s.key}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+              style={styles.tab}
               onPress={() => onTabPress(i)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={tabLabels[i]}
             >
-              <Animated.View style={{ transform: [{ scale: scaleAnims[i] }] }}>
-                <IconComp color={focused ? accentColor : colors.inactive} size={22} />
-              </Animated.View>
-              <Text style={{
-                fontSize: 11,
-                fontWeight: '600',
-                color: focused ? accentColor : colors.inactive,
-                marginTop: 2,
-              }}>
+              <View style={[styles.tabTick, focused && { backgroundColor: accentColor }]} />
+              <IconComp color={ink} size={22} />
+              <Text style={[type.micro, { color: ink, marginTop: 3 }]} numberOfLines={1}>
                 {tabLabels[i]}
               </Text>
             </TouchableOpacity>
@@ -231,6 +230,25 @@ function RootNavigator() {
 }
 
 export default function App() {
+  // Space Grotesk porte tous les chiffres de l'app. On attend son
+  // chargement avant de rendre quoi que ce soit : afficher une frame en
+  // police système puis basculer fait sauter toute la mise en page, et une
+  // colonne de montants qui se recompose est exactement ce qu'on cherche à
+  // éviter ici.
+  const [fontsLoaded, fontError] = useFonts({
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    // Repli : fond de la palette, même en clair, pour éviter le flash blanc
+    // au démarrage.
+    return <View style={{ flex: 1, backgroundColor: '#0e1014' }} />;
+  }
+  if (fontError) console.warn('Space Grotesk indisponible, retour à la police système', fontError);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -250,4 +268,21 @@ export default function App() {
 
 const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: ruleWidth,
+    paddingTop: 8,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: touchTarget,
+  },
+  tabTick: {
+    width: 18,
+    height: 2,
+    borderRadius: 1,
+    marginBottom: 6,
+  },
 });

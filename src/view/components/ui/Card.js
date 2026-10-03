@@ -1,18 +1,24 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useColors } from '../../theme';
+import { radius } from '../../theme/tokens';
 
 /**
- * Conteneur de section. Reprend le `card` des écrans
- * (padding 24-28, borderRadius 28-32, marginBottom 16).
+ * La bande réglée.
  *
- * Les dimensions continues viennent de `useResponsive` : passer `padding` et
- * `radius` depuis le parent pour conserver exactement le rendu existant.
+ * Un bloc de contenu, posé sur le fond sans bordure ni ombre : c'est le petit
+ * écart de valeur entre `bg` et `card` qui dit où s'arrête le bloc. La
+ * version précédente empilait des boîtes à rayon 28 partout, y compris en
+ * thème sombre où elles n'avaient aucune bordure — le résultat lisait comme
+ * des dalles identiques et ne donnait aucun repère sur l'importance.
+ *
+ * `padding` et `radius` restent pilotables par l'écran appelant, comme
+ * avant.
  */
 export function Card({
   children,
-  padding = 24,
-  radius = 28,
+  padding = 20,
+  radius: radiusOverride = radius.md,
   marginBottom = 16,
   style,
   ...props
@@ -25,7 +31,7 @@ export function Card({
         {
           backgroundColor: colors.card,
           padding,
-          borderRadius: radius,
+          borderRadius: radiusOverride,
           marginBottom,
         },
         style,
