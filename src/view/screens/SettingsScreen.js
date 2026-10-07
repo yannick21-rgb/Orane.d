@@ -31,7 +31,7 @@ import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
 import { useColors } from '../theme';
-import { Button, Card, Input } from '../components/ui';
+import { Button, Card, Input, SectionHeader } from '../components/ui';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
