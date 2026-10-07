@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Trash2, Plus, Check, X } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
-import { useGamification } from '../../viewmodel/GamificationContext';
 import { DEBT_TABS, DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DebtFormModal from '../components/DebtFormModal';
@@ -16,7 +15,6 @@ import { useColors } from '../theme';
 export default function DebtsScreen({ onClose }) {
   const { accentColor, devise, addTransaction } = useFinance();
   const { debts, deleteDebt, markReimbursed } = useDebts();
-  const { awardDebtReimbursed } = useGamification();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
@@ -56,22 +54,14 @@ export default function DebtsScreen({ onClose }) {
       `Ajouter une transaction réelle de ${amount}${deviseSymbol} ?\n\nSi l'argent a déjà été échangé hors-appli, vous pouvez laisser "Non".`,
       [
         { text: 'Non, juste marquer', style: 'cancel', onPress: async () => {
-          const res = await markReimbursed(debt.id, amount);
-          if (res && res.status === DEBT_STATUS.REMBOURSEE) {
-            const dueOk = !debt.dueDate || new Date() <= new Date(debt.dueDate);
-            if (dueOk) awardDebtReimbursed(debt.id);
-          }
+          await markReimbursed(debt.id, amount);
           setShowReimburse(null);
           setReimburseAmount('');
         }},
         {
           text: 'Oui, créer la transaction',
           onPress: async () => {
-            const res2 = await markReimbursed(debt.id, amount);
-            if (res2 && res2.status === DEBT_STATUS.REMBOURSEE) {
-              const dueOk2 = !debt.dueDate || new Date() <= new Date(debt.dueDate);
-              if (dueOk2) awardDebtReimbursed(debt.id);
-            }
+            await markReimbursed(debt.id, amount);
             const isCreditRecu = debt.type === DEBT_TYPES.CREDIT_RECU;
             const label = isCreditRecu ? 'Remboursement donné' : 'Remboursement reçu';
             addTransaction({

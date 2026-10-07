@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Check } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTontines } from '../../viewmodel/TontineContext';
-import { useGamification } from '../../viewmodel/GamificationContext';
 import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import { useResponsive } from '../../utils/responsive';
@@ -15,7 +14,6 @@ import { useColors } from '../theme';
 export default function TontineDetailScreen({ group, onClose }) {
   const { accentColor, devise, addTransaction } = useFinance();
   const { markRoundPaid, markRoundReceived } = useTontines();
-  const { awardTontineRound } = useGamification();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
@@ -28,13 +26,11 @@ export default function TontineDetailScreen({ group, onClose }) {
       'Marquer cotisation payée',
       `Confirmer le paiement du tour ${round.roundNumber} (${group.amountPerTour} ${deviseSymbol}) ?\n\nAjouter une transaction réelle correspondante ?`,
       [
-        { text: 'Non', style: 'cancel', onPress: async () => { await markRoundPaid(group.id, round.roundNumber); const dueOk = !round.dueDate || new Date() <= new Date(round.dueDate); if (dueOk) awardTontineRound(group.id, round.roundNumber); } },
+        { text: 'Non', style: 'cancel', onPress: async () => { await markRoundPaid(group.id, round.roundNumber); } },
         {
           text: 'Oui, créer la dépense',
           onPress: async () => {
             await markRoundPaid(group.id, round.roundNumber);
-            const dueOk2 = !round.dueDate || new Date() <= new Date(round.dueDate);
-            if (dueOk2) awardTontineRound(group.id, round.roundNumber);
             addTransaction({
               id: Date.now().toString(),
               title: `Cotisation tontine — ${group.groupName} (tour ${round.roundNumber})`,

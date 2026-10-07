@@ -13,9 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
-import { useGamification } from '../../viewmodel/GamificationContext';
 import { useTranslation } from '../../utils/LanguageManager';
-import { XP_REWARDS } from '../../model/GamificationModel';
 import { toNumber } from '../../utils/format';
 import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, computeTransferFee } from '../../model/TransactionModel';
 import VoiceInputButton from '../components/VoiceInputButton';
@@ -26,7 +24,6 @@ import { buildColors } from '../theme';
 export default function AddTransactionScreen({ navigation }) {
   const { t } = useTranslation();
   const { isDark, accentColor, addTransaction, updateTransaction, editingTransaction, setEditingTransaction, devise } = useFinance();
-  const { awardXp } = useGamification();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
@@ -134,8 +131,6 @@ export default function AddTransactionScreen({ navigation }) {
       finalCategory = 'Retrait MoMo';
     }
 
-    const hadCategoryBefore = isEditing ? !!(editingTransaction.category && String(editingTransaction.category).trim()) : false;
-    const hasCategoryNow = !!(finalCategory && String(finalCategory).trim() && finalCategory !== 'Autres');
     if (isEditing) {
       updateTransaction(editingTransaction.id, {
         title:           title.trim(),
@@ -147,7 +142,6 @@ export default function AddTransactionScreen({ navigation }) {
         momoNetwork:     type === 'transfert' ? selectedNetwork : null,
         incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
       });
-      if (!hadCategoryBefore && hasCategoryNow) awardXp(XP_REWARDS.CATEGORIZE, 'Catégorisation');
     } else {
       const txId = Date.now().toString();
 
@@ -181,8 +175,6 @@ export default function AddTransactionScreen({ navigation }) {
         });
       }
     }
-
-    if (!isEditing) awardXp(XP_REWARDS.ADD_TRANSACTION, hasCategoryNow ? 'Transaction ajoutée' : 'Transaction ajoutée');
 
     setShowSuccessModal(true);
 

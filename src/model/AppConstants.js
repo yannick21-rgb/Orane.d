@@ -33,10 +33,6 @@ export function debtsKey(userId) {
   return `@oraned_debts_${userId}`;
 }
 
-export function gamificationStorageKey(userId) {
-  return `@oraned_gamification_${userId}`;
-}
-
 //
 // Budget
 //

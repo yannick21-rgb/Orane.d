@@ -19,9 +19,7 @@ try {
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
 import { useTontines } from '../../viewmodel/TontineContext';
-import { useGamification } from '../../viewmodel/GamificationContext';
 import { useAuth } from '../../viewmodel/AuthContext';
-import ProgressScreen from './ProgressScreen';
 import { checkPinRateLimit, getRemainingAttemptsText } from '../../utils/security';
 import { sync } from '../../utils/sync';
 import { useTranslation } from '../../utils/LanguageManager';
@@ -32,7 +30,7 @@ import { Trash2, CheckSquare, Square, X, Eye, EyeOff, Search } from 'lucide-reac
 import PinAuthModal from '../components/PinAuthModal';
 import { buildColors } from '../theme';
 import { type } from '../theme/type';
-import { radius, touchTarget } from '../theme/tokens';
+import { touchTarget } from '../theme/tokens';
 import { Amount, Button, Cells, Cell, Rule, SectionHeader } from '../components/ui';
 
 /* ------------------------------------------------------------------ */
@@ -101,7 +99,6 @@ export default function HomeScreen({ navigation }) {
 
   const { totalToReceive, totalToRepay } = useDebts();
   const { overallSummary } = useTontines();
-  const { levelInfo, streaks } = useGamification();
   const { userId, loading } = useAuth();
   const { contentMaxWidth, contentPadding } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding);
@@ -141,7 +138,6 @@ export default function HomeScreen({ navigation }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [showProgress, setShowProgress] = useState(false);
 
   const colors = useMemo(() => buildColors(isDark, accentColor), [isDark, accentColor]);
 
@@ -241,7 +237,6 @@ export default function HomeScreen({ navigation }) {
   };
 
   const hasDebts = totalToReceive > 0 || totalToRepay > 0 || overallSummary.totalPaid > 0;
-  const streak = streaks?.categorization?.current || 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -352,42 +347,6 @@ export default function HomeScreen({ navigation }) {
             </React.Fragment>
           ))}
         </View>
-
-        {!isDiscreteMode && (
-          <>
-            <Rule />
-            <TouchableOpacity
-              onPress={() => setShowProgress(true)}
-              activeOpacity={0.7}
-              style={styles.progressBand}
-              accessibilityRole="button"
-              accessibilityLabel={t('voir_progres')}
-            >
-              <Cells>
-                <Cell label={t('niveau')}>
-                  <Amount value={levelInfo.level} size="figure" tone="ink" align="left" />
-                </Cell>
-                <Cell label={t('xp_unit')}>
-                  <Amount value={`${levelInfo.xpInCurrentLevel} / ${levelInfo.xpToNextLevel}`} size="amount" tone="mid" align="left" />
-                </Cell>
-                <Cell label={t('serie')}>
-                  <View style={styles.streakValue}>
-                    <Amount value={streak} size="amount" tone="mid" align="left" />
-                    <Text style={[type.micro, { color: colors.inkFaint }]}>{t('jours_abrege')}</Text>
-                  </View>
-                </Cell>
-              </Cells>
-              <View style={[styles.track, { backgroundColor: colors.track }]}>
-                <View
-                  style={[
-                    styles.trackFill,
-                    { backgroundColor: accentColor, width: `${Math.round(levelInfo.progress * 100)}%` },
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
-          </>
-        )}
 
         {hasDebts && !isDiscreteMode && (
           <>
@@ -580,11 +539,6 @@ export default function HomeScreen({ navigation }) {
         isDark={isDark}
         accentColor={accentColor}
       />
-      {showProgress ? (
-        <View style={StyleSheet.absoluteFill}>
-          <ProgressScreen onClose={() => setShowProgress(false)} />
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -633,11 +587,6 @@ const createStyles = (cp, cpad) => StyleSheet.create({
   pocketRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   pocket: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
   pocketAmount: { marginTop: 3 },
-
-  progressBand: { paddingVertical: 16 },
-  streakValue: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  track: { height: 4, borderRadius: radius.pill, overflow: 'hidden', marginTop: 14 },
-  trackFill: { height: 4, borderRadius: radius.pill },
 
   debtRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   debtCell: { flex: 1, minWidth: 0, paddingHorizontal: 10 },

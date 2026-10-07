@@ -107,28 +107,6 @@ export default function CarnetPreview() {
           ))}
         </View>
 
-        {/* Progression — le motif de cellules, une seconde fois */}
-        <Rule />
-        <View style={styles.progressBand}>
-          <Cells>
-            <Cell label="Niveau">
-              <Amount value={4} size="figure" align="left" />
-            </Cell>
-            <Cell label="XP">
-              <Amount value="320 / 600" size="amount" tone="mid" align="left" />
-            </Cell>
-            <Cell label="Série">
-              <View style={styles.streak}>
-                <Amount value={6} size="amount" tone="mid" align="left" />
-                <Text style={[type.micro, { color: colors.inkFaint }]}>j</Text>
-              </View>
-            </Cell>
-          </Cells>
-          <View style={[styles.track, { backgroundColor: colors.track }]}>
-            <View style={[styles.trackFill, { backgroundColor: colors.accent, width: '53%' }]} />
-          </View>
-        </View>
-
         {/* Dettes */}
         <Rule />
         <View style={styles.debtRow}>
@@ -241,10 +219,6 @@ const styles = StyleSheet.create({
   pocketRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   pocket: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
   pocketAmount: { marginTop: 3 },
-  progressBand: { paddingVertical: 16 },
-  streak: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  track: { height: 4, borderRadius: radius.pill, overflow: 'hidden', marginTop: 14 },
-  trackFill: { height: 4, borderRadius: radius.pill },
   debtRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   sectionHead: { paddingTop: 20 },
   searchBar: { paddingVertical: 14 },

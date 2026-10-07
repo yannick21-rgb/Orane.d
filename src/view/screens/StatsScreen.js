@@ -14,9 +14,7 @@ import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText, G } from 
 import { Dropdown } from 'react-native-element-dropdown';
 import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
 import { useFinance } from '../../viewmodel/FinanceContext';
-import { useGamification } from '../../viewmodel/GamificationContext';
 import { useTranslation } from '../../utils/LanguageManager';
-import ProgressScreen from './ProgressScreen';
 import { toNumber } from '../../utils/format';
 import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
 import { useResponsive } from '../../utils/responsive';
@@ -38,11 +36,9 @@ const NETWORK_COLORS = ['#ff9f43', '#0abde3', '#10ac84', '#ee5253', '#5f27cd', '
 
 export default function StatsScreen() {
   const { transactions, isDark, accentColor, devise, isDiscreteMode } = useFinance();
-  const { levelInfo, badges } = useGamification();
   const { t, currentLanguage } = useTranslation();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius, chartWidth: responsiveChartWidth } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
-  const [showProgress, setShowProgress] = useState(false);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
 
   const [period, setPeriod]                   = useState('mois');
@@ -264,28 +260,6 @@ export default function StatsScreen() {
           />
         )}
 
-        {!isDiscreteMode && (
-          <TouchableOpacity onPress={() => setShowProgress(true)} activeOpacity={0.85} style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: accentColor, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{levelInfo.level}</Text>
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{t('niveau')} {levelInfo.level} · {levelInfo.totalXp} XP</Text>
-                <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{levelInfo.xpInCurrentLevel}/{levelInfo.xpToNextLevel} XP → {t('niveau')} {levelInfo.level + 1}</Text>
-              </View>
-              <Text style={{ color: accentColor, fontSize: 20 }}>›</Text>
-            </View>
-            <View style={{ height: 8, borderRadius: 999, backgroundColor: colors.inputBg, overflow: 'hidden', marginTop: 12 }}>
-              <View style={{ height: 8, borderRadius: 999, backgroundColor: accentColor, width: `${Math.round(levelInfo.progress * 100)}%` }} />
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-              <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600' }}>{(badges || []).length} {t('badges')}</Text>
-              <Text style={{ color: accentColor, fontSize: 11, fontWeight: '700' }}>{t('voir_progres')}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
         {/* ── Synthèse financière ───────────────────────────────────────────── */}
         <View style={styles.row}>
           <View style={[styles.halfCard, { backgroundColor: colors.card }]}>
@@ -435,11 +409,6 @@ export default function StatsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-      {showProgress && (
-        <View style={StyleSheet.absoluteFill}>
-          <ProgressScreen onClose={() => setShowProgress(false)} />
-        </View>
-      )}
     </SafeAreaView>
   );
 }

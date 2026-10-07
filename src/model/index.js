@@ -53,17 +53,3 @@ export {
   APP_VERSION,
 } from './AppConstants';
 
-export {
-  XP_REWARDS,
-  gamificationKey,
-  levelThreshold,
-  computeLevel,
-  weekKeyFor,
-  monthKeyFor,
-  dayKeyFor,
-  BADGE_DEFS,
-  STREAK_DEFS,
-  CHALLENGE_DEFS,
-  createInitialState,
-  normalizeGamificationState,
-} from './GamificationModel';
