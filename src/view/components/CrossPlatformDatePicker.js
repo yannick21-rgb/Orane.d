@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useColors } from '../theme';
+import { radius } from '../theme/tokens';
 
 let NativeDateTimePicker = null;
 if (Platform.OS !== 'web') {
@@ -73,7 +74,7 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
       onChange={handleChange}
       style={{
         padding: '12px 16px',
-        borderRadius: '12px',
+        borderRadius: `${radius.sm}px`,
         border: `1px solid ${colors.border}`,
         background: colors.inputBg,
         color: colors.text,
@@ -89,7 +90,7 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
 const styles = StyleSheet.create({
   trigger: {
     padding: 14,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     borderWidth: 1,
     alignItems: 'center',
   },

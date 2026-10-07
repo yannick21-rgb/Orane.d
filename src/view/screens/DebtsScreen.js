@@ -10,6 +10,7 @@ import { DEBT_TABS, DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DebtFormModal from '../components/DebtFormModal';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import { useColors } from '../theme';
 
 export default function DebtsScreen({ onClose }) {
@@ -276,29 +277,29 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed' },
   emptyBtnText: { fontSize: 13, fontWeight: '600' },
   debtCard: {
     flexDirection: 'row', alignItems: 'center', padding: 16,
-    borderRadius: 16, marginBottom: 10, borderWidth: 1,
+    borderRadius: radius.md, marginBottom: 10, borderWidth: 1,
   },
   debtHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   personName: { fontSize: 15, fontWeight: '700' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.xs },
   statusText: { fontSize: 11, fontWeight: '600' },
   debtAmount: { fontSize: 18, fontWeight: 'bold', marginBottom: 2 },
   reimbursedText: { fontSize: 12, marginTop: 2 },
   dueDate: { fontSize: 12, marginTop: 2 },
   note: { fontSize: 11, fontStyle: 'italic', marginTop: 4 },
   debtActions: { gap: 8, marginLeft: 12 },
-  actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalCard: { width: '85%', maxWidth: 340, borderRadius: 24, padding: 24 },
+  modalCard: { width: '85%', maxWidth: 340, borderRadius: radius.lg, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
   modalSub: { fontSize: 13, marginBottom: 16, lineHeight: 18 },
   reimburseInput: {
-    height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '600',
+    height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '600',
   },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  modalBtn: { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
 });

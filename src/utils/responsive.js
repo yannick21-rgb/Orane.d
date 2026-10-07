@@ -1,5 +1,6 @@
 import { useWindowDimensions, View } from 'react-native';
 import React from 'react';
+import { radius } from '../view/theme/tokens';
 
 export const BREAKPOINTS = {
   phone: 0,
@@ -24,7 +25,7 @@ export function useResponsive() {
     contentMaxWidth,
     contentPadding: isWide ? 24 : 20,
     cardPadding: isWide ? 28 : 24,
-    borderRadius: isWide ? 32 : 28,
+    borderRadius: radius.lg,
     gridColumns: isDesktop ? 3 : isTablet ? 2 : 1,
     chartWidth: width - (isWide ? 48 : 40),
   };

@@ -10,6 +10,7 @@ import { toNumber } from '../../utils/format';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColors } from '../theme';
 import { Button } from './ui';
+import { radius } from '../theme/tokens';
 
 export default function DebtFormModal({ visible, onClose, initialData, defaultType }) {
   const { accentColor } = useFinance();
@@ -191,8 +192,8 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   container: {
     maxHeight: '90%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     padding: 24,
   },
   header: {
@@ -201,17 +202,17 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold' },
   typeToggle: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 14, borderRadius: 14, marginBottom: 20,
+    paddingVertical: 14, borderRadius: radius.md, marginBottom: 20,
   },
   typeText: { fontSize: 14, fontWeight: '600' },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 16 },
   input: {
-    height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500',
+    height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500',
   },
   noteInput: { height: 80, paddingTop: 14 },
   saveBtn: { marginTop: 24, marginBottom: 12 },
   dateBtn: {
-    height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14,
+    height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14,
     justifyContent: 'center',
   },
   switchRow: {

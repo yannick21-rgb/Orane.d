@@ -18,6 +18,7 @@ import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
 import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import {
   isTransactionInLastNDays,
   isTransactionInCurrentWeek,
@@ -500,14 +501,14 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   scrollContainer: { paddingHorizontal: cpad, paddingTop: 10, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   headerTitle:     { fontSize: 32, fontWeight: 'bold', marginTop: 10, marginBottom: 16 },
   selectionRow:    { flexDirection: 'row', gap: 10, marginBottom: 20, alignItems: 'center' },
-  dayButton:       { paddingHorizontal: 20, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  dayButton:       { paddingHorizontal: 20, height: 50, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   dayButtonText:   { fontSize: 14, fontWeight: '700' },
-  dropdown:        { flex: 1, height: 50, borderRadius: 16, paddingHorizontal: 16, borderWidth: 1 },
-  dropdownContainer: { borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
+  dropdown:        { flex: 1, height: 50, borderRadius: radius.md, paddingHorizontal: 16, borderWidth: 1 },
+  dropdownContainer: { borderRadius: radius.md, overflow: 'hidden', borderWidth: 1 },
   placeholderStyle:  { fontSize: 14 },
   selectedTextStyle: { fontSize: 14, fontWeight: '600' },
-  customDateContainer: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 20, marginBottom: 16, gap: 10 },
-  dateSelectorBtn:     { flex: 1, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, alignItems: 'center' },
+  customDateContainer: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 16, gap: 10 },
+  dateSelectorBtn:     { flex: 1, paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.md, alignItems: 'center' },
   dateSelectorLabel:   { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
   dateSelectorValue:   { fontSize: 14, fontWeight: 'bold' },
   dateSeparator:       { width: 1, height: 30 },
@@ -518,11 +519,11 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   cardValue: { fontSize: 18, fontWeight: 'bold', marginTop: 8 },
   bigValue:  { fontSize: 28, fontWeight: 'bold', marginTop: 8 },
   txCount:   { fontSize: 12, fontWeight: '500', marginTop: 6 },
-  chart:     { borderRadius: 16, marginLeft: -15 },
+  chart:     { borderRadius: radius.md, marginLeft: -15 },
   catRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
   catName: { width: 80, fontSize: 12, fontWeight: '600' },
-  barTrack:{ flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 4 },
+  barTrack:{ flex: 1, height: 8, borderRadius: radius.pill, overflow: 'hidden' },
+  barFill: { height: 8, borderRadius: radius.pill },
   catPct:  { width: 30, textAlign: 'right', fontSize: 11 },
   catAmt:  { width: 65, textAlign: 'right', fontSize: 11, fontWeight: '500' },
   emptyCard:     { alignItems: 'center', paddingVertical: 30 },

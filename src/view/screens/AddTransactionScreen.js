@@ -19,6 +19,7 @@ import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, co
 import VoiceInputButton from '../components/VoiceInputButton';
 import { parseVoiceInput } from '../../utils/voiceParser';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import { buildColors } from '../theme';
 import { inkOn } from '../theme/colors';
 
@@ -399,7 +400,7 @@ export default function AddTransactionScreen({ navigation }) {
         {type === 'transfert' && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.switchRow}>
-              <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8 }}>
+              <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 14, borderRadius: radius.xs }}>
                 <Text style={{ color: inkOn(colors.warning), fontSize: 11, fontWeight: '700' }}>↻ TRANSFERT</Text>
               </View>
             </View>
@@ -455,7 +456,7 @@ export default function AddTransactionScreen({ navigation }) {
           {type === 'transfert' ? (
             <>
               {toNumber(amount) > 0 && (
-                <View style={{ marginTop: 20, padding: 14, backgroundColor: colors.warning + '18', borderRadius: 16 }}>
+                <View style={{ marginTop: 20, padding: 14, backgroundColor: colors.warning + '18', borderRadius: radius.md }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={[styles.label, { color: colors.subText, marginTop: 0, marginBottom: 0 }]}>
                       Frais auto ({NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork})
@@ -544,44 +545,44 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   card:          { padding: cardP, borderRadius: br, marginBottom: 16 },
   label:         { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
   optionalBadge: { fontSize: 10, fontWeight: '400', letterSpacing: 0 },
-  toggle:        { flexDirection: 'row', borderRadius: 16, padding: 4, gap: 4 },
-  toggleBtn:     { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  toggle:        { flexDirection: 'row', borderRadius: radius.md, padding: 4, gap: 4 },
+  toggleBtn:     { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
   toggleText:    { fontSize: 15, fontWeight: '600' },
-  input:         { padding: 16, borderRadius: 16, fontSize: 16, fontWeight: '500' },
+  input:         { padding: 16, borderRadius: radius.md, fontSize: 16, fontWeight: '500' },
   noteInput:     { height: 72, paddingTop: 14 },
   grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14 },
+  chip:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.md },
   chipIcon:      { fontSize: 14 },
   chipLabel:     { fontSize: 13, fontWeight: '600' },
-  saveBtn:       { height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  saveBtn:       { height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   saveBtnText:   { fontSize: 16, fontWeight: '700' },
 
   switchRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   networkGrid:        { flexDirection: 'row', gap: 6 },
-  networkChip:        { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  networkChip:        { flex: 1, paddingVertical: 12, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   networkChipLabel:   { fontSize: 11, fontWeight: '600', textAlign: 'center' },
   frequencyGrid:      { flexDirection: 'row', gap: 6 },
-  frequencyChip:      { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  frequencyChip:      { flex: 1, paddingVertical: 12, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   frequencyChipLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 
   modalOverlay:     { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalContent:     { padding: 30, borderRadius: 24, alignItems: 'center', justifyContent: 'center', width: 160, height: 160, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
-  successCircle:    { width: 60, height: 60, borderRadius: 30, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  modalContent:     { padding: 30, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', width: 160, height: 160, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
+  successCircle:    { width: 60, height: 60, borderRadius: radius.pill, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   successCheckmark: { fontSize: 28, fontWeight: 'bold' },
   modalText:        { fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 
   voiceCardHint:    { fontSize: 13, lineHeight: 19, marginBottom: 16, textAlign: 'center' },
-  voiceModal:       { padding: 24, borderRadius: 24, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
+  voiceModal:       { padding: 24, borderRadius: radius.lg, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
   voiceTitle:       { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
   voiceHint:        { fontSize: 13, textAlign: 'center', marginTop: 6, marginBottom: 16 },
-  voiceQuote:       { borderRadius: 16, padding: 14, marginBottom: 16 },
+  voiceQuote:       { borderRadius: radius.md, padding: 14, marginBottom: 16 },
   voiceQuoteText:   { fontSize: 15, fontWeight: '600', fontStyle: 'italic', lineHeight: 22 },
   voiceNothing:     { fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 14 },
   voiceRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1 },
   voiceRowLabel:    { fontSize: 13, fontWeight: '600' },
   voiceRowValue:    { fontSize: 14, fontWeight: '700', maxWidth: '60%', textAlign: 'right' },
   voiceActions:     { flexDirection: 'row', gap: 10, marginTop: 20 },
-  voiceBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
-  voiceBtnPrimary:   { flex: 1.4, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  voiceBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },
+  voiceBtnPrimary:   { flex: 1.4, paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },
   voiceBtnText:      { fontSize: 15, fontWeight: '600' },
 });

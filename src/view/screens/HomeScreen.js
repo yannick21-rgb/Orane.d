@@ -31,7 +31,7 @@ import PinAuthModal from '../components/PinAuthModal';
 import { buildColors } from '../theme';
 import { DEFAULT_ACCENT } from '../../model/ThemeModel';
 import { type } from '../theme/type';
-import { touchTarget } from '../theme/tokens';
+import { radius, touchTarget } from '../theme/tokens';
 import { Amount, Button, Cells, Cell, Rule, SectionHeader } from '../components/ui';
 
 /* ------------------------------------------------------------------ */
@@ -574,7 +574,7 @@ const createStyles = (cp, cpad) => StyleSheet.create({
   },
   wordmark: { flexShrink: 1 },
   syncRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  syncDot: { width: 5, height: 5, borderRadius: 3 },
+  syncDot: { width: 5, height: 5, borderRadius: radius.pill },
   selectionCount: { flex: 1 },
   privacyHit: { marginLeft: 'auto', padding: 4 },
 

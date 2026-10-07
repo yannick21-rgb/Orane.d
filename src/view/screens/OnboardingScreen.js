@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { APP_NAME } from '../../model/AppConstants';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import Constants from 'expo-constants';
 import { buildColors } from '../theme';
 
@@ -182,7 +183,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   iconCircle: {
     width: 140,
     height: 140,
-    borderRadius: 70,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 50,
@@ -213,12 +214,12 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   dot: {
     height: 8,
-    borderRadius: 4,
+    borderRadius: radius.pill,
     marginHorizontal: 4,
   },
   button: {
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

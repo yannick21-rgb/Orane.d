@@ -9,6 +9,7 @@ import { useTontines } from '../../viewmodel/TontineContext';
 import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import { useColors } from '../theme';
 
 export default function TontineDetailScreen({ group, onClose }) {
@@ -207,19 +208,19 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   infoValue: { fontSize: 15, fontWeight: '700' },
   infoDivider: { height: 1, marginVertical: 6 },
   summaryRow: { flexDirection: 'row', gap: 10, marginHorizontal: cpad, marginTop: 12, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  summaryBadge: { flex: 1, padding: 12, borderRadius: 14, alignItems: 'center' },
+  summaryBadge: { flex: 1, padding: 12, borderRadius: radius.md, alignItems: 'center' },
   summaryBadgeLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
   summaryBadgeValue: { fontSize: 14, fontWeight: 'bold' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', paddingHorizontal: cpad, marginTop: 20, marginBottom: 8 },
   roundsList: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   roundCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 14, borderRadius: 14, marginBottom: 8, borderWidth: 1,
+    padding: 14, borderRadius: radius.md, marginBottom: 8, borderWidth: 1,
   },
   roundLeft: { flex: 1 },
   roundNumber: { fontSize: 14, fontWeight: '700' },
   roundDate: { fontSize: 12, marginTop: 2 },
   roundRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   roundAmount: { fontSize: 14, fontWeight: 'bold' },
-  roundAction: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  roundAction: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });

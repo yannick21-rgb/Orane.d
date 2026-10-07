@@ -17,6 +17,7 @@ import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import { useColors } from '../theme';
 
 export default function LoginScreen({ onSwitchToRegister }) {
@@ -152,7 +153,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   input: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: radius.md,
     fontSize: 16,
     fontWeight: '500',
     borderWidth: 1,
@@ -160,7 +161,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   pwContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: radius.md,
     borderWidth: 1,
     paddingHorizontal: 16,
   },
@@ -176,7 +177,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   primaryBtn: {
     height: 56,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,

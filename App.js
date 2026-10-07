@@ -33,7 +33,7 @@ import OnboardingScreen from './src/view/screens/OnboardingScreen';
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
 import { buildColors, useColors } from './src/view/theme';
 import { type } from './src/view/theme/type';
-import { ruleWidth, touchTarget } from './src/view/theme/tokens';
+import { radius, ruleWidth, touchTarget } from './src/view/theme/tokens';
 import {
   useFonts,
   SpaceGrotesk_400Regular,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   tabTick: {
     width: 18,
     height: 2,
-    borderRadius: 1,
+    borderRadius: radius.xs,
     marginBottom: 6,
   },
 });

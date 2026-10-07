@@ -11,6 +11,7 @@ import { toNumber } from '../../utils/format';
 import TontineFormModal from '../components/TontineFormModal';
 import TontineDetailScreen from './TontineDetailScreen';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import { useColors } from '../theme';
 
 export default function TontinesScreen({ onClose }) {
@@ -154,7 +155,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed' },
   emptyBtnText: { fontSize: 13, fontWeight: '600' },
   summaryBar: {
     flexDirection: 'row', marginHorizontal: cpad, marginTop: 12,
@@ -172,8 +173,8 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   groupName: { fontSize: 16, fontWeight: '700' },
   groupMeta: { fontSize: 12, marginTop: 2 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  progressTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: 6, borderRadius: 3 },
+  progressTrack: { flex: 1, height: 6, borderRadius: radius.pill, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: radius.pill },
   progressText: { fontSize: 11, fontWeight: '600', width: 40, textAlign: 'right' },
   groupSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

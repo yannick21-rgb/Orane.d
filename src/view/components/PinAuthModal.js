@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { buildColors } from '../theme';
+import { radius } from '../theme/tokens';
 
 export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock, hasPin, isDark, accentColor, remainingText }) {
   const [pin, setPin] = useState('');
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
   container: {
     width: '85%',
     maxWidth: 340,
-    borderRadius: 28,
+    borderRadius: radius.lg,
     padding: 28,
     alignItems: 'center',
   },
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 14,
     height: 14,
-    borderRadius: 7,
+    borderRadius: radius.pill,
   },
   error: {
     fontSize: 13,
@@ -224,7 +225,7 @@ const styles = StyleSheet.create({
   numpadKey: {
     width: 70,
     height: 60,
-    borderRadius: 16,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },

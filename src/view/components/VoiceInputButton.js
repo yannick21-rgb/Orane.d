@@ -5,6 +5,7 @@ import { Mic, MicOff } from 'lucide-react-native';
 import { useVoiceInput } from '../../utils/useVoiceInput';
 import { useColors } from '../theme';
 import { inkOn } from '../theme/colors';
+import { radius } from '../theme/tokens';
 
 const FR = {
   listen: 'Dictez votre transaction…',
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
   micButton: {
     width: 54,
     height: 54,
-    borderRadius: 27,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
   },
   listeningCard: {
     marginTop: 12,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     padding: 14,
     alignSelf: 'stretch',
     shadowColor: '#000',
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
   listeningLabel: { fontSize: 13, fontWeight: '600' },
   transcript: { marginTop: 10, fontSize: 16, fontWeight: '500', lineHeight: 22 },
   actionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: radius.sm, alignItems: 'center' },
   actionText: { fontSize: 13, fontWeight: '600' },
   errorText: { marginTop: 8, fontSize: 12, fontWeight: '600', textAlign: 'center' },
 });

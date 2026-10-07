@@ -31,6 +31,7 @@ import PinAuthModal from '../components/PinAuthModal';
 import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
+import { radius } from '../theme/tokens';
 import { useColors } from '../theme';
 import { inkOn } from '../theme/colors';
 import { Button, Card, Input, SectionHeader } from '../components/ui';
@@ -734,12 +735,12 @@ export default function SettingsScreen({ navigation }) {
                     Limite: {budgetLimit} {devise?.split(' ')[0] || '€'}
                   </Text>
                 </View>
-                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden' }}>
+                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: radius.pill, overflow: 'hidden' }}>
                   <View style={{
                     height: '100%',
                     width: `${Math.min((getPeriodExpenses() / budgetLimit) * 100, 100)}%`,
                     backgroundColor: getPeriodExpenses() >= budgetLimit ? colors.danger : getPeriodExpenses() >= budgetLimit * 0.8 ? colors.warning : colors.income,
-                    borderRadius: 4,
+                    borderRadius: radius.pill,
                   }} />
                 </View>
                 <Text style={{ color: colors.subText, fontSize: 12, marginTop: 4, textAlign: 'right' }}>
@@ -965,7 +966,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
   profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  avatarCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  avatarCircle: { width: 50, height: 50, borderRadius: radius.pill, justifyContent: 'center', alignItems: 'center' },
   avatarLetter: { fontSize: 20, fontWeight: 'bold' },
   profileInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 17, fontWeight: '600' },
@@ -988,7 +989,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     marginTop: 16,
     marginBottom: 4,
     shadowColor: "#000",
@@ -1003,7 +1004,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     borderWidth: 1,
     marginTop: 10,
     shadowColor: "#000",
@@ -1015,17 +1016,17 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   logoutText: { fontSize: 15, fontWeight: '600' },
   label: { fontSize: 14, marginBottom: 8, marginTop: 12 },
   pillRow: { flexDirection: 'row', gap: 10 },
-  pillBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
+  pillBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: radius.lg },
   pillText: { fontSize: 14, fontWeight: '500' },
   colorRowContainer: { paddingVertical: 4 },
   colorRow: { flexDirection: 'row', gap: 14 },
-  colorCircleOuter: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  colorCircleInner: { width: 26, height: 26, borderRadius: 13 },
+  colorCircleOuter: { width: 36, height: 36, borderRadius: radius.pill, justifyContent: 'center', alignItems: 'center' },
+  colorCircleInner: { width: 26, height: 26, borderRadius: radius.sm },
   checkmark: { fontSize: 12, position: 'absolute', fontWeight: 'bold' },
-  dropdown: { height: 50, borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, marginTop: 4 },
+  dropdown: { height: 50, borderRadius: radius.xs, paddingHorizontal: 12, borderWidth: 1, marginTop: 4 },
   placeholderStyle: { fontSize: 15 },
   selectedTextStyle: { fontSize: 15 },
-  dropdownContainer: { borderRadius: 8, borderWidth: 1 },
+  dropdownContainer: { borderRadius: radius.xs, borderWidth: 1 },
 
   pinStatus: { fontSize: 14, fontWeight: '600', marginBottom: 14, marginLeft: 4 },
   securityRow: {
@@ -1033,14 +1034,14 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     borderWidth: 1,
   },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   pwdModal: {
     width: '85%',
     maxWidth: 340,
-    borderRadius: 28,
+    borderRadius: radius.lg,
     padding: 28,
     alignItems: 'center',
   },

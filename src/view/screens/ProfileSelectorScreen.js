@@ -120,7 +120,7 @@ export default function ProfileSelectorScreen({ navigation }) {
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modal}>
-            <View style={[styles.avatar, { width: 64, height: 64, borderRadius: 32 }]}>
+            <View style={[styles.avatar, { width: 64, height: 64, borderRadius: radius.pill }]}>
               <Text style={[styles.avatarText, { fontSize: 26, color: colors.accentFg }]}>
                 {selectedName.charAt(0).toUpperCase()}
               </Text>
@@ -189,7 +189,7 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
   avatar: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.pill,
     backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
@@ -220,7 +220,7 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
 
   dots: { flexDirection: 'row', gap: 12, marginBottom: 26 },
   dot: {
-    width: 14, height: 14, borderRadius: 7,
+    width: 14, height: 14, borderRadius: radius.pill,
     backgroundColor: colors.sunken,
     borderWidth: 1.5, borderColor: colors.accent,
   },
