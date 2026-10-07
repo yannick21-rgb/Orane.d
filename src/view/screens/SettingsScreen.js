@@ -20,6 +20,7 @@ if (Platform.OS !== 'web') {
 }
 import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw, Calculator } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
+import { ACCENT_COLORS } from '../../model/ThemeModel';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
@@ -31,6 +32,7 @@ import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
 import { useColors } from '../theme';
+import { inkOn } from '../theme/colors';
 import { Button, Card, Input, SectionHeader } from '../components/ui';
 
 const PAYS_DU_MONDE = [
@@ -274,13 +276,7 @@ export default function SettingsScreen({ navigation }) {
 
   const themesList = [t('sombre'), t('clair'), t('systeme')];
 
-  const colorsList = [
-    '#3b82f6', '#9b59b6', '#2ecc71', '#ed4c67',
-    '#f39c12', '#00d2d3', '#f78fb3', '#2c3e50',
-    '#4a5568', '#718096', '#a0aec0', '#1a365d',
-    '#2b6cb0', '#4eb3a2', '#81e6d9', '#dd6b20',
-    '#e53e3e', '#b7791f', '#d69e2e', '#6b46c1',
-  ];
+  const colorsList = ACCENT_COLORS;
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
@@ -479,7 +475,7 @@ export default function SettingsScreen({ navigation }) {
             {!isEditing ? (
               <View style={styles.profileRow}>
                 <View style={[styles.avatarCircle, { backgroundColor: accentColor }]}>
-                  <Text style={styles.avatarLetter}>
+                  <Text style={[styles.avatarLetter, { color: colors.accentFg }]}>
                     {(authUser?.name || '?').charAt(0).toUpperCase()}
                   </Text>
                 </View>
@@ -515,7 +511,7 @@ export default function SettingsScreen({ navigation }) {
                   <Button
                     label={t('enregistrer')}
                     onPress={handleSaveProfile}
-                    icon={<Check size={16} color="#fff" />}
+                    icon={<Check size={16} color={colors.accentFg} />}
                   />
                 </View>
               </View>
@@ -536,8 +532,8 @@ export default function SettingsScreen({ navigation }) {
                     style={[styles.accountRow, { borderColor: colors.border }]}
                   >
                     <View style={styles.accountInfo}>
-                      <View style={[styles.accountAvatar, { backgroundColor: isActive ? '#2ecc71' : colors.unselectedPill }]}>
-                        <Text style={[styles.accountAvatarText, { color: isActive ? '#fff' : colors.subText }]}>
+                      <View style={[styles.accountAvatar, { backgroundColor: isActive ? colors.income : colors.unselectedPill }]}>
+                        <Text style={[styles.accountAvatarText, { color: isActive ? inkOn(colors.income) : colors.subText }]}>
                           {account.name.charAt(0).toUpperCase()}
                         </Text>
                       </View>
@@ -553,7 +549,7 @@ export default function SettingsScreen({ navigation }) {
                     {isActive ? (
                       <View style={styles.activeBadge}>
                         <View style={styles.activeDot} />
-                        <Text style={[styles.activeLabel, { color: '#2ecc71' }]}>
+                        <Text style={[styles.activeLabel, { color: colors.income }]}>
                           Compte Actif
                         </Text>
                       </View>
@@ -589,7 +585,7 @@ export default function SettingsScreen({ navigation }) {
                     style={[styles.pillBtn, { backgroundColor: isActive ? accentColor : colors.unselectedPill }]}
                     onPress={() => setTheme(rawThemes[index])}
                   >
-                    <Text style={[styles.pillText, { color: isActive ? '#fff' : colors.subText }]}>
+                    <Text style={[styles.pillText, { color: isActive ? inkOn(colors.income) : colors.subText }]}>
                       {label}
                     </Text>
                   </TouchableOpacity>
@@ -609,7 +605,7 @@ export default function SettingsScreen({ navigation }) {
                       onPress={() => setAccentColor(c)}
                     >
                       <View style={[styles.colorCircleInner, { backgroundColor: c }]} />
-                      {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                      {isSelected && <Text style={[styles.checkmark, { color: inkOn(c) }]}>✓</Text>}
                     </TouchableOpacity>
                   );
                 })}
@@ -689,7 +685,7 @@ export default function SettingsScreen({ navigation }) {
                     style={[styles.pillBtn, { backgroundColor: isActive ? accentColor : colors.unselectedPill }]}
                     onPress={() => setBudgetPeriod(p)}
                   >
-                    <Text style={[styles.pillText, { color: isActive ? '#fff' : colors.subText }]}>
+                    <Text style={[styles.pillText, { color: isActive ? inkOn(colors.income) : colors.subText }]}>
                       {labels[p]}
                     </Text>
                   </TouchableOpacity>
@@ -742,7 +738,7 @@ export default function SettingsScreen({ navigation }) {
                   <View style={{
                     height: '100%',
                     width: `${Math.min((getPeriodExpenses() / budgetLimit) * 100, 100)}%`,
-                    backgroundColor: getPeriodExpenses() >= budgetLimit ? '#ef4444' : getPeriodExpenses() >= budgetLimit * 0.8 ? '#f59e0b' : '#2ecc71',
+                    backgroundColor: getPeriodExpenses() >= budgetLimit ? colors.danger : getPeriodExpenses() >= budgetLimit * 0.8 ? colors.warning : colors.income,
                     borderRadius: 4,
                   }} />
                 </View>
@@ -787,7 +783,7 @@ export default function SettingsScreen({ navigation }) {
               title={`Sécurité & Code PIN`}
              />
 
-            <Text style={[styles.pinStatus, { color: hasPinCode ? '#2ecc71' : colors.subText }]}>
+            <Text style={[styles.pinStatus, { color: hasPinCode ? colors.income : colors.subText }]}>
               {hasPinCode ? '🔒 Code PIN actif' : '🔓 Aucun code PIN configuré'}
             </Text>
 
@@ -861,8 +857,8 @@ export default function SettingsScreen({ navigation }) {
             onPress={handleExport}
             activeOpacity={0.8}
           >
-            <Download size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.exportText}>
+            <Download size={18} color={colors.accentFg} style={{ marginRight: 8 }} />
+            <Text style={[styles.exportText, { color: colors.accentFg }]}>
               Exporter les transactions (CSV)
             </Text>
           </TouchableOpacity>
@@ -970,7 +966,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
   profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   avatarCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
-  avatarLetter: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
+  avatarLetter: { fontSize: 20, fontWeight: 'bold' },
   profileInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 17, fontWeight: '600' },
   userEmail: { fontSize: 14, marginTop: 2 },
@@ -1001,7 +997,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  exportText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  exportText: { fontSize: 15, fontWeight: '600' },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1025,7 +1021,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   colorRow: { flexDirection: 'row', gap: 14 },
   colorCircleOuter: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   colorCircleInner: { width: 26, height: 26, borderRadius: 13 },
-  checkmark: { color: '#fff', fontSize: 12, position: 'absolute', fontWeight: 'bold' },
+  checkmark: { fontSize: 12, position: 'absolute', fontWeight: 'bold' },
   dropdown: { height: 50, borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, marginTop: 4 },
   placeholderStyle: { fontSize: 15 },
   selectedTextStyle: { fontSize: 15 },

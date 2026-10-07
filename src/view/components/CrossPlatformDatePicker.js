@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import { useColors } from '../theme';
 
 let NativeDateTimePicker = null;
 if (Platform.OS !== 'web') {
@@ -8,17 +9,20 @@ if (Platform.OS !== 'web') {
   } catch (e) {}
 }
 
-export default function CrossPlatformDatePicker({ value, mode = 'date', onChange, isDark, colors }) {
+export default function CrossPlatformDatePicker({ value, mode = 'date', onChange, isDark, colors: colorsProp }) {
   const [showPicker, setShowPicker] = useState(false);
+  // Sans props : on retombe sur la palette du thème courant.
+  const palette = useColors();
+  const colors = colorsProp || { inputBg: palette.inputBg, border: palette.border, text: palette.ink };
 
   if (NativeDateTimePicker && Platform.OS !== 'web') {
     if (!showPicker) {
       return (
         <TouchableOpacity
           onPress={() => setShowPicker(true)}
-          style={[styles.trigger, { backgroundColor: colors?.inputBg || '#f0f1f6', borderColor: colors?.border || '#e8eaef' }]}
+          style={[styles.trigger, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
         >
-          <Text style={[styles.triggerText, { color: colors?.text || '#131419' }]}>
+          <Text style={[styles.triggerText, { color: colors.text }]}>
             {mode === 'time'
               ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
               : value.toLocaleDateString()}
@@ -70,9 +74,9 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
       style={{
         padding: '12px 16px',
         borderRadius: '12px',
-        border: `1px solid ${colors?.border || '#e8eaef'}`,
-        background: colors?.inputBg || '#f0f1f6',
-        color: colors?.text || '#131419',
+        border: `1px solid ${colors.border}`,
+        background: colors.inputBg,
+        color: colors.text,
         fontSize: '15px',
         fontWeight: '500',
         width: '100%',

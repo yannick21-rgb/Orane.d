@@ -220,7 +220,7 @@ export default function DebtsScreen({ onClose }) {
       />
 
       <Modal visible={!!showReimburse} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Marquer un remboursement</Text>
             <Text style={[styles.modalSub, { color: colors.subText }]}>
@@ -239,7 +239,7 @@ export default function DebtsScreen({ onClose }) {
                 <Text style={{ color: colors.subText, fontWeight: '600' }}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: accentColor }]} onPress={handleReimburseConfirm}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Confirmer</Text>
+                <Text style={{ color: colors.accentFg, fontWeight: '600' }}>Confirmer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -292,7 +292,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   note: { fontSize: 11, fontStyle: 'italic', marginTop: 4 },
   debtActions: { gap: 8, marginLeft: 12 },
   actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   modalCard: { width: '85%', maxWidth: 340, borderRadius: 24, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
   modalSub: { fontSize: 13, marginBottom: 16, lineHeight: 18 },

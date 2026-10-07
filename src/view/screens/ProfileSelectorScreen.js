@@ -11,13 +11,16 @@ if (Platform.OS !== 'web') {
 }
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useResponsive } from '../../utils/responsive';
+import { useColors } from '../theme';
+import { radius } from '../theme/tokens';
 
 const PIN_LENGTH = 5;
 
 export default function ProfileSelectorScreen({ navigation }) {
   const { accountsIndex, loginToUser } = useAuth();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
-  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
+  const colors = useColors();
+  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius, colors);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -80,7 +83,7 @@ export default function ProfileSelectorScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
 
       <View style={styles.head}>
         <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
@@ -96,7 +99,7 @@ export default function ProfileSelectorScreen({ navigation }) {
             onPress={() => handleProfilePress(acct.id, acct.name)}
           >
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{acct.name.charAt(0).toUpperCase()}</Text>
+              <Text style={[styles.avatarText, { color: colors.accentFg }]}>{acct.name.charAt(0).toUpperCase()}</Text>
             </View>
             <Text style={styles.cardName} numberOfLines={1}>{acct.name}</Text>
           </TouchableOpacity>
@@ -118,7 +121,7 @@ export default function ProfileSelectorScreen({ navigation }) {
         <View style={styles.overlay}>
           <View style={styles.modal}>
             <View style={[styles.avatar, { width: 64, height: 64, borderRadius: 32 }]}>
-              <Text style={[styles.avatarText, { fontSize: 26 }]}>
+              <Text style={[styles.avatarText, { fontSize: 26, color: colors.accentFg }]}>
                 {selectedName.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -138,13 +141,13 @@ export default function ProfileSelectorScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
               <TouchableOpacity style={styles.key} onPress={deleteDigit}>
-                <Text style={[styles.keyText, { color: '#8c8e9b' }]}>⌫</Text>
+                <Text style={[styles.keyText, { color: colors.inkMid }]}>⌫</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.key} onPress={() => pressDigit('0')}>
                 <Text style={styles.keyText}>0</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.key} onPress={() => setModalVisible(false)}>
-                <Text style={[styles.keyText, { color: '#ef4444' }]}>✕</Text>
+                <Text style={[styles.keyText, { color: colors.danger }]}>✕</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -154,12 +157,12 @@ export default function ProfileSelectorScreen({ navigation }) {
   );
 }
 
-const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0f1015' },
+const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
 
   head: { alignItems: 'center', paddingTop: 50, paddingBottom: 32 },
   logo: { width: 140, height: 140, marginBottom: 8 },
-  tagline: { fontSize: 14, color: '#8c8e9b', marginTop: 6 },
+  tagline: { fontSize: 14, color: colors.inkMid, marginTop: 6 },
 
   grid: {
     flexDirection: 'row',
@@ -176,10 +179,10 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     width: 100,
     alignItems: 'center',
     paddingVertical: 18,
-    borderRadius: 18,
-    backgroundColor: '#16171f',
+    borderRadius: radius.lg,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#2a2b38',
+    borderColor: colors.border,
   },
   addCard: { borderStyle: 'dashed' },
 
@@ -187,41 +190,41 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
-  avatarText: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
-  addAvatar: { backgroundColor: '#232430' },
-  addIcon: { fontSize: 28, color: '#8c8e9b', fontWeight: '300' },
+  avatarText: { fontSize: 22, fontWeight: 'bold' },
+  addAvatar: { backgroundColor: colors.sunken },
+  addIcon: { fontSize: 28, color: colors.inkMid, fontWeight: '300' },
 
-  cardName: { fontSize: 13, fontWeight: '600', color: '#fff', textAlign: 'center', maxWidth: 84 },
-  addLabel: { fontSize: 11, fontWeight: '500', color: '#8c8e9b', textAlign: 'center' },
+  cardName: { fontSize: 13, fontWeight: '600', color: colors.ink, textAlign: 'center', maxWidth: 84 },
+  addLabel: { fontSize: 11, fontWeight: '500', color: colors.inkMid, textAlign: 'center' },
 
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modal: {
     width: 300,
-    borderRadius: 28,
-    backgroundColor: '#16171f',
+    borderRadius: radius.lg,
+    backgroundColor: colors.card,
     padding: 28,
     alignItems: 'center',
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginTop: 10, marginBottom: 4 },
-  modalSub: { fontSize: 13, color: '#8c8e9b', marginBottom: 22 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.ink, marginTop: 10, marginBottom: 4 },
+  modalSub: { fontSize: 13, color: colors.inkMid, marginBottom: 22 },
 
   dots: { flexDirection: 'row', gap: 12, marginBottom: 26 },
   dot: {
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: '#232430',
-    borderWidth: 1.5, borderColor: '#3b82f6',
+    backgroundColor: colors.sunken,
+    borderWidth: 1.5, borderColor: colors.accent,
   },
-  dotFill: { backgroundColor: '#3b82f6' },
+  dotFill: { backgroundColor: colors.accent },
 
   pad: {
     flexDirection: 'row',
@@ -232,10 +235,10 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   key: {
     width: 70, height: 52,
-    borderRadius: 14,
-    backgroundColor: '#232430',
+    borderRadius: radius.md,
+    backgroundColor: colors.sunken,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  keyText: { fontSize: 22, fontWeight: '600', color: '#fff' },
+  keyText: { fontSize: 22, fontWeight: '600', color: colors.ink },
 });

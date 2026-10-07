@@ -32,8 +32,6 @@ const PERIODS = [
   { key: 'personalisé',  label: 'Personalisé'   },
 ];
 
-const NETWORK_COLORS = ['#ff9f43', '#0abde3', '#10ac84', '#ee5253', '#5f27cd', '#341f97'];
-
 export default function StatsScreen() {
   const { transactions, isDark, accentColor, devise, isDiscreteMode } = useFinance();
   const { t, currentLanguage } = useTranslation();
@@ -48,6 +46,16 @@ export default function StatsScreen() {
   const [showEndPicker, setShowEndPicker]     = useState(false);
 
   const colors = useColors();
+
+  // Palette du graphique en fees : dérivée du thème (accent + sémantiques).
+  const NETWORK_COLORS = [
+    colors.accent,
+    colors.income,
+    colors.warning,
+    colors.expense,
+    colors.transfer,
+    colors.inkMid,
+  ];
 
   const safeTransactions = Array.isArray(transactions)
     ? transactions.filter(Boolean)
@@ -198,7 +206,7 @@ export default function StatsScreen() {
             style={[styles.dayButton, { backgroundColor: period === 'jour' ? accentColor : colors.card, borderColor: colors.border }]}
             onPress={() => setPeriod('jour')}
           >
-            <Text style={[styles.dayButtonText, { color: period === 'jour' ? '#fff' : colors.text }]}>
+            <Text style={[styles.dayButtonText, { color: period === 'jour' ? colors.accentFg : colors.text }]}>
               {t('jour')}
             </Text>
           </TouchableOpacity>
@@ -266,13 +274,13 @@ export default function StatsScreen() {
             <Text style={[styles.cardLabel, { color: colors.subText }]}>
               {t('incomeLabel')}
             </Text>
-            <Text style={[styles.cardValue, { color: '#2ecc71' }]}>+{totalIncome.toLocaleString()} {deviseSymbol}</Text>
+            <Text style={[styles.cardValue, { color: colors.income }]}>+{totalIncome.toLocaleString()} {deviseSymbol}</Text>
           </View>
           <View style={[styles.halfCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardLabel, { color: colors.subText }]}>
               {t('expenseLabel')}
             </Text>
-            <Text style={[styles.cardValue, { color: '#ff5c5c' }]}>-{totalExpenses.toLocaleString()} {deviseSymbol}</Text>
+            <Text style={[styles.cardValue, { color: colors.expense }]}>-{totalExpenses.toLocaleString()} {deviseSymbol}</Text>
           </View>
         </View>
 
@@ -280,7 +288,7 @@ export default function StatsScreen() {
           <Text style={[styles.cardLabel, { color: colors.subText }]}>
             {t('netBalanceLabel')}
           </Text>
-          <Text style={[styles.bigValue, { color: balance >= 0 ? '#2ecc71' : '#ff5c5c' }]}>
+          <Text style={[styles.bigValue, { color: balance >= 0 ? colors.income : colors.expense }]}>
             {balance >= 0 ? '+' : ''}{balance.toLocaleString()} {deviseSymbol}
           </Text>
           <Text style={[styles.txCount, { color: colors.subText }]}>
@@ -301,7 +309,7 @@ export default function StatsScreen() {
               </View>
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
                 <Text style={{ fontSize: 12, color: colors.subText }}>{t('rembourse')}</Text>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#2ecc71' }}>-{totalRepaid.toLocaleString()} {deviseSymbol}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.income }}>-{totalRepaid.toLocaleString()} {deviseSymbol}</Text>
               </View>
             </View>
             <View style={{ height: 1, backgroundColor: colors.line, marginVertical: 12 }} />
@@ -309,7 +317,7 @@ export default function StatsScreen() {
               <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
                 {t('reste_rembourser')}
               </Text>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: debtStatus > 0 ? '#ff5c5c' : '#2ecc71' }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: debtStatus > 0 ? colors.expense : colors.income }}>
                 {debtStatus.toLocaleString()} {deviseSymbol}
               </Text>
             </View>
@@ -318,9 +326,9 @@ export default function StatsScreen() {
 
         {/* ── Frais de retrait mobiles (PieChart) ──────────────────────────── */}
         {totalWithdrawalFees > 0 && (
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: '#ff9f43', borderWidth: isDark ? 0.5 : 0 }]}>
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.warning, borderWidth: isDark ? 0.5 : 0 }]}>
             <View style={styles.rowBetween}>
-              <Text style={[styles.cardLabel, { color: '#ff9f43', fontWeight: 'bold' }]}>
+              <Text style={[styles.cardLabel, { color: colors.warning, fontWeight: 'bold' }]}>
                 {t('frais_retrait_mobiles')}
               </Text>
               <Text style={[styles.feeTotalValue, { color: colors.text }]}>
@@ -359,7 +367,7 @@ export default function StatsScreen() {
         {/* ── Smooth Area Chart (activité 7j) ──────────────────────────────── */}
         {hasDailyExpenses && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardLabel, { color: '#ff5c5c', marginBottom: 16 }]}>
+            <Text style={[styles.cardLabel, { color: colors.expense, marginBottom: 16 }]}>
               {t('activite_quotidienne')}
             </Text>
             <DailyAreaChart data={dailyExpenseData} chartWidth={chartWidth} colors={colors} />
@@ -453,8 +461,8 @@ const DailyAreaChart = React.memo(({ data, chartWidth, colors }) => {
     <Svg width={W} height={H}>
       <Defs>
         <LinearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#ff5c5c" stopOpacity="0.25" />
-          <Stop offset="1" stopColor="#ff5c5c" stopOpacity="0.01" />
+          <Stop offset="0" stopColor={colors.expense} stopOpacity="0.25" />
+          <Stop offset="1" stopColor={colors.expense} stopOpacity="0.01" />
         </LinearGradient>
       </Defs>
 
@@ -468,7 +476,7 @@ const DailyAreaChart = React.memo(({ data, chartWidth, colors }) => {
       ))}
 
       <Path d={areaPath} fill="url(#expGrad)" />
-      <Path d={linePath} fill="none" stroke="#ff5c5c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d={linePath} fill="none" stroke={colors.expense} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
       {points.map((p, i) => (
         <G key={`pt${i}`}>

@@ -71,15 +71,11 @@ export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock,
   }, [onClose]);
 
   // Ce composant reçoit isDark/accentColor en props (et non via useFinance) :
-  // on construit donc la palette directement. Ecarts conservés : voile plus
-  // translucide et pastilles sur la teinte `border` plutôt que `dot`.
+  // on construit donc la palette directement. Ecart conservé : les pastilles
+  // reposent sur la teinte `border` plutôt que `dot`.
   const colors = useMemo(() => {
     const base = buildColors(isDark, accentColor);
-    return {
-      ...base,
-      overlay: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.4)',
-      dotBg: base.border,
-    };
+    return { ...base, dotBg: base.border };
   }, [isDark, accentColor]);
 
   const keys = [
@@ -119,7 +115,7 @@ export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock,
             ))}
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
 
           {hasPin && remainingText && !error ? (
             <Text style={[styles.remainingText, { color: colors.subText }]}>{remainingText}</Text>
@@ -207,7 +203,6 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   error: {
-    color: '#ff5c5c',
     fontSize: 13,
     marginBottom: 12,
     fontWeight: '500',

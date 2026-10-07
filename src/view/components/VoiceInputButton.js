@@ -3,6 +3,8 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { Mic, MicOff } from 'lucide-react-native';
 import { useVoiceInput } from '../../utils/useVoiceInput';
+import { useColors } from '../theme';
+import { inkOn } from '../theme/colors';
 
 const FR = {
   listen: 'Dictez votre transaction…',
@@ -13,13 +15,21 @@ const FR = {
 export default function VoiceInputButton({
   onResult,
   onError,
-  accentColor = '#3b82f6',
-  textColor = '#131419',
-  subTextColor = '#6a6c7a',
-  backgroundColor = '#eef0f5',
-  cardColor = '#ffffff',
+  accentColor,
+  textColor,
+  subTextColor,
+  backgroundColor,
+  cardColor,
   style,
 }) {
+  const palette = useColors();
+  const accent = accentColor ?? palette.accent;
+  const ink = textColor ?? palette.ink;
+  const sub = subTextColor ?? palette.inkMid;
+  const sunken = backgroundColor ?? palette.sunken;
+  const card = cardColor ?? palette.card;
+  const onAccent = inkOn(accent);
+
   const { isListening, transcript, isFinal, error, startListening, stopListening, abortListening } = useVoiceInput({ lang: 'fr-FR' });
 
   const pulse = useRef(new Animated.Value(1)).current;
@@ -80,40 +90,40 @@ export default function VoiceInputButton({
     <View style={[styles.container, style]}>
       <Animated.View style={{ transform: [{ scale: pulse }] }}>
         <TouchableOpacity
-          style={[styles.micButton, { backgroundColor: accentColor }]}
+          style={[styles.micButton, { backgroundColor: accent }]}
           onPress={handlePress}
           activeOpacity={0.85}
         >
           {isListening ? (
-            <MicOff color="#ffffff" size={22} />
+            <MicOff color={onAccent} size={22} />
           ) : (
-            <Mic color="#ffffff" size={22} />
+            <Mic color={onAccent} size={22} />
           )}
         </TouchableOpacity>
       </Animated.View>
 
       {isListening && (
-        <View style={[styles.listeningCard, { backgroundColor: cardColor }]}>
+        <View style={[styles.listeningCard, { backgroundColor: card }]}>
           <View style={styles.listeningHeader}>
-            <ActivityIndicator size="small" color={accentColor} />
-            <Text style={[styles.listeningLabel, { color: subTextColor }]}>{FR.listen}</Text>
+            <ActivityIndicator size="small" color={accent} />
+            <Text style={[styles.listeningLabel, { color: sub }]}>{FR.listen}</Text>
           </View>
           {transcript !== '' && (
-            <Text style={[styles.transcript, { color: textColor }]}>{transcript}</Text>
+            <Text style={[styles.transcript, { color: ink }]}>{transcript}</Text>
           )}
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: backgroundColor }]} onPress={abortListening}>
-              <Text style={[styles.actionText, { color: subTextColor }]}>{FR.cancel}</Text>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: sunken }]} onPress={abortListening}>
+              <Text style={[styles.actionText, { color: sub }]}>{FR.cancel}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: accentColor }]} onPress={stopListening}>
-              <Text style={[styles.actionText, { color: '#ffffff', fontWeight: '700' }]}>{FR.stop}</Text>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: accent }]} onPress={stopListening}>
+              <Text style={[styles.actionText, { color: onAccent, fontWeight: '700' }]}>{FR.stop}</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
       {error && !isListening && (
-        <Text style={[styles.errorText, { color: '#ff5c5c' }]}>{error}</Text>
+        <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
       )}
     </View>
   );

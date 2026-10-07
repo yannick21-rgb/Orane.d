@@ -20,6 +20,7 @@ import VoiceInputButton from '../components/VoiceInputButton';
 import { parseVoiceInput } from '../../utils/voiceParser';
 import { useResponsive } from '../../utils/responsive';
 import { buildColors } from '../theme';
+import { inkOn } from '../theme/colors';
 
 export default function AddTransactionScreen({ navigation }) {
   const { t } = useTranslation();
@@ -224,7 +225,7 @@ export default function AddTransactionScreen({ navigation }) {
                   </View>
 
                   {!hasExtracted && (
-                    <Text style={[styles.voiceNothing, { color: '#ff5c5c' }]}>
+                    <Text style={[styles.voiceNothing, { color: colors.expense }]}>
                       Aucune information détectée dans cette dictée.
                     </Text>
                   )}
@@ -273,7 +274,7 @@ export default function AddTransactionScreen({ navigation }) {
                 activeOpacity={0.85}
                 disabled={!voicePreview || (!voicePreview.parsed.amount && !voicePreview.parsed.title && !voicePreview.parsed.note)}
               >
-                <Text style={[styles.voiceBtnText, { color: '#fff', fontWeight: '700' }]}>Remplir le formulaire</Text>
+                <Text style={[styles.voiceBtnText, { color: colors.accentFg, fontWeight: '700' }]}>Remplir le formulaire</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -314,26 +315,26 @@ export default function AddTransactionScreen({ navigation }) {
           <Text style={[styles.label, { color: colors.subText }]}>{t('type_operation')}</Text>
           <View style={[styles.toggle, { backgroundColor: colors.input }]}>
             <TouchableOpacity
-              style={[styles.toggleBtn, type === 'expense' && { backgroundColor: '#ff5c5c' }]}
+              style={[styles.toggleBtn, type === 'expense' && { backgroundColor: colors.expense }]}
               onPress={() => { setType('expense'); setWallet('momo'); setCategory('Alimentation'); }}
             >
-              <Text style={[styles.toggleText, { color: type === 'expense' ? '#fff' : colors.subText }, type === 'expense' && { fontWeight: '700' }]}>
+              <Text style={[styles.toggleText, { color: type === 'expense' ? inkOn(colors.expense) : colors.subText }, type === 'expense' && { fontWeight: '700' }]}>
                 {t('depense')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toggleBtn, type === 'income' && { backgroundColor: '#2ecc71' }]}
+              style={[styles.toggleBtn, type === 'income' && { backgroundColor: colors.income }]}
               onPress={() => { setType('income'); setCategory('Salaire / Coaching'); }}
             >
-              <Text style={[styles.toggleText, { color: type === 'income' ? '#fff' : colors.subText }, type === 'income' && { fontWeight: '700' }]}>
+              <Text style={[styles.toggleText, { color: type === 'income' ? inkOn(colors.income) : colors.subText }, type === 'income' && { fontWeight: '700' }]}>
                 {t('revenu')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toggleBtn, type === 'transfert' && { backgroundColor: '#f59e0b' }]}
+              style={[styles.toggleBtn, type === 'transfert' && { backgroundColor: colors.warning }]}
               onPress={() => { setType('transfert'); setWallet('momo'); setCategory('Retrait MoMo'); }}
             >
-              <Text style={[styles.toggleText, { color: type === 'transfert' ? '#fff' : colors.subText }, type === 'transfert' && { fontWeight: '700' }]}>
+              <Text style={[styles.toggleText, { color: type === 'transfert' ? inkOn(colors.warning) : colors.subText }, type === 'transfert' && { fontWeight: '700' }]}>
                 💸 Transfert
               </Text>
             </TouchableOpacity>
@@ -349,7 +350,7 @@ export default function AddTransactionScreen({ navigation }) {
               style={[styles.toggleBtn, wallet === 'momo' && { backgroundColor: accentColor }]}
               onPress={() => setWallet('momo')}
             >
-              <Text style={[styles.toggleText, { color: wallet === 'momo' ? '#fff' : colors.subText }, wallet === 'momo' && { fontWeight: '700' }]}>
+              <Text style={[styles.toggleText, { color: wallet === 'momo' ? colors.accentFg : colors.subText }, wallet === 'momo' && { fontWeight: '700' }]}>
                 {'📱 MoMo'}
               </Text>
             </TouchableOpacity>
@@ -357,7 +358,7 @@ export default function AddTransactionScreen({ navigation }) {
               style={[styles.toggleBtn, wallet === 'cash' && { backgroundColor: accentColor }]}
               onPress={() => setWallet('cash')}
             >
-              <Text style={[styles.toggleText, { color: wallet === 'cash' ? '#fff' : colors.subText }, wallet === 'cash' && { fontWeight: '700' }]}>
+              <Text style={[styles.toggleText, { color: wallet === 'cash' ? colors.accentFg : colors.subText }, wallet === 'cash' && { fontWeight: '700' }]}>
                 {'💵 Espèces'}
               </Text>
             </TouchableOpacity>
@@ -365,7 +366,7 @@ export default function AddTransactionScreen({ navigation }) {
               style={[styles.toggleBtn, wallet === 'banque' && { backgroundColor: accentColor }]}
               onPress={() => setWallet('banque')}
             >
-              <Text style={[styles.toggleText, { color: wallet === 'banque' ? '#fff' : colors.subText }, wallet === 'banque' && { fontWeight: '700' }]}>
+              <Text style={[styles.toggleText, { color: wallet === 'banque' ? colors.accentFg : colors.subText }, wallet === 'banque' && { fontWeight: '700' }]}>
                 {'🏦 Banque'}
               </Text>
             </TouchableOpacity>
@@ -385,7 +386,7 @@ export default function AddTransactionScreen({ navigation }) {
                     style={[styles.frequencyChip, { backgroundColor: colors.input }, active && { backgroundColor: accentColor }]}
                     onPress={() => setIncomeFrequency(freq.key)}
                   >
-                    <Text style={[styles.frequencyChipLabel, { color: active ? '#fff' : colors.text }, active && { fontWeight: '700' }]}>
+                    <Text style={[styles.frequencyChipLabel, { color: active ? colors.accentFg : colors.text }, active && { fontWeight: '700' }]}>
                       {t(freq.tKey)}
                     </Text>
                   </TouchableOpacity>
@@ -398,8 +399,8 @@ export default function AddTransactionScreen({ navigation }) {
         {type === 'transfert' && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.switchRow}>
-              <View style={{ backgroundColor: '#f59e0b', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8 }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>↻ TRANSFERT</Text>
+              <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8 }}>
+                <Text style={{ color: inkOn(colors.warning), fontSize: 11, fontWeight: '700' }}>↻ TRANSFERT</Text>
               </View>
             </View>
 
@@ -414,7 +415,7 @@ export default function AddTransactionScreen({ navigation }) {
                       style={[styles.networkChip, { backgroundColor: colors.input }, active && { backgroundColor: accentColor }]}
                       onPress={() => setSelectedNetwork(net.key)}
                     >
-                      <Text style={[styles.networkChipLabel, { color: active ? '#fff' : colors.text }, active && { fontWeight: '700' }]}>
+                      <Text style={[styles.networkChipLabel, { color: active ? colors.accentFg : colors.text }, active && { fontWeight: '700' }]}>
                         {t(net.tKey)}
                       </Text>
                     </TouchableOpacity>
@@ -454,18 +455,18 @@ export default function AddTransactionScreen({ navigation }) {
           {type === 'transfert' ? (
             <>
               {toNumber(amount) > 0 && (
-                <View style={{ marginTop: 20, padding: 14, backgroundColor: '#f59e0b' + '18', borderRadius: 16 }}>
+                <View style={{ marginTop: 20, padding: 14, backgroundColor: colors.warning + '18', borderRadius: 16 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={[styles.label, { color: colors.subText, marginTop: 0, marginBottom: 0 }]}>
                       Frais auto ({NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork})
                     </Text>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#f59e0b' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.warning }}>
                       -{autoFee} {deviseSymbol}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: colors.subText }}>Reçu en espèces</Text>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#2ecc71' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.income }}>
                       +{toNumber(amount)} {deviseSymbol}
                     </Text>
                   </View>
@@ -511,7 +512,7 @@ export default function AddTransactionScreen({ navigation }) {
                     onPress={() => setCategory(cat.key)}
                   >
                     <Text style={styles.chipIcon}>{cat.icon}</Text>
-                    <Text style={[styles.chipLabel, { color: active ? '#fff' : colors.text }, active && { fontWeight: '700' }]}>
+                    <Text style={[styles.chipLabel, { color: active ? colors.accentFg : colors.text }, active && { fontWeight: '700' }]}>
                       {t(cat.tKey)}
                     </Text>
                   </TouchableOpacity>
@@ -526,7 +527,7 @@ export default function AddTransactionScreen({ navigation }) {
           onPress={handleSave}
           activeOpacity={0.85}
         >
-          <Text style={styles.saveBtnText}>{isEditing ? 'Mettre à jour' : t('enregistrer_operation')}</Text>
+          <Text style={[styles.saveBtnText, { color: colors.accentFg }]}>{isEditing ? 'Mettre à jour' : t('enregistrer_operation')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -553,7 +554,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   chipIcon:      { fontSize: 14 },
   chipLabel:     { fontSize: 13, fontWeight: '600' },
   saveBtn:       { height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  saveBtnText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtnText:   { fontSize: 16, fontWeight: '700' },
 
   switchRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   networkGrid:        { flexDirection: 'row', gap: 6 },
@@ -572,7 +573,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   voiceCardHint:    { fontSize: 13, lineHeight: 19, marginBottom: 16, textAlign: 'center' },
   voiceModal:       { padding: 24, borderRadius: 24, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
   voiceTitle:       { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
-  voiceHint:        { fontSize: 13, color: '#6a6c7a', textAlign: 'center', marginTop: 6, marginBottom: 16 },
+  voiceHint:        { fontSize: 13, textAlign: 'center', marginTop: 6, marginBottom: 16 },
   voiceQuote:       { borderRadius: 16, padding: 14, marginBottom: 16 },
   voiceQuoteText:   { fontSize: 15, fontWeight: '600', fontStyle: 'italic', lineHeight: 22 },
   voiceNothing:     { fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 14 },

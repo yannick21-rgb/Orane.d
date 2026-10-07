@@ -23,7 +23,6 @@ const slides = [
     icon: Wallet,
     title: `Bienvenue sur ${APP_NAME}`,
     description: 'Gérez vos finances au quotidien\nen toute simplicité',
-    accent: '#3b82f6',
   },
   {
     id: '2',
@@ -31,7 +30,6 @@ const slides = [
     title: 'Le Double Portefeuille',
     description:
       'Un système de vases communicants\nentre Mobile Money et Cash/Espèces\nlors de vos retraits et transactions',
-    accent: '#8b5cf6',
   },
   {
     id: '3',
@@ -39,7 +37,6 @@ const slides = [
     title: 'Contrôle & Sécurité',
     description:
       'Alertes de budget personnalisées\net Mode Discret activable\navec votre code PIN à 5 chiffres',
-    accent: '#06b6d4',
   },
 ];
 
@@ -54,9 +51,11 @@ export default function OnboardingScreen({ onComplete }) {
   const isLast = currentIndex === slides.length - 1;
 
   // Ecart conservé : l'onboarding a un fond plein blanc en thème clair,
-  // là où le reste de l'application utilise le gris très clair.
+  // là où le reste de l'application utilise le gris très clair. En thème
+  // sombre, l'override s'annule — sinon le fond blanc resterait et l'encre
+  // claire deviendrait illisible.
   const colors = useMemo(
-    () => buildColors(isDark, accentColor, { bg: '#ffffff' }),
+    () => buildColors(isDark, accentColor, isDark ? {} : { bg: '#ffffff' }),
     [isDark, accentColor]
   );
 
@@ -100,10 +99,10 @@ export default function OnboardingScreen({ onComplete }) {
         <View
           style={[
             styles.iconCircle,
-            { backgroundColor: slide.accent + '20' },
+            { backgroundColor: accentColor + '20' },
           ]}
         >
-          <IconComp size={64} color={slide.accent} strokeWidth={1.5} />
+          <IconComp size={64} color={accentColor} strokeWidth={1.5} />
         </View>
         <Text style={[styles.title, { color: colors.text }]}>
           {slide.title}
@@ -144,7 +143,7 @@ export default function OnboardingScreen({ onComplete }) {
                 {
                   backgroundColor:
                     currentIndex === index
-                      ? slides[currentIndex].accent
+                      ? accentColor
                       : colors.dot,
                   width: currentIndex === index ? 24 : 8,
                 },
@@ -155,12 +154,12 @@ export default function OnboardingScreen({ onComplete }) {
         <TouchableOpacity
           style={[
             styles.button,
-            { backgroundColor: slides[currentIndex].accent },
+            { backgroundColor: accentColor },
           ]}
           onPress={handleNext}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: colors.accentFg }]}>
             {isLast ? 'Commencer' : 'Suivant'}
           </Text>
         </TouchableOpacity>
@@ -224,7 +223,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: '#ffffff',
     fontSize: 17,
     fontWeight: '700',
   },

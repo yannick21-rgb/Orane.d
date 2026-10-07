@@ -74,7 +74,7 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
         <View style={[styles.container, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>
@@ -115,7 +115,7 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
                     style={[styles.freqBtn, { backgroundColor: active ? accentColor : colors.input }]}
                     onPress={() => setFrequency(f.key)}
                   >
-                    <Text style={[styles.freqText, { color: active ? '#fff' : colors.text }]}>{f.label}</Text>
+                    <Text style={[styles.freqText, { color: active ? colors.accentFg : colors.text }]}>{f.label}</Text>
                   </TouchableOpacity>
                 );
               })}

@@ -104,9 +104,9 @@ export default function LoginScreen({ onSwitchToRegister }) {
               activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.accentFg} />
               ) : (
-                <Text style={styles.primaryBtnText}>{t('Se connecter') || 'Se connecter'}</Text>
+                <Text style={[styles.primaryBtnText, { color: colors.accentFg }]}>{t('Se connecter') || 'Se connecter'}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -182,7 +182,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginTop: 24,
   },
   primaryBtnText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },

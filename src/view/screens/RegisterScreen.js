@@ -177,9 +177,9 @@ export default function RegisterScreen({ onSwitchToLogin }) {
               activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.accentFg} />
               ) : (
-                <Text style={styles.primaryBtnText}>
+                <Text style={[styles.primaryBtnText, { color: colors.accentFg }]}>
                   {t("S'inscrire") || "S'inscrire"}
                 </Text>
               )}
@@ -262,7 +262,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginTop: 24,
   },
   primaryBtnText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },

@@ -29,6 +29,7 @@ import { useResponsive } from '../../utils/responsive';
 import { Trash2, CheckSquare, Square, X, Eye, EyeOff, Search } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
 import { buildColors } from '../theme';
+import { DEFAULT_ACCENT } from '../../model/ThemeModel';
 import { type } from '../theme/type';
 import { touchTarget } from '../theme/tokens';
 import { Amount, Button, Cells, Cell, Rule, SectionHeader } from '../components/ui';
@@ -81,7 +82,7 @@ export default function HomeScreen({ navigation }) {
   const {
     transactions = [],
     isDark = false,
-    accentColor = '#4A5BF0',
+    accentColor = DEFAULT_ACCENT,
     deleteTransaction,
     deleteMultipleTransactions,
     setEditingTransaction,
