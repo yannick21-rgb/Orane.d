@@ -122,7 +122,7 @@ export default function ProfileSelectorScreen({ navigation }) {
         <View style={styles.overlay}>
           <View style={styles.modal}>
             <View style={[styles.avatar, { width: 64, height: 64, borderRadius: radius.pill }]}>
-              <Text style={[styles.avatarText, { fontSize: 26, color: colors.accentFg }]}>
+              <Text style={[styles.avatarText, { fontSize: 24, color: colors.accentFg }]}>
                 {selectedName.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -198,7 +198,7 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
   },
   avatarText: { fontSize: 22, fontWeight: 'bold' },
   addAvatar: { backgroundColor: colors.sunken },
-  addIcon: { fontSize: 28, color: colors.inkMid, fontWeight: '300' },
+  addIcon: { fontSize: 24, color: colors.inkMid, fontWeight: '300' },
 
   cardName: { fontSize: 13, fontWeight: '600', color: colors.ink, textAlign: 'center', maxWidth: 84 },
   addLabel: { ...type.micro, color: colors.inkMid, textAlign: 'center' },

@@ -81,7 +81,7 @@ export default function TontinesScreen({ onClose }) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {groups.length === 0 && (
           <View style={styles.empty}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>🔄</Text>
+            <Text style={{ fontSize: 28, marginBottom: 12 }}>🔄</Text>
             <Text style={[styles.emptyText, { color: colors.subText }]}>
               Aucune tontine enregistrée.
             </Text>

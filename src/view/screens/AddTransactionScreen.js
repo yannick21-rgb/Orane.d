@@ -545,7 +545,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   pageTitle:     { ...type.title, marginTop: 20, marginBottom: 20 },
   card:          { padding: cardP, borderRadius: br, marginBottom: 16 },
   label:         { ...type.label, marginBottom: 12 },
-  optionalBadge: { fontSize: 10, fontWeight: '400', letterSpacing: 0 },
+  optionalBadge: { fontSize: 11, fontWeight: '400', letterSpacing: 0 },
   toggle:        { flexDirection: 'row', borderRadius: radius.md, padding: 4, gap: 4 },
   toggleBtn:     { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
   toggleText:    { fontSize: 15, fontWeight: '600' },
@@ -571,7 +571,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   modalOverlay:     { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   modalContent:     { padding: 30, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', width: 160, height: 160, borderWidth: 1 },
   successCircle:    { width: 60, height: 60, borderRadius: radius.pill, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  successCheckmark: { fontSize: 28, fontWeight: 'bold' },
+  successCheckmark: { fontSize: 24, fontWeight: 'bold' },
   modalText:        { fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 
   voiceCardHint:    { fontSize: 13, lineHeight: 19, marginBottom: 16, textAlign: 'center' },

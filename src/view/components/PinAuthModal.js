@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lockIcon: {
-    fontSize: 32,
+    fontSize: 28,
     marginBottom: 12,
   },
   title: {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   numpadKeyText: {
     ...type.figure,
-    fontSize: 26,
+    fontSize: 24,
   },
   cancelBtn: {
     marginTop: 20,

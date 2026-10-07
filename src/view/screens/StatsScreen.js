@@ -359,7 +359,7 @@ export default function StatsScreen() {
         {/* ── État vide ─────────────────────────────────────────────────────── */}
         {filtered.length === 0 && (
           <View style={[styles.card, styles.emptyCard, { backgroundColor: colors.card }]}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
+            <Text style={{ fontSize: 28, marginBottom: 8 }}>🔍</Text>
             <Text style={[styles.emptyText, { color: colors.subText }]}>
               {t('emptyTransactions')}
             </Text>

@@ -36,10 +36,10 @@ export const fonts = {
  */
 export const type = {
   /** Le chiffre du solde en tête d'écran. Le seul corps très marqué. */
-  display: { fontFamily: fonts.bold, fontSize: 40, letterSpacing: -1.6 },
+  display: { fontFamily: fonts.bold, fontSize: 34, letterSpacing: -1.4 },
 
   /** Chiffres secondaires : revenus, dépenses, niveau, soldes de poche. */
-  figure: { fontFamily: fonts.semibold, fontSize: 26, letterSpacing: -0.9 },
+  figure: { fontFamily: fonts.semibold, fontSize: 22, letterSpacing: -0.8 },
 
   /** Montant d'une ligne d'opération — la colonne de droite. */
   amount: { fontFamily: fonts.medium, fontSize: 15, letterSpacing: -0.2 },

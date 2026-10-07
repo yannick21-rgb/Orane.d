@@ -191,7 +191,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   title: {
     ...type.title,
-    fontSize: 26,
+    fontSize: 24,
     textAlign: 'center',
     marginBottom: 16,
   },

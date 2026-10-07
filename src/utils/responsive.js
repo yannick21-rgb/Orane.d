@@ -64,7 +64,7 @@ export function getResponsiveStyles({ isWide, contentPadding, cardPadding, borde
     scrollContainer: { paddingHorizontal: contentPadding, paddingBottom: 40 },
     card: { padding: cardPadding, borderRadius },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 25 },
-    title: { fontSize: isWide ? 36 : 32, fontWeight: 'bold', marginTop: 2 },
+    title: { fontSize: isWide ? 28 : 24, fontWeight: 'bold', marginTop: 2 },
     sectionTitle: { fontSize: isWide ? 20 : 18, fontWeight: 'bold' },
     label: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
   };

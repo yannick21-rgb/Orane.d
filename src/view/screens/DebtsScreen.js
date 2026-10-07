@@ -147,7 +147,7 @@ export default function DebtsScreen({ onClose }) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 && (
           <View style={styles.empty}>
-            <Text style={{ fontSize: 32, marginBottom: 10 }}>{activeTab === DEBT_TYPES.CREDIT_ACCORDE ? '💸' : '💳'}</Text>
+            <Text style={{ fontSize: 28, marginBottom: 10 }}>{activeTab === DEBT_TYPES.CREDIT_ACCORDE ? '💸' : '💳'}</Text>
             <Text style={[styles.emptyText, { color: colors.subText }]}>
               Aucune dette dans cette catégorie.
             </Text>

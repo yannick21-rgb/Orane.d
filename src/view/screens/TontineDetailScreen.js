@@ -210,7 +210,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   infoDivider: { height: 1, marginVertical: 6 },
   summaryRow: { flexDirection: 'row', gap: 10, marginHorizontal: cpad, marginTop: 12, maxWidth: cp, width: '100%', alignSelf: 'center' },
   summaryBadge: { flex: 1, padding: 12, borderRadius: radius.md, alignItems: 'center' },
-  summaryBadgeLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
+  summaryBadgeLabel: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
   summaryBadgeValue: { ...type.amount, ...tabular, fontSize: 14 },
   sectionTitle: { ...type.heading, paddingHorizontal: cpad, marginTop: 20, marginBottom: 8 },
   roundsList: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
