@@ -15,6 +15,7 @@ import { useFinance } from '../../viewmodel/FinanceContext';
 import { APP_NAME } from '../../model/AppConstants';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 import Constants from 'expo-constants';
 import { buildColors } from '../theme';
 
@@ -189,8 +190,8 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginBottom: 50,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...type.title,
+    fontSize: 26,
     textAlign: 'center',
     marginBottom: 16,
   },

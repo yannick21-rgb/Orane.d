@@ -11,6 +11,7 @@ import { toNumber } from '../../utils/format';
 import DebtFormModal from '../components/DebtFormModal';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type, tabular } from '../theme/type';
 import { useColors } from '../theme';
 
 export default function DebtsScreen({ onClose }) {
@@ -257,7 +258,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
     maxWidth: cp, width: '100%', alignSelf: 'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
+  headerTitle: { ...type.title },
   tabRow: {
     flexDirection: 'row', borderBottomWidth: 1,
     maxWidth: cp, width: '100%', alignSelf: 'center',
@@ -273,7 +274,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     borderRadius: br,
   },
   summaryLabel: { fontSize: 13, fontWeight: '600' },
-  summaryValue: { fontSize: 18, fontWeight: 'bold' },
+  summaryValue: { ...type.figure, ...tabular, fontSize: 18 },
   list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
@@ -284,10 +285,10 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     borderRadius: radius.md, marginBottom: 10, borderWidth: 1,
   },
   debtHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  personName: { fontSize: 15, fontWeight: '700' },
+  personName: { ...type.heading },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.xs },
-  statusText: { fontSize: 11, fontWeight: '600' },
-  debtAmount: { fontSize: 18, fontWeight: 'bold', marginBottom: 2 },
+  statusText: { ...type.micro },
+  debtAmount: { ...type.amount, ...tabular, fontSize: 18, marginBottom: 2 },
   reimbursedText: { fontSize: 12, marginTop: 2 },
   dueDate: { fontSize: 12, marginTop: 2 },
   note: { fontSize: 11, fontStyle: 'italic', marginTop: 4 },
@@ -295,7 +296,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   actionBtn: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   modalCard: { width: '85%', maxWidth: 340, borderRadius: radius.lg, padding: 24 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
+  modalTitle: { ...type.title, marginBottom: 6 },
   modalSub: { fontSize: 13, marginBottom: 16, lineHeight: 18 },
   reimburseInput: {
     height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '600',

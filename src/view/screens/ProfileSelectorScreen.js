@@ -13,6 +13,7 @@ import { useAuth } from '../../viewmodel/AuthContext';
 import { useResponsive } from '../../utils/responsive';
 import { useColors } from '../theme';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 
 const PIN_LENGTH = 5;
 
@@ -200,7 +201,7 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
   addIcon: { fontSize: 28, color: colors.inkMid, fontWeight: '300' },
 
   cardName: { fontSize: 13, fontWeight: '600', color: colors.ink, textAlign: 'center', maxWidth: 84 },
-  addLabel: { fontSize: 11, fontWeight: '500', color: colors.inkMid, textAlign: 'center' },
+  addLabel: { ...type.micro, color: colors.inkMid, textAlign: 'center' },
 
   overlay: {
     flex: 1,
@@ -215,7 +216,7 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
     padding: 28,
     alignItems: 'center',
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.ink, marginTop: 10, marginBottom: 4 },
+  modalTitle: { ...type.title, color: colors.ink, marginTop: 10, marginBottom: 4 },
   modalSub: { fontSize: 13, color: colors.inkMid, marginBottom: 22 },
 
   dots: { flexDirection: 'row', gap: 12, marginBottom: 26 },

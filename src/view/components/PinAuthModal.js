@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { buildColors } from '../theme';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 
 export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock, hasPin, isDark, accentColor, remainingText }) {
   const [pin, setPin] = useState('');
@@ -183,8 +184,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...type.title,
     marginBottom: 8,
   },
   subtitle: {
@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   numpadKeyText: {
-    fontSize: 28,
-    fontWeight: '600',
+    ...type.figure,
+    fontSize: 26,
   },
   cancelBtn: {
     marginTop: 20,

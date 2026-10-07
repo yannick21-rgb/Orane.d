@@ -12,6 +12,7 @@ import TontineFormModal from '../components/TontineFormModal';
 import TontineDetailScreen from './TontineDetailScreen';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type, tabular } from '../theme/type';
 import { useColors } from '../theme';
 
 export default function TontinesScreen({ onClose }) {
@@ -151,7 +152,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
     maxWidth: cp, width: '100%', alignSelf: 'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
+  headerTitle: { ...type.title },
   list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
@@ -163,18 +164,18 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     maxWidth: cp, width: '100%', alignSelf: 'center',
   },
   summaryItem: { flex: 1, alignItems: 'center' },
-  summaryLabel: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  summaryValue: { fontSize: 18, fontWeight: 'bold' },
+  summaryLabel: { ...type.micro, marginBottom: 4 },
+  summaryValue: { ...type.figure, ...tabular, fontSize: 18 },
   summaryDivider: { width: 1, marginHorizontal: 16 },
   groupCard: {
     padding: cardP, borderRadius: br, marginBottom: 12, borderWidth: 1,
   },
   groupHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  groupName: { fontSize: 16, fontWeight: '700' },
+  groupName: { ...type.heading, fontSize: 16 },
   groupMeta: { fontSize: 12, marginTop: 2 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   progressTrack: { flex: 1, height: 6, borderRadius: radius.pill, overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: radius.pill },
-  progressText: { fontSize: 11, fontWeight: '600', width: 40, textAlign: 'right' },
+  progressText: { ...type.micro, width: 40, textAlign: 'right' },
   groupSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

@@ -10,6 +10,7 @@ import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type, tabular } from '../theme/type';
 import { useColors } from '../theme';
 
 export default function TontineDetailScreen({ group, onClose }) {
@@ -201,17 +202,17 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
     maxWidth: cp, width: '100%', alignSelf: 'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center', marginHorizontal: 12 },
+  headerTitle: { ...type.title, flex: 1, textAlign: 'center', marginHorizontal: 12 },
   infoCard: { marginHorizontal: cpad, marginTop: 16, padding: cardP, borderRadius: br, maxWidth: cp, width: '100%', alignSelf: 'center' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
   infoLabel: { fontSize: 13, fontWeight: '500' },
-  infoValue: { fontSize: 15, fontWeight: '700' },
+  infoValue: { ...type.amount, ...tabular },
   infoDivider: { height: 1, marginVertical: 6 },
   summaryRow: { flexDirection: 'row', gap: 10, marginHorizontal: cpad, marginTop: 12, maxWidth: cp, width: '100%', alignSelf: 'center' },
   summaryBadge: { flex: 1, padding: 12, borderRadius: radius.md, alignItems: 'center' },
   summaryBadgeLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
-  summaryBadgeValue: { fontSize: 14, fontWeight: 'bold' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', paddingHorizontal: cpad, marginTop: 20, marginBottom: 8 },
+  summaryBadgeValue: { ...type.amount, ...tabular, fontSize: 14 },
+  sectionTitle: { ...type.heading, paddingHorizontal: cpad, marginTop: 20, marginBottom: 8 },
   roundsList: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   roundCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -221,6 +222,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   roundNumber: { fontSize: 14, fontWeight: '700' },
   roundDate: { fontSize: 12, marginTop: 2 },
   roundRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  roundAmount: { fontSize: 14, fontWeight: 'bold' },
+  roundAmount: { ...type.amount, ...tabular, fontSize: 14 },
   roundAction: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });

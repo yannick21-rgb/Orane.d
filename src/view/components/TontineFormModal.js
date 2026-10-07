@@ -11,6 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColors } from '../theme';
 import { Button } from './ui';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 
 export default function TontineFormModal({ visible, initialData, onClose }) {
   const { accentColor } = useFinance();
@@ -185,14 +186,14 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   container: { maxHeight: '90%', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: 24 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title: { fontSize: 20, fontWeight: 'bold' },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 16 },
+  title: { ...type.title },
+  label: { ...type.label, marginBottom: 8, marginTop: 16 },
   input: { height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500' },
   freqRow: { flexDirection: 'row', gap: 10 },
   freqBtn: { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
   freqText: { fontSize: 14, fontWeight: '600' },
-  hint: { fontSize: 11, marginTop: 6, lineHeight: 16 },
+  hint: { ...type.micro, marginTop: 6, lineHeight: 16 },
   dateBtn: { height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center' },
-  previewText: { fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 16 },
+  previewText: { ...type.amount, fontSize: 14, textAlign: 'center', marginTop: 16 },
   saveBtn: { marginTop: 24, marginBottom: 12 },
 });

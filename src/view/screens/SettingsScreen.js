@@ -32,6 +32,7 @@ import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 import { useColors } from '../theme';
 import { inkOn } from '../theme/colors';
 import { Button, Card, Input, SectionHeader } from '../components/ui';
@@ -961,10 +962,10 @@ export default function SettingsScreen({ navigation }) {
 const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
   scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  pageTitle: { ...type.title, marginBottom: 20 },
   sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
+  sectionTitle: { ...type.heading, marginLeft: 8 },
   profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   avatarCircle: { width: 50, height: 50, borderRadius: radius.pill, justifyContent: 'center', alignItems: 'center' },
   avatarLetter: { fontSize: 20, fontWeight: 'bold' },
@@ -1045,6 +1046,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     padding: 28,
     alignItems: 'center',
   },
-  pwdTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
+  pwdTitle: { ...type.title, marginBottom: 8 },
   pwdSubtitle: { fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
 });

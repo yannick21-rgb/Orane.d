@@ -11,6 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColors } from '../theme';
 import { Button } from './ui';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 
 export default function DebtFormModal({ visible, onClose, initialData, defaultType }) {
   const { accentColor } = useFinance();
@@ -199,13 +200,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
   },
-  title: { fontSize: 20, fontWeight: 'bold' },
+  title: { ...type.title },
   typeToggle: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 14, borderRadius: radius.md, marginBottom: 20,
   },
   typeText: { fontSize: 14, fontWeight: '600' },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 16 },
+  label: { ...type.label, marginBottom: 8, marginTop: 16 },
   input: {
     height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500',
   },

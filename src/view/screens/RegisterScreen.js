@@ -19,6 +19,7 @@ import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type } from '../theme/type';
 import { useColors } from '../theme';
 
 export default function RegisterScreen({ onSwitchToLogin }) {
@@ -219,16 +220,14 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginBottom: 32,
   },
   logo: { width: 120, height: 120, marginBottom: 16 },
-  subtitle: { fontSize: 14, marginTop: 6 },
+  subtitle: { ...type.label, fontSize: 14, marginTop: 6 },
   card: {
     padding: cardP,
     borderRadius: br,
     borderWidth: 1,
   },
   label: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    ...type.label,
     marginBottom: 8,
   },
   input: {

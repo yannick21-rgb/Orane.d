@@ -20,6 +20,7 @@ import VoiceInputButton from '../components/VoiceInputButton';
 import { parseVoiceInput } from '../../utils/voiceParser';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type, tabular } from '../theme/type';
 import { buildColors } from '../theme';
 import { inkOn } from '../theme/colors';
 
@@ -233,7 +234,7 @@ export default function AddTransactionScreen({ navigation }) {
 
                   <View style={[styles.voiceRow, { borderBottomColor: colors.border }]}>
                     <Text style={[styles.voiceRowLabel, { color: colors.subText }]}>Montant</Text>
-                    <Text style={[styles.voiceRowValue, { color: colors.text }]}>
+                    <Text style={[styles.voiceRowAmount, { color: colors.text }]}>
                       {p.amount > 0 ? `${p.amount} ${deviseSymbol}` : '—'}
                     </Text>
                   </View>
@@ -296,7 +297,7 @@ export default function AddTransactionScreen({ navigation }) {
 
         {!isEditing && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.label, { color: colors.subText }]}>🎙️ SAISIE VOCALE EXPRESS</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>🎙️ Saisie vocale express</Text>
             <Text style={[styles.voiceCardHint, { color: colors.subText }]}>
               Appuyez sur le micro puis dictez, par exemple : « j'ai payé 2000 pour le pain avec MoMo »
             </Text>
@@ -401,7 +402,7 @@ export default function AddTransactionScreen({ navigation }) {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.switchRow}>
               <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 14, borderRadius: radius.xs }}>
-                <Text style={{ color: inkOn(colors.warning), fontSize: 11, fontWeight: '700' }}>↻ TRANSFERT</Text>
+                <Text style={[styles.label, { color: inkOn(colors.warning), marginTop: 0, marginBottom: 0 }]}>↻ Transfert</Text>
               </View>
             </View>
 
@@ -444,7 +445,7 @@ export default function AddTransactionScreen({ navigation }) {
             {type === 'transfert' ? 'Montant du retrait' : t('montant')}
           </Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.input, color: colors.text }]}
+            style={[styles.input, styles.amountInput, { backgroundColor: colors.input, color: colors.text }]}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
@@ -461,20 +462,20 @@ export default function AddTransactionScreen({ navigation }) {
                     <Text style={[styles.label, { color: colors.subText, marginTop: 0, marginBottom: 0 }]}>
                       Frais auto ({NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork})
                     </Text>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.warning }}>
+                    <Text style={[styles.amountInline, { color: colors.warning }]}>
                       -{autoFee} {deviseSymbol}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: colors.subText }}>Reçu en espèces</Text>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.income }}>
+                    <Text style={[styles.amountInline, { color: colors.income }]}>
                       +{toNumber(amount)} {deviseSymbol}
                     </Text>
                   </View>
                   <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: colors.subText }}>Débité MoMo</Text>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                    <Text style={[styles.amountInline, { color: colors.text }]}>
                       -{toNumber(amount) + autoFee} {deviseSymbol}
                     </Text>
                   </View>
@@ -541,14 +542,16 @@ export default function AddTransactionScreen({ navigation }) {
 const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container:     { flex: 1 },
   scroll:        { paddingHorizontal: cpad, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  pageTitle:     { fontSize: 32, fontWeight: 'bold', marginTop: 20, marginBottom: 20 },
+  pageTitle:     { ...type.title, marginTop: 20, marginBottom: 20 },
   card:          { padding: cardP, borderRadius: br, marginBottom: 16 },
-  label:         { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+  label:         { ...type.label, marginBottom: 12 },
   optionalBadge: { fontSize: 10, fontWeight: '400', letterSpacing: 0 },
   toggle:        { flexDirection: 'row', borderRadius: radius.md, padding: 4, gap: 4 },
   toggleBtn:     { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
   toggleText:    { fontSize: 15, fontWeight: '600' },
   input:         { padding: 16, borderRadius: radius.md, fontSize: 16, fontWeight: '500' },
+  amountInput:   { ...type.amount, ...tabular, fontSize: 20 },
+  amountInline:  { ...type.amount, ...tabular, fontSize: 15 },
   noteInput:     { height: 72, paddingTop: 14 },
   grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.md },
@@ -560,7 +563,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   switchRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   networkGrid:        { flexDirection: 'row', gap: 6 },
   networkChip:        { flex: 1, paddingVertical: 12, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  networkChipLabel:   { fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  networkChipLabel:   { ...type.micro, textAlign: 'center' },
   frequencyGrid:      { flexDirection: 'row', gap: 6 },
   frequencyChip:      { flex: 1, paddingVertical: 12, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   frequencyChipLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
@@ -573,7 +576,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
 
   voiceCardHint:    { fontSize: 13, lineHeight: 19, marginBottom: 16, textAlign: 'center' },
   voiceModal:       { padding: 24, borderRadius: radius.lg, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
-  voiceTitle:       { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+  voiceTitle:       { ...type.title, textAlign: 'center' },
   voiceHint:        { fontSize: 13, textAlign: 'center', marginTop: 6, marginBottom: 16 },
   voiceQuote:       { borderRadius: radius.md, padding: 14, marginBottom: 16 },
   voiceQuoteText:   { fontSize: 15, fontWeight: '600', fontStyle: 'italic', lineHeight: 22 },
@@ -581,6 +584,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   voiceRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1 },
   voiceRowLabel:    { fontSize: 13, fontWeight: '600' },
   voiceRowValue:    { fontSize: 14, fontWeight: '700', maxWidth: '60%', textAlign: 'right' },
+  voiceRowAmount:   { ...type.amount, ...tabular, fontSize: 14, maxWidth: '60%', textAlign: 'right' },
   voiceActions:     { flexDirection: 'row', gap: 10, marginTop: 20 },
   voiceBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },
   voiceBtnPrimary:   { flex: 1.4, paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },

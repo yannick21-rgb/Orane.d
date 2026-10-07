@@ -19,6 +19,7 @@ import { toNumber } from '../../utils/format';
 import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
 import { useResponsive } from '../../utils/responsive';
 import { radius } from '../theme/tokens';
+import { type, tabular } from '../theme/type';
 import {
   isTransactionInLastNDays,
   isTransactionInCurrentWeek,
@@ -306,11 +307,11 @@ export default function StatsScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 12, color: colors.subText }}>{t('emprunte')}</Text>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>+{totalBorrowed.toLocaleString()} {deviseSymbol}</Text>
+                <Text style={[type.amount, tabular, { color: colors.text }]}>+{totalBorrowed.toLocaleString()} {deviseSymbol}</Text>
               </View>
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
                 <Text style={{ fontSize: 12, color: colors.subText }}>{t('rembourse')}</Text>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.income }}>-{totalRepaid.toLocaleString()} {deviseSymbol}</Text>
+                <Text style={[type.amount, tabular, { color: colors.income }]}>-{totalRepaid.toLocaleString()} {deviseSymbol}</Text>
               </View>
             </View>
             <View style={{ height: 1, backgroundColor: colors.line, marginVertical: 12 }} />
@@ -318,7 +319,7 @@ export default function StatsScreen() {
               <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
                 {t('reste_rembourser')}
               </Text>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: debtStatus > 0 ? colors.expense : colors.income }}>
+              <Text style={[type.amount, tabular, { color: debtStatus > 0 ? colors.expense : colors.income }]}>
                 {debtStatus.toLocaleString()} {deviseSymbol}
               </Text>
             </View>
@@ -499,7 +500,7 @@ const DailyAreaChart = React.memo(({ data, chartWidth, colors }) => {
 const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container:       { flex: 1 },
   scrollContainer: { paddingHorizontal: cpad, paddingTop: 10, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  headerTitle:     { fontSize: 32, fontWeight: 'bold', marginTop: 10, marginBottom: 16 },
+  headerTitle:     { ...type.title, marginTop: 10, marginBottom: 16 },
   selectionRow:    { flexDirection: 'row', gap: 10, marginBottom: 20, alignItems: 'center' },
   dayButton:       { paddingHorizontal: 20, height: 50, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   dayButtonText:   { fontSize: 14, fontWeight: '700' },
@@ -509,26 +510,26 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   selectedTextStyle: { fontSize: 14, fontWeight: '600' },
   customDateContainer: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 16, gap: 10 },
   dateSelectorBtn:     { flex: 1, paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.md, alignItems: 'center' },
-  dateSelectorLabel:   { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
+  dateSelectorLabel:   { ...type.micro, marginBottom: 2 },
   dateSelectorValue:   { fontSize: 14, fontWeight: 'bold' },
   dateSeparator:       { width: 1, height: 30 },
   row:      { flexDirection: 'row', gap: 12, marginBottom: 12 },
   halfCard: { flex: 1, padding: cardP, borderRadius: br },
   card:     { padding: cardP, borderRadius: br, marginBottom: 12 },
-  cardLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  cardValue: { fontSize: 18, fontWeight: 'bold', marginTop: 8 },
-  bigValue:  { fontSize: 28, fontWeight: 'bold', marginTop: 8 },
+  cardLabel: { ...type.micro },
+  cardValue: { ...type.amount, ...tabular, fontSize: 18, marginTop: 8 },
+  bigValue:  { ...type.figure, ...tabular, marginTop: 8 },
   txCount:   { fontSize: 12, fontWeight: '500', marginTop: 6 },
   chart:     { borderRadius: radius.md, marginLeft: -15 },
   catRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
   catName: { width: 80, fontSize: 12, fontWeight: '600' },
   barTrack:{ flex: 1, height: 8, borderRadius: radius.pill, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: radius.pill },
-  catPct:  { width: 30, textAlign: 'right', fontSize: 11 },
-  catAmt:  { width: 65, textAlign: 'right', fontSize: 11, fontWeight: '500' },
+  catPct:  { ...type.micro, width: 30, textAlign: 'right' },
+  catAmt:  { ...type.amountSm, ...tabular, width: 65, textAlign: 'right', fontSize: 11 },
   emptyCard:     { alignItems: 'center', paddingVertical: 30 },
   emptyText:     { fontSize: 14, textAlign: 'center' },
   rowBetween:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   chartContainer:{ alignItems: 'center', marginTop: 10 },
-  feeTotalValue: { fontSize: 16, fontWeight: 'bold' },
+  feeTotalValue: { ...type.amount, ...tabular, fontSize: 16 },
 });
