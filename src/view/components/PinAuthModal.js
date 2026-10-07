@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { buildColors } from '../theme';
 import { radius } from '../theme/tokens';
@@ -73,12 +73,9 @@ export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock,
   }, [onClose]);
 
   // Ce composant reçoit isDark/accentColor en props (et non via useFinance) :
-  // on construit donc la palette directement. Ecart conservé : les pastilles
-  // reposent sur la teinte `border` plutôt que `dot`.
-  const colors = useMemo(() => {
-    const base = buildColors(isDark, accentColor);
-    return { ...base, dotBg: base.border };
-  }, [isDark, accentColor]);
+  // on construit donc la palette directement, et les pastilles vides reposent
+  // sur la teinte `border` plutôt que `dot`.
+  const colors = buildColors(isDark, accentColor);
 
   const keys = [
     ['1', '2', '3'],
@@ -110,7 +107,7 @@ export default function PinAuthModal({ visible, onClose, onSaveNewPin, onUnlock,
                 key={i}
                 style={[
                   styles.dot,
-                  { backgroundColor: colors.dotBg },
+                  { backgroundColor: colors.border },
                   i < pin.length && { backgroundColor: accentColor },
                 ]}
               />

@@ -1,6 +1,6 @@
 import './src/utils/cryptoPolyfill';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StatusBar, ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, Animated,
 } from 'react-native';
@@ -31,7 +31,7 @@ import RegisterScreen from './src/view/screens/RegisterScreen';
 import OnboardingScreen from './src/view/screens/OnboardingScreen';
 
 import { Home, PlusCircle, PieChart, Settings as SettingsIcon } from 'lucide-react-native';
-import { buildColors, useColors } from './src/view/theme';
+import { useColors } from './src/view/theme';
 import { type } from './src/view/theme/type';
 import { radius, ruleWidth, touchTarget } from './src/view/theme/tokens';
 import {
@@ -102,13 +102,10 @@ function MainTabs() {
 
   const insets = useSafeAreaInsets();
 
-  // Écart conservé : la barre d'onglets se pose sur la bande réglée
-  // (`card`) et non sur le fond, et son filet supérieur est le filet
-  // d'usage — celui qui sépare deux registres.
-  const colors = useMemo(() => {
-    const base = buildColors(isDark, accentColor);
-    return { ...base, barBg: base.card };
-  }, [isDark, accentColor]);
+  // La barre d'onglets se pose sur la bande réglée (`card`) et non sur le
+  // fond : son filet supérieur est le filet d'usage, celui qui sépare deux
+  // registres.
+  const colors = useColors();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -129,7 +126,7 @@ function MainTabs() {
         ))}
       </CrossPlatformPager>
       <View style={[styles.tabBar, {
-        backgroundColor: colors.barBg,
+        backgroundColor: colors.card,
         borderTopColor: colors.rule,
         height: TAB_BAR_HEIGHT + insets.bottom,
         paddingBottom: insets.bottom + 8,

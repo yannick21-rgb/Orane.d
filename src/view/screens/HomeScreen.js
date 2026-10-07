@@ -28,7 +28,7 @@ import { computeIncomeExpenseTotals } from '../../utils/transactionTotals';
 import { useResponsive } from '../../utils/responsive';
 import { Trash2, CheckSquare, Square, X, Eye, EyeOff, Search } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
-import { buildColors } from '../theme';
+import { useColors } from '../theme';
 import { DEFAULT_ACCENT } from '../../model/ThemeModel';
 import { type } from '../theme/type';
 import { radius, touchTarget } from '../theme/tokens';
@@ -140,7 +140,7 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const colors = useMemo(() => buildColors(isDark, accentColor), [isDark, accentColor]);
+  const colors = useColors();
 
   const safeTransactions = Array.isArray(transactions)
     ? transactions.filter(Boolean)

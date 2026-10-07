@@ -104,7 +104,7 @@ export default function VoiceInputButton({
       </Animated.View>
 
       {isListening && (
-        <View style={[styles.listeningCard, { backgroundColor: card }]}>
+        <View style={[styles.listeningCard, { backgroundColor: card, borderColor: palette.border }]}>
           <View style={styles.listeningHeader}>
             <ActivityIndicator size="small" color={accent} />
             <Text style={[styles.listeningLabel, { color: sub }]}>{FR.listen}</Text>
@@ -138,22 +138,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
   },
   listeningCard: {
     marginTop: 12,
     borderRadius: radius.lg,
     padding: 14,
     alignSelf: 'stretch',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderWidth: 1,
   },
   listeningHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   listeningLabel: { fontSize: 13, fontWeight: '600' },

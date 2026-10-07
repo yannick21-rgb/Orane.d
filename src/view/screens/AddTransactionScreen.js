@@ -200,7 +200,7 @@ export default function AddTransactionScreen({ navigation }) {
 
       <Modal transparent visible={showSuccessModal} animationType="fade">
         <View style={[styles.modalOverlay, { backgroundColor: colors.modalBg }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.successCircle, { borderColor: accentColor }]}>
               <Text style={[styles.successCheckmark, { color: accentColor }]}>✓</Text>
             </View>
@@ -211,7 +211,7 @@ export default function AddTransactionScreen({ navigation }) {
 
       <Modal transparent visible={!!voicePreview} animationType="fade" onRequestClose={() => setVoicePreview(null)}>
         <View style={[styles.modalOverlay, { backgroundColor: colors.modalBg }]}>
-          <View style={[styles.voiceModal, { backgroundColor: colors.card }]}>
+          <View style={[styles.voiceModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.voiceTitle, { color: colors.text }]}>Confirmer la dictée</Text>
             <Text style={[styles.voiceHint, { color: colors.subText }]}>
               Vérifiez les informations avant de remplir le formulaire
@@ -569,13 +569,13 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   frequencyChipLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 
   modalOverlay:     { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalContent:     { padding: 30, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', width: 160, height: 160, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
+  modalContent:     { padding: 30, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', width: 160, height: 160, borderWidth: 1 },
   successCircle:    { width: 60, height: 60, borderRadius: radius.pill, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   successCheckmark: { fontSize: 28, fontWeight: 'bold' },
   modalText:        { fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 
   voiceCardHint:    { fontSize: 13, lineHeight: 19, marginBottom: 16, textAlign: 'center' },
-  voiceModal:       { padding: 24, borderRadius: radius.lg, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 10 },
+  voiceModal:       { padding: 24, borderRadius: radius.lg, width: '100%', maxWidth: 420, borderWidth: 1 },
   voiceTitle:       { ...type.title, textAlign: 'center' },
   voiceHint:        { fontSize: 13, textAlign: 'center', marginTop: 6, marginBottom: 16 },
   voiceQuote:       { borderRadius: radius.md, padding: 14, marginBottom: 16 },

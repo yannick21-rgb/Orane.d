@@ -278,7 +278,6 @@ export default function SettingsScreen({ navigation }) {
 
   const themesList = [t('sombre'), t('clair'), t('systeme')];
 
-  const colorsList = ACCENT_COLORS;
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
@@ -598,7 +597,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[styles.label, { color: colors.subText }]}>{t('couleur_principale')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorRowContainer}>
               <View style={styles.colorRow}>
-                {colorsList.map((c) => {
+                {ACCENT_COLORS.map((c) => {
                   const isSelected = accentColor === c;
                   return (
                     <TouchableOpacity
@@ -993,11 +992,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     borderRadius: radius.sm,
     marginTop: 16,
     marginBottom: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
   exportText: { fontSize: 15, fontWeight: '600' },
   logoutBtn: {
@@ -1008,11 +1002,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     marginTop: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
   },
   logoutText: { fontSize: 15, fontWeight: '600' },
   label: { fontSize: 14, marginBottom: 8, marginTop: 12 },
