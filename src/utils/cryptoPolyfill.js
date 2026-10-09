@@ -18,9 +18,8 @@ if (Platform.OS !== 'web') {
       }
       if (buffer instanceof Uint32Array) {
         const bytes = getRandomBytes(buffer.length * 4);
-        const view = new Uint32Array(bytes.buffer);
-        buffer.set(view);
-        return view;
+        buffer.set(new Uint32Array(bytes.buffer, bytes.byteOffset, buffer.length));
+        return buffer;
       }
       const fallback = getRandomBytes(buffer.length || 1);
       for (let i = 0; i < (buffer.length || 1); i++) {

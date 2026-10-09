@@ -7,6 +7,10 @@ let _userId = null;
 let _pendingCount = 0;
 let _lastSync = null;
 let _listeners = [];
+// Promesse d'initialisation en cours : Finance/Debt/Tontine appellent `init`
+// en parallèle, un second appel doit attendre le vidage de la file, pas rendre
+// la main tout de suite.
+let _initPromise = null;
 
 function notify() {
   const status = { lastSync: _lastSync, pendingCount: _pendingCount };
@@ -33,21 +37,34 @@ async function enqueue(userId, item) {
 
 export const sync = {
   async init(userId) {
-    if (_userId === userId) return;
+    if (_userId === userId) {
+      // Init déjà lancé (ou terminé) pour cet utilisateur : si une passe est en
+      // vol, on l'attend au lieu de rendre la main tout de suite.
+      if (_initPromise) await _initPromise.catch(() => {});
+      return;
+    }
     _userId = userId;
     _pendingCount = 0;
     if (!userId) {
       notify();
       return;
     }
+    const p = (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(PENDING_KEY(userId));
+        const parsed = raw ? JSON.parse(raw) : [];
+        _pendingCount = Array.isArray(parsed) ? parsed.length : 0;
+      } catch (e) {
+        _pendingCount = 0;
+      }
+      notify();
+    })();
+    _initPromise = p;
     try {
-      const raw = await AsyncStorage.getItem(PENDING_KEY(userId));
-      const parsed = raw ? JSON.parse(raw) : [];
-      _pendingCount = Array.isArray(parsed) ? parsed.length : 0;
-    } catch (e) {
-      _pendingCount = 0;
+      await p;
+    } finally {
+      if (_initPromise === p) _initPromise = null;
     }
-    notify();
   },
 
   async push(table, records) {
@@ -86,14 +103,25 @@ export const sync = {
     if (!sbUserId) return [];
 
     try {
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .eq('user_id', sbUserId);
-      if (error) throw error;
+      // Supabase plafonne une réponse (souvent 1000 lignes) : sans pagination,
+      // les transactions les plus anciennes ne remonteraient jamais.
+      const PAGE = 1000;
+      const all = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .eq('user_id', sbUserId)
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < PAGE) break;
+      }
       _lastSync = new Date().toISOString();
       notify();
-      return data || [];
+      return all;
     } catch (e) {
       console.warn(`[sync] pull ${table} error:`, e.message);
       return [];

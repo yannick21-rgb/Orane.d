@@ -41,6 +41,9 @@ const normalizeType = (type) => {
 
 const FinanceContext = createContext();
 
+/** Identifiant du rappel quotidien planifié, pour ne pas annuler les autres. */
+const DAILY_REMINDER_ID_KEY = '@oraned_daily_reminder_id';
+
 export function FinanceProvider({ children }) {
   const { userId } = useAuth();
   const systemScheme = useColorScheme() || 'light';
@@ -359,6 +362,10 @@ export function FinanceProvider({ children }) {
 
   const getPeriodExpenses = useCallback(() => {
     const now = new Date();
+    // `new Date(y, m, 29|30|31)` déborde sur le mois suivant quand le mois visé
+    // est plus court : on plafonne le jour au dernier jour du mois.
+    const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+    const monthStart = (y, m, day) => new Date(y, m, Math.min(day, daysInMonth(y, m)));
     return (transactions || []).filter((t) => {
       if (!t) return false;
       const type = normalizeType(t.type);
@@ -377,7 +384,9 @@ export function FinanceProvider({ children }) {
           return d >= periodStart && d < periodEnd;
         }
         const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
+        // Aligné sur le reste de l'app (`transactionDates`, Stats, History) :
+        // la semaine commence le lundi, pas le dimanche.
+        startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
         startOfWeek.setHours(0, 0, 0, 0);
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 7);
@@ -385,10 +394,17 @@ export function FinanceProvider({ children }) {
       }
       if (budgetStartDate) {
         const startDay = new Date(budgetStartDate).getDate();
-        const periodStart = new Date(now.getFullYear(), now.getMonth(), startDay);
-        if (now < periodStart) periodStart.setMonth(periodStart.getMonth() - 1);
-        const periodEnd = new Date(periodStart);
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        let periodStart = monthStart(now.getFullYear(), now.getMonth(), startDay);
+        if (now < periodStart) {
+          let y = periodStart.getFullYear();
+          let m = periodStart.getMonth() - 1;
+          if (m < 0) { m = 11; y -= 1; }
+          periodStart = monthStart(y, m, startDay);
+        }
+        let ey = periodStart.getFullYear();
+        let em = periodStart.getMonth() + 1;
+        if (em > 11) { em = 0; ey += 1; }
+        const periodEnd = monthStart(ey, em, startDay);
         return d >= periodStart && d < periodEnd;
       }
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -418,16 +434,20 @@ export function FinanceProvider({ children }) {
     if (isExpoGo()) return;
     if (!(await loadNotifications())) return;
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      // On annule uniquement NOTRE rappel quotidien (dont on mémorise
+      // l'identifiant) : `cancelAllScheduledNotificationsAsync()` effaçait aussi
+      // les rappels de budget, de tontine et de dette déjà planifiés.
+      const previousId = await safeAsyncRead(DAILY_REMINDER_ID_KEY, null);
+      if (previousId) {
+        try { await Notifications.cancelScheduledNotificationAsync(previousId); } catch (_) {}
+      }
       setReminderHour(hour);
       setReminderMinute(minute);
-      const now = new Date();
-      const scheduled = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0);
-      if (scheduled <= now) scheduled.setDate(scheduled.getDate() + 1);
-      await Notifications.scheduleNotificationAsync({
+      const id = await Notifications.scheduleNotificationAsync({
         content: { title: 'Orane.d', body: 'Pense à enregistrer tes dépenses du jour !' },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
       });
+      await safeAsyncWrite(DAILY_REMINDER_ID_KEY, id);
     } catch (_) {
       Notifications = false;
     }

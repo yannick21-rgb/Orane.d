@@ -44,12 +44,20 @@ export default function ProfileSelectorScreen({ navigation }) {
     biometricAttempted.current = false;
     if (hasBiometrics && LocalAuthentication) {
       biometricAttempted.current = true;
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Authentification requise pour ouvrir ce compte',
-        fallbackLabel: 'Utiliser le code PIN',
-        cancelLabel: 'Annuler',
-      });
-      if (result.success) {
+      let ok = false;
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Authentification requise pour ouvrir ce compte',
+          fallbackLabel: 'Utiliser le code PIN',
+          cancelLabel: 'Annuler',
+        });
+        ok = result?.success === true;
+      } catch (_) {
+        // Matériel/empreinte indisponible : on retombe sur la saisie du PIN
+        // plutôt que de bloquer l'accès au profil.
+        ok = false;
+      }
+      if (ok) {
         await loginToUser(id, '');
         return;
       }

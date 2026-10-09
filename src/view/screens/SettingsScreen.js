@@ -454,7 +454,7 @@ export default function SettingsScreen({ navigation }) {
             {t('settings')}
           </Text>
 
-          <Card padding={cardP} radius={br}>
+          <Card padding={cardPadding} radius={borderRadius}>
             <View style={styles.sectionHeaderBetween}>
               <View style={styles.sectionHeaderLeft}>
                 <User size={20} color={colors.subText} />
@@ -520,7 +520,7 @@ export default function SettingsScreen({ navigation }) {
           </Card>
 
           {allUsers.length > 1 && (
-            <Card padding={cardP} radius={br}>
+            <Card padding={cardPadding} radius={borderRadius}>
               <SectionHeader
                 icon={<Users size={20} color={colors.subText} />}
                 title={`Gestion des Comptes`}
@@ -569,7 +569,7 @@ export default function SettingsScreen({ navigation }) {
             </Card>
           )}
 
-          <Card padding={cardP} radius={br}>
+          <Card padding={cardPadding} radius={borderRadius}>
             <SectionHeader
               icon={<Palette size={20} color={colors.subText} />}
               title={t('visualCustom')}
@@ -614,7 +614,7 @@ export default function SettingsScreen({ navigation }) {
             </ScrollView>
           </Card>
 
-          <Card padding={cardP} radius={br}>
+          <Card padding={cardPadding} radius={borderRadius}>
             <SectionHeader
               icon={<Globe size={20} color={colors.subText} />}
               title={t('locPreferences')}
@@ -672,7 +672,7 @@ export default function SettingsScreen({ navigation }) {
             />
           </Card>
 
-          <Card padding={cardP} radius={br}>
+          <Card padding={cardPadding} radius={borderRadius}>
             <SectionHeader title="Budget & Rappels" />
 
             <Text style={[styles.label, { color: colors.subText }]}>Période du budget</Text>
@@ -707,7 +707,12 @@ export default function SettingsScreen({ navigation }) {
                     text: colors.text,
                   }}
                   onChange={(_, d) => {
-                    if (d) setBudgetStartDate(d.toISOString().split('T')[0]);
+                    if (d) {
+                      // Formatage LOCAL : `toISOString()` passe en UTC et
+                      // reculait d'un jour en fuseau positif (UTC+1 …).
+                      const p = (n) => String(n).padStart(2, '0');
+                      setBudgetStartDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+                    }
                   }}
                 />
               </>
@@ -778,7 +783,7 @@ export default function SettingsScreen({ navigation }) {
             )}
           </Card>
 
-          <Card padding={cardP} radius={br}>
+          <Card padding={cardPadding} radius={borderRadius}>
             <SectionHeader
               icon={<Lock size={20} color={colors.subText} />}
               title={`Sécurité & Code PIN`}
@@ -960,6 +965,26 @@ export default function SettingsScreen({ navigation }) {
 
 const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
+  // Section « Comptes » : styles présents dans le JSX mais absents ici
+  // (rendu non stylé) — complétés pour que le rendu soit cohérent.
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  accountInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
+  accountAvatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  accountAvatarText: { fontSize: 16, fontWeight: '700' },
+  accountName: { fontSize: 15, fontWeight: '600' },
+  accountEmail: { fontSize: 13, marginTop: 2 },
+  activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  activeDot: { width: 8, height: 8, borderRadius: 4 },
+  activeLabel: { fontSize: 12, fontWeight: '600' },
+  switchBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
+  switchBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
   scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
   pageTitle: { ...type.title, marginBottom: 20 },
   sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },

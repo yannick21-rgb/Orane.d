@@ -15,12 +15,20 @@ export function tontinesKey(userId) {
 
 export function generateRounds({ startDate, frequency, totalParticipants, myPosition, amountPerTour }) {
   const rounds = [];
+  // `setMonth` déborde quand le jour de départ est 29-31 (31 janv. + 1 mois
+  // → 3 mars) : on recale le jour sur le dernier jour du mois visé.
+  const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+  const start = new Date(startDate);
   for (let i = 1; i <= totalParticipants; i++) {
-    const dueDate = new Date(startDate);
+    const dueDate = new Date(start);
     if (frequency === 'hebdomadaire') {
       dueDate.setDate(dueDate.getDate() + (i - 1) * 7);
     } else {
-      dueDate.setMonth(dueDate.getMonth() + (i - 1));
+      const day = start.getDate();
+      const totalMonth = start.getMonth() + (i - 1);
+      const year = start.getFullYear() + Math.floor(totalMonth / 12);
+      const month = ((totalMonth % 12) + 12) % 12;
+      dueDate.setFullYear(year, month, Math.min(day, daysInMonth(year, month)));
     }
     rounds.push({
       roundNumber: i,

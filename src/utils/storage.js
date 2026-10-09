@@ -132,7 +132,9 @@ export async function safeAsyncWrite(key, value) {
     return true;
   }
   const strValue = String(value);
-  const tmpKey = `${key}_tmp`;
+  // Clé temporaire unique : deux écritures concurrentes sur la même clé se
+  // marchaient dessus (`${key}_tmp` partagé) et la vérification échouait à tort.
+  const tmpKey = `${key}_tmp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
   try {
     await AsyncStorage.setItem(tmpKey, strValue);
     const verify = await AsyncStorage.getItem(tmpKey);

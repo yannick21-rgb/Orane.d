@@ -45,6 +45,23 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
     );
   }
 
+  // Natif sans `@react-native-community/datetimepicker` : on dégrade en
+  // déclencheur inerte plutôt que de rendre un `<input>` HTML, invalide sur
+  // iOS/Android (le rendu web de secours ne s'applique pas au natif).
+  if (Platform.OS !== 'web') {
+    return (
+      <TouchableOpacity
+        style={[styles.trigger, { backgroundColor: colors.sunken, borderColor: colors.rule }]}
+      >
+        <Text style={[styles.triggerText, { color: colors.ink }]}>
+          {mode === 'time'
+            ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
+            : value.toLocaleDateString()}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
   const handleChange = (e) => {
     const raw = e.target.value;
     if (!raw) return;

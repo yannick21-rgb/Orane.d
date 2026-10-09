@@ -201,7 +201,11 @@ CREATE POLICY "users can delete own user_settings" ON user_settings
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = now();
+  -- Le client (sync.js) fournit un `updated_at` et s'en sert pour la fusion
+  -- last-write-wins. L'écraser à chaque upsert rendait TOUTES les lignes
+  -- « plus récentes » que les vraies modifications d'un autre appareil, qui
+  -- étaient alors perdues. On ne pose l'horodatage que s'il est absent.
+  NEW.updated_at = COALESCE(NEW.updated_at, now());
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

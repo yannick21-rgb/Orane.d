@@ -63,9 +63,36 @@ export function TontineProvider({ children }) {
   }, [groups, userId, saveGroups]);
 
   const updateGroup = useCallback(async (id, changes) => {
-    const updated = groups.map((g) =>
-      g.id === id ? { ...g, ...changes, updated_at: new Date().toISOString() } : g
-    );
+    const updated = groups.map((g) => {
+      if (g.id !== id) return g;
+      const merged = {
+        ...g,
+        ...changes,
+        // `addGroup` stocke la date en ISO ; on normalise aussi à l'édition.
+        startDate: changes.startDate instanceof Date
+          ? changes.startDate.toISOString()
+          : (changes.startDate ?? g.startDate),
+        updated_at: new Date().toISOString(),
+      };
+      // Un changement structurel doit régénérer les tours : sinon les
+      // échéances et montants restent ceux de l'ancienne configuration.
+      const structural =
+        merged.amountPerTour !== g.amountPerTour ||
+        merged.frequency !== g.frequency ||
+        merged.totalParticipants !== g.totalParticipants ||
+        merged.myPosition !== g.myPosition ||
+        String(merged.startDate) !== String(g.startDate);
+      if (structural) {
+        const previousStatus = new Map(
+          (Array.isArray(g.rounds) ? g.rounds : []).map((r) => [r.roundNumber, r.status])
+        );
+        merged.rounds = generateRounds(merged).map((r) => ({
+          ...r,
+          status: previousStatus.get(r.roundNumber) || r.status,
+        }));
+      }
+      return merged;
+    });
     await saveGroups(updated);
   }, [groups, saveGroups]);
 

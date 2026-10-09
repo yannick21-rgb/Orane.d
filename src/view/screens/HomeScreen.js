@@ -354,13 +354,13 @@ export default function HomeScreen({ navigation }) {
             <Rule />
             <View style={styles.debtRow}>
               {totalToReceive > 0 ? (
-                <DebtCell label={t('a_recevoir')} value={totalToReceive} currency={deviseSymbol} tone="income" colors={colors} />
+                <DebtCell label={t('a_recevoir')} value={totalToReceive} currency={deviseSymbol} tone="income" colors={colors} styles={styles} />
               ) : null}
               {totalToRepay > 0 ? (
-                <DebtCell label={t('a_rembourser')} value={totalToRepay} currency={deviseSymbol} tone="expense" colors={colors} />
+                <DebtCell label={t('a_rembourser')} value={totalToRepay} currency={deviseSymbol} tone="expense" colors={colors} styles={styles} />
               ) : null}
               {overallSummary.totalPaid > 0 ? (
-                <DebtCell label={t('tontine')} value={overallSummary.totalPaid} currency={deviseSymbol} tone="transfer" colors={colors} />
+                <DebtCell label={t('tontine')} value={overallSummary.totalPaid} currency={deviseSymbol} tone="transfer" colors={colors} styles={styles} />
               ) : null}
             </View>
           </>
@@ -545,7 +545,7 @@ export default function HomeScreen({ navigation }) {
 }
 
 /** Dette / tontine : une cellule du même motif que le reste de la page. */
-function DebtCell({ label, value, currency, tone, colors }) {
+function DebtCell({ label, value, currency, tone, colors, styles }) {
   return (
     <View style={styles.debtCell}>
       <Text style={[type.micro, { color: colors.inkFaint }]} numberOfLines={1}>{label}</Text>

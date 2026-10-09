@@ -7,15 +7,22 @@ export async function exportTransactionsToCSV(transactions, devise = '€') {
   }
 
   const headers = 'Date;Catégorie;Description;Montant;Type;Portefeuille;Frais MoMo;Réseau';
+  // Le séparateur est `;` : sans guillemets, un `;`, un guillemet ou un saut
+  // de ligne dans une description décale toutes les colonnes suivantes.
+  // RFC 4180 : on entoure de guillemets et on double les guillemets internes.
+  const esc = (value) => {
+    const s = value === null || value === undefined ? '' : String(value);
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
   const rows = transactions.map((tx) => {
-    const date = tx.date || '';
-    const category = (tx.category || '').replace(/,/g, ' ');
-    const description = (tx.description || tx.note || '').replace(/,/g, ' ');
+    const date = esc(tx.date || '');
+    const category = esc(tx.category || '');
+    const description = esc(tx.description || tx.note || '');
     const amount = toNumber(tx.amount).toFixed(2);
-    const wallet = tx.wallet === 'cash' ? 'Espèces' : 'MoMo';
-    const type = tx.type === 'expense' ? 'Dépense' : tx.type === 'transfert' ? 'Transfert' : 'Revenu';
+    const wallet = esc(tx.wallet === 'cash' ? 'Espèces' : 'MoMo');
+    const type = esc(tx.type === 'expense' ? 'Dépense' : tx.type === 'transfert' ? 'Transfert' : 'Revenu');
     const momoFee = toNumber(tx.momoFee || tx.frais || 0).toFixed(2);
-    const network = tx.momoNetwork || '';
+    const network = esc(tx.momoNetwork || '');
     return `${date};${category};${description};${amount};${type};${wallet};${momoFee};${network}`;
   });
 
