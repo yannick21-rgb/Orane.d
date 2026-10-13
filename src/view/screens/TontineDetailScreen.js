@@ -1,36 +1,60 @@
-import React from 'react';
+/**
+ * Détail tontine premium.
+ *
+ * LOGIQUE INCHANGÉE : marquer payé / reçu (avec les mêmes Alertes et les
+ * mêmes écritures de transactions). Nouveau rendu : carte héro en dégradé
+ * avec compte à rebours, frise horizontale des tours (tour en cours cerclé
+ * d'or), timeline des versements avec pastilles de statut, avatars à
+ * initiales, swipe vers la gauche pour marquer payé.
+ */
+import React, { useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Check, ChevronLeft } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTontines } from '../../viewmodel/TontineContext';
 import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
-import { toNumber } from '../../utils/format';
 import { useResponsive } from '../../utils/responsive';
-import { radius } from '../theme/tokens';
-import { type, tabular } from '../theme/type';
+import { useTranslation } from '../../utils/LanguageManager';
 import { useColors } from '../theme';
+import { typography } from '../theme/typography';
+import { radius } from '../theme/tokens';
+import { shadows } from '../theme/shadows';
+import { AmountText, Avatar, Badge } from '../components/ui';
+import { nextRoundInfo } from '../../model/TontineModel';
 
 export default function TontineDetailScreen({ group, onClose }) {
-  const { accentColor, devise, addTransaction } = useFinance();
+  const { accentColor, devise, addTransaction, isDiscreteMode } = useFinance();
   const { markRoundPaid, markRoundReceived } = useTontines();
-  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
-  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
+  const { t, currentLanguage } = useTranslation();
+  const { contentMaxWidth, contentPadding } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
-  const summary = computeTontineSummary(group);
-
   const colors = useColors();
+  const swipeRefs = useRef({});
+  const locale = currentLanguage === 'en' ? 'en-US' : currentLanguage === 'es' ? 'es-ES' : 'fr-FR';
+
+  const summary = computeTontineSummary(group);
+  const info = nextRoundInfo(group);
+  const sortedRounds = [...(Array.isArray(group.rounds) ? group.rounds : [])].sort(
+    (a, b) => a.roundNumber - b.roundNumber
+  );
+
+  const closeSwipe = (n) => swipeRefs.current[n]?.close?.();
 
   const handleMarkPaid = (round) => {
+    closeSwipe(round.roundNumber);
     Alert.alert(
-      'Marquer cotisation payée',
-      `Confirmer le paiement du tour ${round.roundNumber} (${group.amountPerTour} ${deviseSymbol}) ?\n\nAjouter une transaction réelle correspondante ?`,
+      t('marquer_paiement_tour'),
+      `${group.amountPerTour.toLocaleString('fr-FR')} ${deviseSymbol} ?`,
       [
-        { text: 'Non', style: 'cancel', onPress: async () => { await markRoundPaid(group.id, round.roundNumber); } },
+        { text: t('non'), onPress: async () => { await markRoundPaid(group.id, round.roundNumber); } },
         {
-          text: 'Oui, créer la dépense',
+          text: t('oui_creer_depense'),
           onPress: async () => {
             await markRoundPaid(group.id, round.roundNumber);
             addTransaction({
@@ -50,13 +74,14 @@ export default function TontineDetailScreen({ group, onClose }) {
   };
 
   const handleMarkReceived = (round) => {
+    closeSwipe(round.roundNumber);
     Alert.alert(
-      'Marquer comme reçu',
-      `Vous allez recevoir ${(group.amountPerTour * group.totalParticipants).toLocaleString()} ${deviseSymbol}.\n\nAjouter une transaction réelle ? Choisissez le portefeuille ou "Non".`,
+      t('marquer_recu_tour'),
+      `${(group.amountPerTour * group.totalParticipants).toLocaleString('fr-FR')} ${deviseSymbol} ?`,
       [
-        { text: 'Non, juste marquer', style: 'cancel', onPress: () => markRoundReceived(group.id, round.roundNumber) },
+        { text: t('non'), style: 'cancel', onPress: () => markRoundReceived(group.id, round.roundNumber) },
         {
-          text: '👉 MoMo',
+          text: 'MoMo',
           onPress: async () => {
             await markRoundReceived(group.id, round.roundNumber);
             addTransaction({
@@ -72,7 +97,7 @@ export default function TontineDetailScreen({ group, onClose }) {
           },
         },
         {
-          text: '💵 Cash',
+          text: t('pocket_especes'),
           onPress: async () => {
             await markRoundReceived(group.id, round.roundNumber);
             addTransaction({
@@ -91,103 +116,176 @@ export default function TontineDetailScreen({ group, onClose }) {
     );
   };
 
-  const sortedRounds = [...group.rounds].sort((a, b) => a.roundNumber - b.roundNumber);
+  const actOn = (round) => {
+    if (round.status !== ROUND_STATUS.A_PAYER) return;
+    if (round.isMyTurnToReceive) handleMarkReceived(round);
+    else handleMarkPaid(round);
+  };
+
+  const roundTone = (round) => {
+    if (round.status === ROUND_STATUS.PAYE) return 'income';
+    if (round.status === ROUND_STATUS.RECU) return 'warning';
+    if (new Date(round.dueDate) < new Date()) return 'expense';
+    return 'neutral';
+  };
+
+  const roundLabel = (round) => {
+    if (round.status === ROUND_STATUS.PAYE) return t('paye');
+    if (round.status === ROUND_STATUS.RECU) return t('recu');
+    if (new Date(round.dueDate) < new Date()) return t('en_retard');
+    return t('a_payer');
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <X size={22} color={colors.text} />
+      <View style={[styles.header, { borderBottomColor: colors.rule }]}>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('annuler')}>
+          <ChevronLeft size={22} color={colors.ink} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{group.groupName}</Text>
-        <View style={{ width: 22 }} />
+        <Avatar name={group.groupName} size={32} />
+        <Text style={[typography.title, styles.headerTitle, { color: colors.ink }]} numberOfLines={1}>
+          {group.groupName}
+        </Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
-        <View style={styles.infoRow}>
-          <Text style={[styles.infoLabel, { color: colors.subText }]}>Montant/tour</Text>
-          <Text style={[styles.infoValue, { color: colors.text }]}>{group.amountPerTour.toLocaleString()} {deviseSymbol}</Text>
-        </View>
-        <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.infoRow}>
-          <Text style={[styles.infoLabel, { color: colors.subText }]}>Total à recevoir</Text>
-          <Text style={[styles.infoValue, { color: colors.green }]}>{(group.amountPerTour * group.totalParticipants).toLocaleString()} {deviseSymbol}</Text>
-        </View>
-        <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.infoRow}>
-          <Text style={[styles.infoLabel, { color: colors.subText }]}>Position</Text>
-          <Text style={[styles.infoValue, { color: colors.orange }]}>Tour {group.myPosition}/{group.totalParticipants}</Text>
-        </View>
-      </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {/* Héro : le prochain tour */}
+        <LinearGradient
+          colors={colors.heroGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, shadows.raised]}
+        >
+          {info ? (
+            <>
+              <Text style={[typography.micro, { color: 'rgba(255,247,232,0.72)' }]}>
+                {info.days < 0 ? t('en_retard') : t('prochain_tour')} · {t('tour')} {info.round.roundNumber}
+              </Text>
+              <Text style={[styles.countdown, { color: '#FFF7E8' }]}>
+                {info.days < 0 ? `J+${-info.days}` : `J-${info.days}`}
+              </Text>
+              <Text style={[typography.caption, { color: 'rgba(255,247,232,0.72)' }]}>
+                {new Date(info.round.dueDate).toLocaleDateString(locale)} · {Number(group.amountPerTour).toLocaleString('fr-FR')} {deviseSymbol}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={[typography.micro, { color: 'rgba(255,247,232,0.72)' }]}>{t('recu')}</Text>
+              <AmountText value={summary.totalReceived} size="figure" currency={deviseSymbol} masked={isDiscreteMode} />
+            </>
+          )}
+        </LinearGradient>
 
-      <View style={styles.summaryRow}>
-        <View style={[styles.summaryBadge, { backgroundColor: colors.input }]}>
-          <Text style={[styles.summaryBadgeLabel, { color: colors.subText }]}>Cotisé</Text>
-          <Text style={[styles.summaryBadgeValue, { color: colors.text }]}>{summary.totalPaid.toLocaleString()} {deviseSymbol}</Text>
+        {/* Résumé chiffré */}
+        <View style={styles.summaryRow}>
+          {[
+            { label: t('cotise'), value: summary.totalPaid, tone: 'ink' },
+            { label: t('recu'), value: summary.totalReceived, tone: 'income' },
+            {
+              label: t('total_a_recevoir'),
+              value: summary.hasReceived ? 0 : summary.totalToReceiveAtMyTurn,
+              tone: summary.hasReceived ? 'faint' : 'transfer',
+            },
+          ].map((s) => (
+            <View key={s.label} style={[styles.summaryBadge, { backgroundColor: colors.card }]}>
+              <Text style={[typography.micro, { color: colors.inkMid }]} numberOfLines={1}>{s.label}</Text>
+              <AmountText value={s.value} size="amountSm" tone={s.tone} currency={deviseSymbol} masked={isDiscreteMode} />
+            </View>
+          ))}
         </View>
-        <View style={[styles.summaryBadge, { backgroundColor: colors.input }]}>
-          <Text style={[styles.summaryBadgeLabel, { color: colors.subText }]}>Reçu</Text>
-          <Text style={[styles.summaryBadgeValue, { color: colors.green }]}>{summary.totalReceived.toLocaleString()} {deviseSymbol}</Text>
-        </View>
-        <View style={[styles.summaryBadge, { backgroundColor: colors.input }]}>
-          <Text style={[styles.summaryBadgeLabel, { color: colors.subText }]}>Reste</Text>
-          <Text style={[styles.summaryBadgeValue, { color: summary.hasReceived ? colors.subText : colors.orange }]}>
-            {summary.hasReceived ? '✓' : `${summary.totalToReceiveAtMyTurn.toLocaleString()} ${deviseSymbol}`}
-          </Text>
-        </View>
-      </View>
 
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Tours</Text>
-
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.roundsList} showsVerticalScrollIndicator={false}>
-        {sortedRounds.map((round) => {
-          const isPast = new Date(round.dueDate) < new Date();
-          const statusColor = round.status === ROUND_STATUS.PAYE ? colors.green
-            : round.status === ROUND_STATUS.RECU ? colors.orange
-            : isPast ? colors.red
-            : colors.subText;
-          const statusIcon = round.status === ROUND_STATUS.PAYE ? '✅'
-            : round.status === ROUND_STATUS.RECU ? '💰'
-            : isPast ? '⚠️'
-            : '⏳';
-          const statusText = round.status === ROUND_STATUS.PAYE ? 'Payé'
-            : round.status === ROUND_STATUS.RECU ? 'Reçu'
-            : isPast ? 'En retard'
-            : 'À payer';
-
-          return (
-            <View
-              key={round.roundNumber}
-              style={[styles.roundCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <View style={styles.roundLeft}>
-                <Text style={[styles.roundNumber, { color: round.isMyTurnToReceive ? accentColor : colors.text }]}>
-                  {statusIcon} Tour {round.roundNumber}
-                </Text>
-                <Text style={[styles.roundDate, { color: colors.subText }]}>
-                  {new Date(round.dueDate).toLocaleDateString('fr-FR')}
-                  {round.isMyTurnToReceive && (
-                    <Text style={{ color: accentColor, fontWeight: '700' }}> ← Mon tour !</Text>
-                  )}
+        {/* Frise des tours */}
+        <Text style={[typography.caption, styles.sectionLabel, { color: colors.inkMid }]}>
+          {t('tour')}s · {t('position')} {group.myPosition}/{group.totalParticipants}
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.frise}>
+          {sortedRounds.map((r) => {
+            const past = new Date(r.dueDate) < new Date();
+            const ring = r.status === ROUND_STATUS.PAYE ? colors.income
+              : r.status === ROUND_STATUS.RECU ? colors.warning
+              : r.status === ROUND_STATUS.A_PAYER && past ? colors.expense
+              : colors.ruleStrong;
+            return (
+              <View
+                key={r.roundNumber}
+                accessible
+                accessibilityLabel={`${t('tour')} ${r.roundNumber} : ${roundLabel(r)}`}
+                style={[
+                  styles.tourDot,
+                  { borderColor: ring, backgroundColor: r.isMyTurnToReceive ? colors.goldSoft : colors.card },
+                  r.isMyTurnToReceive && { borderColor: colors.gold, borderWidth: 2.5 },
+                ]}
+              >
+                <Text style={[typography.bodyStrong, { color: r.isMyTurnToReceive ? colors.gold : colors.ink }]}>
+                  {r.roundNumber}
                 </Text>
               </View>
-              <View style={styles.roundRight}>
-                <Text style={[styles.roundAmount, { color: statusColor }]}>
-                  {round.isMyTurnToReceive
-                    ? `${(group.amountPerTour * group.totalParticipants).toLocaleString()} ${deviseSymbol}`
-                    : `${group.amountPerTour} ${deviseSymbol}`
-                  }
-                </Text>
-                {round.status === ROUND_STATUS.A_PAYER && (
+            );
+          })}
+        </ScrollView>
+
+        {/* Timeline des versements */}
+        <Text style={[typography.caption, styles.sectionLabel, { color: colors.inkMid }]}>
+          {t('historique')}
+        </Text>
+        {sortedRounds.map((round) => {
+          const actionable = round.status === ROUND_STATUS.A_PAYER;
+          return (
+            <Swipeable
+              key={round.roundNumber}
+              ref={(ref) => { if (ref) swipeRefs.current[round.roundNumber] = ref; }}
+              enabled={actionable}
+              overshootRight={false}
+              onSwipeableOpen={() => actOn(round)}
+              renderRightActions={() => (
+                <TouchableOpacity
+                  style={[styles.swipePay, { backgroundColor: colors.income }]}
+                  onPress={() => actOn(round)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('paye')}
+                >
+                  <Check size={20} color="#ffffff" />
+                </TouchableOpacity>
+              )}
+            >
+              <View style={[styles.roundCard, { backgroundColor: colors.card }]}>
+                <View style={[styles.rail, { backgroundColor: colors[roundTone(round)] || colors.inkFaint }]} />
+                <View style={styles.roundMain}>
+                  <Text style={[typography.bodyStrong, { color: colors.ink }]}>
+                    {t('tour')} {round.roundNumber}
+                    {round.isMyTurnToReceive && (
+                      <Text style={{ color: colors.gold }}> · {t('mon_tour')}</Text>
+                    )}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.inkMid }]}>
+                    {new Date(round.dueDate).toLocaleDateString(locale)}
+                  </Text>
+                </View>
+                <View style={styles.roundRight}>
+                  <AmountText
+                    value={round.isMyTurnToReceive
+                      ? group.amountPerTour * group.totalParticipants
+                      : group.amountPerTour}
+                    size="amountSm"
+                    currency={deviseSymbol}
+                    masked={isDiscreteMode}
+                  />
+                  <Badge label={roundLabel(round)} tone={roundTone(round)} />
+                </View>
+                {actionable && (
                   <TouchableOpacity
-                    style={[styles.roundAction, { backgroundColor: colors.green + '20' }]}
-                    onPress={() => round.isMyTurnToReceive ? handleMarkReceived(round) : handleMarkPaid(round)}
+                    style={[styles.payBtn, { backgroundColor: `${colors.income}22` }]}
+                    onPress={() => actOn(round)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('paye')}
                   >
-                    <Check size={14} color={colors.green} />
+                    <Check size={16} color={colors.income} />
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </Swipeable>
           );
         })}
       </ScrollView>
@@ -195,33 +293,32 @@ export default function TontineDetailScreen({ group, onClose }) {
   );
 }
 
-const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
+const createStyles = (cp, cpad) => StyleSheet.create({
   container: { flex: 1 },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: cpad, paddingVertical: 14, borderBottomWidth: 1,
     maxWidth: cp, width: '100%', alignSelf: 'center',
   },
-  headerTitle: { ...type.title, flex: 1, textAlign: 'center', marginHorizontal: 12 },
-  infoCard: { marginHorizontal: cpad, marginTop: 16, padding: cardP, borderRadius: br, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  infoLabel: { fontSize: 13, fontWeight: '500' },
-  infoValue: { ...type.amount, ...tabular },
-  infoDivider: { height: 1, marginVertical: 6 },
-  summaryRow: { flexDirection: 'row', gap: 10, marginHorizontal: cpad, marginTop: 12, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  summaryBadge: { flex: 1, padding: 12, borderRadius: radius.md, alignItems: 'center' },
-  summaryBadgeLabel: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  summaryBadgeValue: { ...type.amount, ...tabular, fontSize: 14 },
-  sectionTitle: { ...type.heading, paddingHorizontal: cpad, marginTop: 20, marginBottom: 8 },
-  roundsList: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  roundCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 14, borderRadius: radius.md, marginBottom: 8, borderWidth: 1,
+  headerTitle: { flex: 1, minWidth: 0 },
+  list: { paddingHorizontal: cpad, paddingTop: 14, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
+  hero: { borderRadius: 20, padding: 20, marginBottom: 14 },
+  countdown: { fontSize: 44, fontWeight: '700', letterSpacing: -1 },
+  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  summaryBadge: { flex: 1, minWidth: 0, padding: 12, borderRadius: radius.md, alignItems: 'center', gap: 4 },
+  sectionLabel: { marginTop: 16, marginBottom: 10 },
+  frise: { gap: 10, paddingRight: 8 },
+  tourDot: {
+    width: 46, height: 46, borderRadius: 23, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
   },
-  roundLeft: { flex: 1 },
-  roundNumber: { fontSize: 14, fontWeight: '700' },
-  roundDate: { fontSize: 12, marginTop: 2 },
-  roundRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  roundAmount: { ...type.amount, ...tabular, fontSize: 14 },
-  roundAction: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  roundCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 14, borderRadius: radius.md, marginBottom: 8,
+  },
+  rail: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
+  roundMain: { flex: 1, minWidth: 0 },
+  roundRight: { alignItems: 'flex-end', gap: 4 },
+  payBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  swipePay: { width: 72, borderRadius: radius.md, marginBottom: 8, alignItems: 'center', justifyContent: 'center' },
 });

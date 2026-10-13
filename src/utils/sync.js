@@ -3,6 +3,61 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PENDING_KEY = (uid) => `@pending_sync_${uid}`;
 
+// Clé primaire composite des tables de données : les ids locaux sont des
+// chaînes propres à l'appareil (Date.now()), l'unicité doit donc se faire
+// par utilisateur et non globalement (sinon un id partagé bloquerait un autre
+// compte).
+const ON_CONFLICT = 'user_id,id';
+
+// Colonnes acceptées par le serveur — DOIT rester aligné avec
+// src/utils/supabase-schema.sql (et sa migration du 2026-10-08).
+// Un seul champ inconnu ferait échouer l'upsert de TOUT le lot : on masque.
+const COLUMNS = {
+  transactions: [
+    'id', 'type', 'amount', 'wallet', 'category', 'title', 'description', 'note',
+    'date', 'momoNetwork', 'momoFee', 'frais', 'amountReceived', 'incomeFrequency',
+  ],
+  debts: [
+    'id', 'userId', 'type', 'amount', 'personName', 'description', 'note', 'dueDate',
+    'reminderEnabled', 'dateCreated', 'amountReimbursed', 'status',
+  ],
+  tontines: [
+    'id', 'userId', 'groupName', 'amountPerTour', 'frequency', 'totalParticipants',
+    'myPosition', 'startDate', 'rounds',
+  ],
+};
+
+/**
+ * Convertit un record local en ligne PostgREST : masque de colonnes, id
+ * normalisé en chaîne, `user_id` et `updated_at` posés.
+ * @returns {object|null} null si le record n'a pas d'id exploitable.
+ */
+export function toRow(table, record, sbUserId = null, now = new Date().toISOString()) {
+  if (!record) return null;
+  const rawId = record.id;
+  if (rawId === undefined || rawId === null || rawId === '') return null;
+
+  const cols = COLUMNS[table];
+  const row = {};
+  if (cols) {
+    for (const c of cols) if (record[c] !== undefined) row[c] = record[c];
+  } else {
+    Object.assign(row, record);
+  }
+
+  row.id = String(rawId);
+  if (sbUserId) row.user_id = sbUserId;
+  // Conserve le `updated_at` d'origine : l'écraser à chaque push rendrait les
+  // lignes non modifiées « plus récentes » que les vraies modifications d'un
+  // autre appareil (conflit last-write-wins inversé).
+  row.updated_at = record.updated_at || now;
+  return row;
+}
+
+export function toRows(table, records, sbUserId = null, now = new Date().toISOString()) {
+  return (records || []).map((r) => toRow(table, r, sbUserId, now)).filter(Boolean);
+}
+
 let _userId = null;
 let _pendingCount = 0;
 let _lastSync = null;
@@ -27,8 +82,25 @@ function getSupabaseUserId() {
 async function enqueue(userId, item) {
   try {
     const raw = await AsyncStorage.getItem(PENDING_KEY(userId));
-    const queue = raw ? JSON.parse(raw) : [];
-    queue.push(item);
+    let queue = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(queue)) queue = [];
+
+    // Coalescence : un push envoie TOUT le tableau, donc le dernier instantané
+    // d'une table en remplace les précédents. Sans ça, chaque sauvegarde ajoute
+    // une copie complète de toutes les données dans une seule clé AsyncStorage.
+    if (item.op === 'delete') {
+      const existing = queue.find((q) => q && q.op === 'delete' && q.table === item.table);
+      if (existing) {
+        existing.ids = [...new Set([...(existing.ids || []), ...(item.ids || [])])];
+      } else {
+        queue.push(item);
+      }
+    } else {
+      const idx = queue.findIndex((q) => q && q.op !== 'delete' && q.table === item.table);
+      if (idx >= 0) queue[idx] = item;
+      else queue.push(item);
+    }
+
     await AsyncStorage.setItem(PENDING_KEY(userId), JSON.stringify(queue));
   } catch (e) {
     console.warn('[sync] enqueue error:', e.message);
@@ -39,7 +111,7 @@ export const sync = {
   async init(userId) {
     if (_userId === userId) {
       // Init déjà lancé (ou terminé) pour cet utilisateur : si une passe est en
-      // vol, on l'attend au lieu de rendre la main tout de suite.
+      // vol, on l'attend avant de laisser l'appelant `pull`.
       if (_initPromise) await _initPromise.catch(() => {});
       return;
     }
@@ -57,6 +129,10 @@ export const sync = {
       } catch (e) {
         _pendingCount = 0;
       }
+      // Rien n'appelait `flushPending` : les échecs (hors ligne) restaient
+      // empilés pour toujours. On vide la file AVANT le premier pull, sinon une
+      // suppression en attente serait annulée par la fusion cloud.
+      await sync.flushPending();
       notify();
     })();
     _initPromise = p;
@@ -79,12 +155,13 @@ export const sync = {
     }
 
     const now = new Date().toISOString();
-    const mapped = records.map((r) => ({ ...r, user_id: sbUserId, updated_at: now }));
+    const mapped = toRows(table, records, sbUserId, now);
+    if (mapped.length === 0) return;
 
     try {
       const { error } = await supabase.from(table).upsert(mapped, {
         ignoreDuplicates: false,
-        onConflict: 'id',
+        onConflict: ON_CONFLICT,
       });
       if (error) throw error;
       _lastSync = now;
@@ -128,6 +205,33 @@ export const sync = {
     }
   },
 
+  async remove(table, ids) {
+    if (!_userId || !ids || ids.length === 0) return;
+
+    const sbUserId = await getSupabaseUserId();
+    if (!sbUserId) {
+      await enqueue(_userId, { op: 'delete', table, ids: [...ids] });
+      _pendingCount++;
+      notify();
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .in('id', ids)
+        .eq('user_id', sbUserId);
+      if (error) throw error;
+      _lastSync = new Date().toISOString();
+    } catch (e) {
+      console.warn(`[sync] remove ${table} error:`, e.message);
+      await enqueue(_userId, { op: 'delete', table, ids: [...ids] });
+      _pendingCount++;
+    }
+    notify();
+  },
+
   async flushPending() {
     if (!_userId) return;
 
@@ -153,10 +257,24 @@ export const sync = {
       const remaining = [];
       for (const item of pending) {
         try {
-          const { error } = await supabase.from(item.table).upsert(item.records, {
-            ignoreDuplicates: false,
-            onConflict: 'id',
-          });
+          let error;
+          if (item && item.op === 'delete') {
+            ({ error } = await supabase
+              .from(item.table)
+              .delete()
+              .in('id', item.ids || [])
+              .eq('user_id', sbUserId));
+          } else {
+            // Ré-applique le masque de colonnes : la file peut contenir des
+            // enregistrements écrits par une version antérieure de l'app.
+            const rows = toRows(item.table, item.records, sbUserId);
+            if (rows.length > 0) {
+              ({ error } = await supabase.from(item.table).upsert(rows, {
+                ignoreDuplicates: false,
+                onConflict: ON_CONFLICT,
+              }));
+            }
+          }
           if (error) remaining.push(item);
         } catch {
           remaining.push(item);

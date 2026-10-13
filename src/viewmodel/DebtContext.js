@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { debtsKey, computeDebtStatus, DEBT_STATUS } from '../model/DebtModel';
 import { toNumber } from '../utils/format';
@@ -12,8 +12,13 @@ export function DebtProvider({ children }) {
   const { userId } = useAuth();
   const [debts, setDebts] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  // Jeton de chargement : si `userId` change pendant un `sync.pull` en vol,
+  // la promesse de l'ancien compte abandonne au lieu d'écrire l'état du nouveau.
+  const loadSeq = useRef(0);
 
   const loadDebts = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    const alive = () => seq === loadSeq.current;
     if (!userId) { setDebts([]); setLoaded(true); return; }
     try {
       const raw = await safeAsyncReadJSON(debtsKey(userId), []);
@@ -21,16 +26,20 @@ export function DebtProvider({ children }) {
 
       await sync.init(userId);
       const cloud = await sync.pull('debts');
+      if (!alive()) return;
       if (cloud.length > 0) {
-        local = mergeRecords(local, cloud);
+        // Le serveur ne valide pas les lignes : on filtre avant fusion
+        // (une dette sans champs requis ferait échouer `filterValidRecords` plus bas).
+        local = mergeRecords(local, filterValidRecords(cloud, validateDebt));
       }
 
       setDebts(local);
     } catch (e) {
+      if (!alive()) return;
       console.error('[DebtContext] Erreur chargement :', e);
       setDebts([]);
     } finally {
-      setLoaded(true);
+      if (alive()) setLoaded(true);
     }
   }, [userId]);
 
@@ -40,7 +49,7 @@ export function DebtProvider({ children }) {
     if (!userId) return;
     setDebts(updated);
     await safeAsyncWriteJSON(debtsKey(userId), updated);
-    sync.push('debts', updated);
+    sync.push('debts', updated).catch(() => {});
   }, [userId]);
 
   const addDebt = useCallback(async (debtData) => {
@@ -70,6 +79,9 @@ export function DebtProvider({ children }) {
 
   const deleteDebt = useCallback(async (id) => {
     const updated = debts.filter((d) => d.id !== id);
+    // `saveDebts` ne fait qu'un upsert : sans suppression explicite, la ligne
+    // cloud reviendrait au prochain pull (donnée « ressuscitée »).
+    sync.remove('debts', [id]);
     await saveDebts(updated);
   }, [debts, saveDebts]);
 
@@ -99,7 +111,9 @@ export function DebtProvider({ children }) {
             ? `${debt.personName} vous doit ${debt.amount - debt.amountReimbursed} F`
             : `Vous devez ${debt.amount - debt.amountReimbursed} F à ${debt.personName}`,
         },
-        trigger: { date: due },
+        // `type` obligatoire : sans lui `parseTrigger` échoue et la
+        // notification n'est jamais planifiée (erreur avalée par le catch).
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: due },
       });
     } catch (e) {
       if (e && e.message && e.message.includes('removed from Expo Go')) return;

@@ -64,7 +64,7 @@ export default function CarnetPreview() {
 
         {/* En-tête */}
         <View style={styles.header}>
-          <Text style={[type.title, { color: colors.ink }]}>Orane</Text>
+          <Text style={[type.title, { color: colors.ink }]}>Orane.d</Text>
           <View style={styles.syncRow}>
             <View style={[styles.syncDot, { backgroundColor: colors.warning }]} />
             <Text style={[type.micro, { color: colors.inkMid }]}>3 en attente</Text>

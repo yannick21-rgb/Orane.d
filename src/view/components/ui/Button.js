@@ -14,7 +14,7 @@ import { radius, touchTarget } from '../../theme/tokens';
  */
 
 const SIZES = {
-  sm: { paddingVertical: 7, paddingHorizontal: 14, radius: radius.xs, fontSize: 14, minHeight: 34 },
+  sm: { paddingVertical: 8, paddingHorizontal: 14, radius: radius.xs, fontSize: 14, minHeight: touchTarget },
   md: { paddingVertical: 11, paddingHorizontal: 16, radius: radius.sm, fontSize: 15, minHeight: touchTarget },
   lg: { paddingVertical: 14, paddingHorizontal: 20, radius: radius.md, fontSize: 17, minHeight: 52 },
   // Bouton d'enregistrement pleine largeur des modales de formulaire

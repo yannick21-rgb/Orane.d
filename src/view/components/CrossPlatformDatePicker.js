@@ -1,7 +1,15 @@
+// CrossPlatformDatePicker.js — un seul déclencheur, deux plateformes.
+//
+// Le composant lit désormais la palette lui-même (`useColors`) au lieu de
+// recevoir un objet `colors` partiel des quatre écrans appelants. Ces objets
+// partiels portaient trois clés et rien d'autre ; le composant gardait un
+// `|| '#hex'` derrière chacune, qui ne se déclenchait jamais — jusqu'au premier
+// appelant oubliant une clé, auquel cas le champ serait revenu à la palette
+// d'avant la refonte, en dur, sans bruit. Une seule source, complète,
+// supprime la classe de bug entière.
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useColors } from '../theme';
-import { radius } from '../theme/tokens';
 
 let NativeDateTimePicker = null;
 if (Platform.OS !== 'web') {
@@ -10,20 +18,18 @@ if (Platform.OS !== 'web') {
   } catch (e) {}
 }
 
-export default function CrossPlatformDatePicker({ value, mode = 'date', onChange, isDark, colors: colorsProp }) {
+export default function CrossPlatformDatePicker({ value, mode = 'date', onChange }) {
   const [showPicker, setShowPicker] = useState(false);
-  // Sans props : on retombe sur la palette du thème courant.
-  const palette = useColors();
-  const colors = colorsProp || { inputBg: palette.inputBg, border: palette.border, text: palette.ink };
+  const colors = useColors();
 
   if (NativeDateTimePicker && Platform.OS !== 'web') {
     if (!showPicker) {
       return (
         <TouchableOpacity
           onPress={() => setShowPicker(true)}
-          style={[styles.trigger, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+          style={[styles.trigger, { backgroundColor: colors.sunken, borderColor: colors.rule }]}
         >
-          <Text style={[styles.triggerText, { color: colors.text }]}>
+          <Text style={[styles.triggerText, { color: colors.ink }]}>
             {mode === 'time'
               ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
               : value.toLocaleDateString()}
@@ -81,9 +87,16 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
     if (mode === 'time') {
       return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     }
-    return d.toISOString().split('T')[0];
+    // Formatage LOCAL : `toISOString()` passe en UTC et affichait le jour
+    // précédent pour tout fuseau positif (UTC+1 …), alors que la valeur lue
+    // par `handleChange` est reconstruite en heure locale.
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   };
 
+  // Sur le web c'est un `<input>` natif : ces propriétés sont du CSS, pas des
+  // styles RN. Le rayon suit l'échelle de `tokens.radius` — pas une valeur
+  // isolée écrite ici, qui divergerait du reste de l'application.
   return (
     <input
       type={mode === 'time' ? 'time' : 'date'}
@@ -91,14 +104,17 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
       onChange={handleChange}
       style={{
         padding: '12px 16px',
-        borderRadius: `${radius.sm}px`,
-        border: `1px solid ${colors.border}`,
-        background: colors.inputBg,
-        color: colors.text,
+        borderRadius: '12px',
+        border: `1px solid ${colors.rule}`,
+        background: colors.sunken,
+        color: colors.ink,
         fontSize: '15px',
         fontWeight: '500',
         width: '100%',
         boxSizing: 'border-box',
+        // Un champ natif garde son ombre interne et son ombre de focus
+        // navigateur ; « le carnet » les supprime partout ailleurs.
+        outlineOffset: '2px',
       }}
     />
   );
@@ -107,7 +123,7 @@ export default function CrossPlatformDatePicker({ value, mode = 'date', onChange
 const styles = StyleSheet.create({
   trigger: {
     padding: 14,
-    borderRadius: radius.sm,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
   },

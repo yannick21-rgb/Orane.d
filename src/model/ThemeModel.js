@@ -24,6 +24,8 @@ export const THEME_KEYS = ['Sombre', 'Clair', 'Système'];
  * franchir le seuil avec du blanc.
  */
 export const ACCENT_COLORS = [
+  // Or Old Money — l'accent patrimonial par défaut
+  '#C9A86A', '#E3C98B', '#8A6D2B',
   // Encre — le stylo bille
   '#4A5BF0', '#2F7BEA', '#1189C4',
   // Cobalt profond
@@ -42,7 +44,7 @@ export const ACCENT_COLORS = [
   '#5A6B8C', '#7A8AA8',
 ];
 
-export const DEFAULT_ACCENT = '#4A5BF0';
+export const DEFAULT_ACCENT = '#C9A86A';
 
 export function resolveIsDark(theme, systemScheme) {
   return theme === THEME_MODES.DARK || (theme === THEME_MODES.SYSTEM && systemScheme === 'dark');

@@ -174,12 +174,14 @@ export async function secureRemove(key) {
 export async function secureStorePinHash(userId, hash) {
   const key = secureKey(userId, 'orane_pin_hash');
   if (SecureStore && isValidKey(key)) {
-    try {
-      await SecureStore.setItemAsync(key, hash);
-    } catch (e) {
-      console.error('[secureStorage] Échec setItemAsync PIN hash :', e.message);
-    }
+    // Laisse remonter l'échec : `storePinHash` dispose d'un fallback
+    // AsyncStorage dans son catch — il ne s'exécuterait jamais si on avalait
+    // l'erreur ici, et l'app afficherait « PIN actif » alors que rien n'est
+    // stocké (déverrouillage au prochain lancement SANS code).
+    await SecureStore.setItemAsync(key, hash);
+    return true;
   }
+  throw new Error('SecureStore indisponible');
 }
 
 export async function secureGetPinHash(userId) {

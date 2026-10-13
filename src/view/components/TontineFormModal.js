@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Alert,
+  View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Alert, Platform,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { useTranslation } from '../../utils/LanguageManager';
 import { useTontines } from '../../viewmodel/TontineContext';
 import { TONTINE_FREQUENCIES } from '../../model/TontineModel';
 import { toNumber } from '../../utils/format';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import CrossPlatformDatePicker from './CrossPlatformDatePicker';
 import { useColors } from '../theme';
 import { Button } from './ui';
-import { radius } from '../theme/tokens';
-import { type } from '../theme/type';
 
 export default function TontineFormModal({ visible, initialData, onClose }) {
   const { accentColor } = useFinance();
+  const { t } = useTranslation();
   const { addGroup, updateGroup } = useTontines();
   const isEdit = !!initialData;
 
@@ -26,6 +27,12 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Un sélecteur ouvert au moment de la fermeture réapparaissait à la
+  // réouverture : on réinitialise l'état à chaque masquage.
+  useEffect(() => {
+    if (!visible) setShowDatePicker(false);
+  }, [visible]);
+
   useEffect(() => {
     if (!visible) return;
     if (initialData) {
@@ -34,7 +41,11 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
       setFrequency(initialData.frequency);
       setTotalParticipants(String(initialData.totalParticipants));
       setMyPosition(String(initialData.myPosition));
-      setStartDate(new Date(initialData.startDate));
+      // `startDate` est facultatif dans le schéma (défaut '' en base) : sans
+      // garde, un groupe créé sans date produisait un « Invalid Date » affiché,
+      // puis `JSON.stringify` → `null` qui écrasait la date à l'enregistrement.
+      const parsed = new Date(initialData.startDate);
+      setStartDate(isNaN(parsed.getTime()) ? new Date() : parsed);
     } else {
       setGroupName('');
       setAmountPerTour('');
@@ -76,13 +87,18 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
         <View style={[styles.container, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>
               {isEdit ? 'Modifier' : 'Nouvelle'} tontine
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('annuler')}
+            >
               <X size={20} color={colors.subText} />
             </TouchableOpacity>
           </View>
@@ -147,19 +163,32 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
             </Text>
 
             <Text style={[styles.label, { color: colors.subText }]}>Date de début</Text>
-            <TouchableOpacity
-              style={[styles.dateBtn, { backgroundColor: colors.input, borderColor: colors.border }]}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={{ color: colors.text, fontSize: 15 }}>{startDate.toLocaleDateString('fr-FR')}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
+            {Platform.OS === 'web' ? (
+              // Sur web, `@react-native-community/datetimepicker` rend `null`
+              // et ne déclenche jamais `onChange` : le champ restait mort pour
+              // toute la session. On repasse au wrapper (champ natif `<input>`).
+              <CrossPlatformDatePicker
                 value={startDate}
                 mode="date"
-                display="default"
-                onChange={(_, d) => { setShowDatePicker(false); if (d) setStartDate(d); }}
+                onChange={(_, d) => { if (d) setStartDate(d); }}
               />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[styles.dateBtn, { backgroundColor: colors.input, borderColor: colors.border }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={{ color: colors.text, fontSize: 15 }}>{startDate.toLocaleDateString('fr-FR')}</Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={startDate}
+                    mode="date"
+                    display="default"
+                    onChange={(_, d) => { setShowDatePicker(false); if (d) setStartDate(d); }}
+                  />
+                )}
+              </>
             )}
 
             <Text style={[styles.previewText, { color: colors.subText }]}>
@@ -184,16 +213,16 @@ export default function TontineFormModal({ visible, initialData, onClose }) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  container: { maxHeight: '90%', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: 24 },
+  container: { maxHeight: '90%', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title: { ...type.title },
-  label: { ...type.label, marginBottom: 8, marginTop: 16 },
-  input: { height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500' },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 16 },
+  input: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500' },
   freqRow: { flexDirection: 'row', gap: 10 },
-  freqBtn: { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
+  freqBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
   freqText: { fontSize: 14, fontWeight: '600' },
-  hint: { ...type.micro, marginTop: 6, lineHeight: 16 },
-  dateBtn: { height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center' },
-  previewText: { ...type.amount, fontSize: 14, textAlign: 'center', marginTop: 16 },
+  hint: { fontSize: 11, marginTop: 6, lineHeight: 16 },
+  dateBtn: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center' },
+  previewText: { fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 16 },
   saveBtn: { marginTop: 24, marginBottom: 12 },
 });

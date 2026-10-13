@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,24 +19,23 @@ let LocalAuthentication = null;
 if (Platform.OS !== 'web') {
   try { LocalAuthentication = require('expo-local-authentication'); } catch (_) {}
 }
-import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw, Calculator } from 'lucide-react-native';
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw, Calculator, Bell, Database } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
-import { ACCENT_COLORS } from '../../model/ThemeModel';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
 import { exportTransactionsToCSV } from '../../service/exportCSV';
 import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
+import { CollapsingBar, useCollapsingHeader } from '../components';
 import PinAuthModal from '../components/PinAuthModal';
 import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import { useResponsive } from '../../utils/responsive';
-import { radius } from '../theme/tokens';
-import { type } from '../theme/type';
 import { useColors } from '../theme';
 import { inkOn } from '../theme/colors';
-import { Button, Card, Input, SectionHeader } from '../components/ui';
+import { ACCENT_COLORS } from '../../model/ThemeModel';
+import { Amount, Button, Card, Input, SectionHeader } from '../components/ui';
 
 const PAYS_DU_MONDE = [
   { label: 'Afghanistan',           value: 'AF' },
@@ -273,11 +273,19 @@ export default function SettingsScreen({ navigation }) {
   }, []);
 
   const deviseDropdownValue = DEVISES_DU_MONDE.find(d => devise?.includes(d.value))?.value || 'EUR';
+  const deviseSymbol = devise?.split(' ')[0] || '€';
 
   const colors = useColors();
+  const header = useCollapsingHeader();
 
   const themesList = [t('sombre'), t('clair'), t('systeme')];
 
+  // L'accent est au choix de l'utilisateur parmi vingt nuances. Ces vingt
+  // nuances vivent dans ThemeModel (ACCENT_COLORS) : les dupliquer ici
+  // produirait deux listes à tenir à jour, et c'est cette liste d'autre part
+  // qui a été vérifiée — chaque teinte lisible sur fond sombre, et capable de
+  // porter une encre claire ou foncée selon son contraste.
+  const colorsList = ACCENT_COLORS;
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
@@ -445,14 +453,19 @@ export default function SettingsScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView
+        {/* Animated.ScrollView (et non ScrollView) : `header.onScroll` est un
+            AnimatedEvent NATIF (useNativeDriver) renvoyé sous forme d'objet —
+            seul un composant animé le convertit en fonction via `__getHandler()`. */}
+        <Animated.ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
+          onScroll={header.onScroll}
+          scrollEventThrottle={16}
         >
-          <Text style={[styles.pageTitle, { color: colors.text }]}>
+          <Animated.Text style={[styles.pageTitle, { color: colors.text }, header.largeStyle]}>
             {t('settings')}
-          </Text>
+          </Animated.Text>
 
           <Card padding={cardPadding} radius={borderRadius}>
             <View style={styles.sectionHeaderBetween}>
@@ -467,7 +480,10 @@ export default function SettingsScreen({ navigation }) {
                   setEditName(authUser?.name || '');
                   setEditEmail(authUser?.email || '');
                   setIsEditing(true);
-                }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('modifier')}
+                >
                   <Edit2 size={16} color={accentColor} />
                 </TouchableOpacity>
               )}
@@ -534,7 +550,7 @@ export default function SettingsScreen({ navigation }) {
                   >
                     <View style={styles.accountInfo}>
                       <View style={[styles.accountAvatar, { backgroundColor: isActive ? colors.income : colors.unselectedPill }]}>
-                        <Text style={[styles.accountAvatarText, { color: isActive ? inkOn(colors.income) : colors.subText }]}>
+                        <Text style={[styles.accountAvatarText, { color: isActive ? colors.incomeFg : colors.subText }]}>
                           {account.name.charAt(0).toUpperCase()}
                         </Text>
                       </View>
@@ -586,7 +602,7 @@ export default function SettingsScreen({ navigation }) {
                     style={[styles.pillBtn, { backgroundColor: isActive ? accentColor : colors.unselectedPill }]}
                     onPress={() => setTheme(rawThemes[index])}
                   >
-                    <Text style={[styles.pillText, { color: isActive ? inkOn(colors.income) : colors.subText }]}>
+                    <Text style={[styles.pillText, { color: isActive ? colors.accentFg : colors.subText }]}>
                       {label}
                     </Text>
                   </TouchableOpacity>
@@ -597,7 +613,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[styles.label, { color: colors.subText }]}>{t('couleur_principale')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorRowContainer}>
               <View style={styles.colorRow}>
-                {ACCENT_COLORS.map((c) => {
+                {colorsList.map((c) => {
                   const isSelected = accentColor === c;
                   return (
                     <TouchableOpacity
@@ -606,7 +622,11 @@ export default function SettingsScreen({ navigation }) {
                       onPress={() => setAccentColor(c)}
                     >
                       <View style={[styles.colorCircleInner, { backgroundColor: c }]} />
-                      {isSelected && <Text style={[styles.checkmark, { color: inkOn(c) }]}>✓</Text>}
+                      {/* La coche est posée sur la nuance elle-même : toutes ne portent pas du
+                        blanc. `inkOn` tranche, comme pour les boutons. */}
+                      {isSelected && (
+                        <Text style={[styles.checkmark, { color: inkOn(c) }]}>✓</Text>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -673,7 +693,10 @@ export default function SettingsScreen({ navigation }) {
           </Card>
 
           <Card padding={cardPadding} radius={borderRadius}>
-            <SectionHeader title="Budget & Rappels" />
+            <SectionHeader
+              icon={<Calculator size={20} color={colors.subText} />}
+              title="Budget & Rappels"
+            />
 
             <Text style={[styles.label, { color: colors.subText }]}>Période du budget</Text>
             <View style={styles.pillRow}>
@@ -686,7 +709,7 @@ export default function SettingsScreen({ navigation }) {
                     style={[styles.pillBtn, { backgroundColor: isActive ? accentColor : colors.unselectedPill }]}
                     onPress={() => setBudgetPeriod(p)}
                   >
-                    <Text style={[styles.pillText, { color: isActive ? inkOn(colors.income) : colors.subText }]}>
+                    <Text style={[styles.pillText, { color: isActive ? colors.accentFg : colors.subText }]}>
                       {labels[p]}
                     </Text>
                   </TouchableOpacity>
@@ -700,12 +723,6 @@ export default function SettingsScreen({ navigation }) {
                 <CrossPlatformDatePicker
                   value={budgetStartDate ? new Date(budgetStartDate) : new Date()}
                   mode="date"
-                  isDark={isDark}
-                  colors={{
-                    inputBg: colors.inputBg,
-                    border: colors.border,
-                    text: colors.text,
-                  }}
                   onChange={(_, d) => {
                     if (d) {
                       // Formatage LOCAL : `toISOString()` passe en UTC et
@@ -732,27 +749,41 @@ export default function SettingsScreen({ navigation }) {
 
             {budgetLimit > 0 && (
               <View style={{ marginTop: 16 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <Text style={{ color: colors.subText, fontSize: 13 }}>
-                    Dépenses: {getPeriodExpenses().toFixed(2)} {devise?.split(' ')[0] || '€'}
-                  </Text>
-                  <Text style={{ color: colors.subText, fontSize: 13 }}>
-                    Limite: {budgetLimit} {devise?.split(' ')[0] || '€'}
-                  </Text>
+                <View style={styles.budgetRow}>
+                  <Amount
+                    value={getPeriodExpenses()}
+                    size="amountSm"
+                    tone="mid"
+                    align="left"
+                    currency={deviseSymbol}
+                  />
+                  <Amount
+                    value={budgetLimit}
+                    size="amountSm"
+                    tone="mid"
+                    align="right"
+                    currency={deviseSymbol}
+                  />
                 </View>
-                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: radius.pill, overflow: 'hidden' }}>
+                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden' }}>
                   <View style={{
                     height: '100%',
                     width: `${Math.min((getPeriodExpenses() / budgetLimit) * 100, 100)}%`,
                     backgroundColor: getPeriodExpenses() >= budgetLimit ? colors.danger : getPeriodExpenses() >= budgetLimit * 0.8 ? colors.warning : colors.income,
-                    borderRadius: radius.pill,
+                    borderRadius: 4,
                   }} />
                 </View>
-                <Text style={{ color: colors.subText, fontSize: 12, marginTop: 4, textAlign: 'right' }}>
-                  {budgetLimit - getPeriodExpenses() > 0
-                    ? `Reste: ${(budgetLimit - getPeriodExpenses()).toFixed(2)} ${devise?.split(' ')[0] || '€'}`
-                    : '⚠️ Budget dépassé'}
-                </Text>
+                {/* L'emoji d'alerte disparait au profit de l'encre : un budget
+                    dépassé se dit par la couleur du chiffre, pas par un glyphe
+                    qui change de forme selon la police. */}
+                <Amount
+                  value={Math.max(budgetLimit - getPeriodExpenses(), 0)}
+                  size="amountSm"
+                  tone={budgetLimit - getPeriodExpenses() > 0 ? 'mid' : 'expense'}
+                  align="right"
+                  currency={deviseSymbol}
+                  style={{ marginTop: 4 }}
+                />
               </View>
             )}
 
@@ -772,12 +803,6 @@ export default function SettingsScreen({ navigation }) {
               <CrossPlatformDatePicker
                 value={new Date(2024, 0, 1, reminderHour, reminderMinute)}
                 mode="time"
-                isDark={isDark}
-                colors={{
-                  inputBg: colors.inputBg,
-                  border: colors.border,
-                  text: colors.text,
-                }}
                 onChange={handleTimeChange}
               />
             )}
@@ -789,8 +814,10 @@ export default function SettingsScreen({ navigation }) {
               title={`Sécurité & Code PIN`}
              />
 
+            {/* Le cadenas est un glyphe, pas une icône : il change de forme selon la
+                police et se lit mal sur Android. L'état se dit par l'encre. */}
             <Text style={[styles.pinStatus, { color: hasPinCode ? colors.income : colors.subText }]}>
-              {hasPinCode ? '🔒 Code PIN actif' : '🔓 Aucun code PIN configuré'}
+              {hasPinCode ? t('pin_actif') : t('pin_aucun')}
             </Text>
 
             {hasPinCode && (
@@ -858,30 +885,23 @@ export default function SettingsScreen({ navigation }) {
             <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.exportBtn, { backgroundColor: accentColor }]}
-            onPress={handleExport}
-            activeOpacity={0.8}
-          >
-            <Download size={18} color={colors.accentFg} style={{ marginRight: 8 }} />
-            <Text style={[styles.exportText, { color: colors.accentFg }]}>
-              Exporter les transactions (CSV)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.logoutBtn, { borderColor: colors.border, backgroundColor: colors.cardBg }]}
-            onPress={handleLogout}
-            activeOpacity={0.8}
-          >
-            <LogOut size={16} color={colors.danger} style={{ marginRight: 8 }} />
-            <Text style={[styles.logoutText, { color: colors.danger }]}>
-              {t('se_deconnecter')}
-            </Text>
-          </TouchableOpacity>
+          {/* Actions destructives — isolées en bas avec séparateur */}
+          <View style={[styles.destructiveSection, { marginTop: 24 }]}>
+            <TouchableOpacity
+              style={[styles.logoutBtn, { borderColor: colors.danger, backgroundColor: colors.cardBg }]}
+              onPress={handleLogout}
+              activeOpacity={0.8}
+            >
+              <LogOut size={16} color={colors.danger} style={{ marginRight: 8 }} />
+              <Text style={[styles.logoutText, { color: colors.danger }]}>
+                {t('se_deconnecter')}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={{ height: 40 }} />
-        </ScrollView>
+        </Animated.ScrollView>
+        <CollapsingBar title={t('settings')} style={header.compactStyle} />
       </KeyboardAvoidingView>
 
       <Modal visible={showResetModal && resetStep === 'password'} transparent animationType="fade">
@@ -965,8 +985,17 @@ export default function SettingsScreen({ navigation }) {
 
 const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   container: { flex: 1 },
-  // Section « Comptes » : styles présents dans le JSX mais absents ici
-  // (rendu non stylé) — complétés pour que le rendu soit cohérent.
+  scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
+  pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  budgetRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  avatarCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  avatarLetter: { fontSize: 20, fontWeight: 'bold' },
+  profileInfo: { marginLeft: 16, flex: 1 },
+  // Gestion des comptes (section multi-profils)
   accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -985,15 +1014,6 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   activeLabel: { fontSize: 12, fontWeight: '600' },
   switchBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
   switchBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
-  scrollContainer: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  pageTitle: { ...type.title, marginBottom: 20 },
-  sectionHeaderBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  sectionTitle: { ...type.heading, marginLeft: 8 },
-  profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  avatarCircle: { width: 50, height: 50, borderRadius: radius.pill, justifyContent: 'center', alignItems: 'center' },
-  avatarLetter: { fontSize: 20, fontWeight: 'bold' },
-  profileInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 17, fontWeight: '600' },
   userEmail: { fontSize: 14, marginTop: 2 },
   editForm: { marginTop: 4 },
@@ -1014,7 +1034,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: radius.sm,
+    borderRadius: 12,
     marginTop: 16,
     marginBottom: 4,
   },
@@ -1024,24 +1044,29 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: radius.sm,
+    borderRadius: 12,
     borderWidth: 1,
     marginTop: 10,
   },
   logoutText: { fontSize: 15, fontWeight: '600' },
+  destructiveSection: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#3a3a3c',
+    paddingTop: 16,
+  },
   label: { fontSize: 14, marginBottom: 8, marginTop: 12 },
   pillRow: { flexDirection: 'row', gap: 10 },
-  pillBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: radius.lg },
+  pillBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
   pillText: { fontSize: 14, fontWeight: '500' },
   colorRowContainer: { paddingVertical: 4 },
   colorRow: { flexDirection: 'row', gap: 14 },
-  colorCircleOuter: { width: 36, height: 36, borderRadius: radius.pill, justifyContent: 'center', alignItems: 'center' },
-  colorCircleInner: { width: 26, height: 26, borderRadius: radius.sm },
+  colorCircleOuter: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  colorCircleInner: { width: 26, height: 26, borderRadius: 13 },
   checkmark: { fontSize: 12, position: 'absolute', fontWeight: 'bold' },
-  dropdown: { height: 50, borderRadius: radius.xs, paddingHorizontal: 12, borderWidth: 1, marginTop: 4 },
+  dropdown: { height: 50, borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, marginTop: 4 },
   placeholderStyle: { fontSize: 15 },
   selectedTextStyle: { fontSize: 15 },
-  dropdownContainer: { borderRadius: radius.xs, borderWidth: 1 },
+  dropdownContainer: { borderRadius: 8, borderWidth: 1 },
 
   pinStatus: { fontSize: 14, fontWeight: '600', marginBottom: 14, marginLeft: 4 },
   securityRow: {
@@ -1049,17 +1074,17 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 14,
-    borderRadius: radius.sm,
+    borderRadius: 12,
     borderWidth: 1,
   },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   pwdModal: {
     width: '85%',
     maxWidth: 340,
-    borderRadius: radius.lg,
+    borderRadius: 28,
     padding: 28,
     alignItems: 'center',
   },
-  pwdTitle: { ...type.title, marginBottom: 8 },
+  pwdTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   pwdSubtitle: { fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
 });

@@ -3,21 +3,18 @@
  *
  * Complémentaires à colors.js : celui-ci porte les couleurs dépendantes du
  * thème (clair/sombre), celui-ci les valeurs invariantes.
+ *
+ * `spacing` et `radius` sont canoniques dans `./spacing` et `./radius`
+ * (échelle 4/8/12/16/24/32/48) et ré-exportés ici pour compatibilité
+ * avec les écrans existants.
  */
 
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
-  '4xl': 40,
-};
+export { spacing, gap, padding, margin } from './spacing';
+export { radius } from './radius';
+export { shadows, elevation } from './shadows';
 
 /**
- * Échelle de rayons — quatre pas, pas plus.
+ * Échelle de rayons — voir `./radius` (canonique).
  *
  * L'app empilait une vingtaine de rayons différents (3,4,7,8,10,12,13,14,16,
  * 18,19,20,22,24,25,27,28,30,32) : aucun élément ne se ressemblait, donc
@@ -28,13 +25,7 @@ export const spacing = {
  * Les écrans restants gardent encore leurs rayons historiques — les aligner
  * est une passe mécanique à faire écran par écran.
  */
-export const radius = {
-  xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 20,
-  pill: 999,
-};
+
 
 export const fontSize = {
   xs: 11,

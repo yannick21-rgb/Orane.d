@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 import { hashPassword, verifyPassword, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncRemove, validateUser } from '../utils/storage';
 import { initSecureStorage, resetSecureStorage } from '../utils/secureStorage';
+import { toRows } from '../utils/sync';
 
 const AuthContext = createContext({});
 
@@ -43,6 +44,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Tient à jour le répertoire local des comptes (`@oraned_all_users`).
+   * Ce répertoire alimente « PIN oublié » (resetPinCodeWithPassword compare le
+   * mot de passe à cet hash), la section « Gestion des Comptes » et le
+   * sélecteur de profils. Les comptes créés via Supabase n'y étaient jamais
+   * écrits → « PIN oublié » renvoyait toujours false et « Basculer » ne
+   * faisait rien.
+   * @param {{name?: string, email: string, password?: string}} p
+   *   `password` absent → met seulement à jour le nom d'un compte déjà connu
+   *   (une entrée sans hash est rejetée par `validateUser`).
+   */
+  const rememberAccount = async ({ name, email, password }) => {
+    try {
+      const users = await safeAsyncReadJSON(USERS_KEY, []);
+      const idx = users.findIndex((u) => u.email === email);
+      if (idx < 0 && password === undefined) return;
+      if (idx >= 0 && password === undefined && (!name || users[idx].name === name)) return;
+
+      const entry = idx >= 0 ? { ...users[idx] } : { name: name || email.split('@')[0], email };
+      if (name) entry.name = name;
+      if (password !== undefined) entry.password = await hashPassword(password);
+
+      const updated = idx >= 0 ? users.map((u, i) => (i === idx ? entry : u)) : [...users, entry];
+      await safeAsyncWriteJSON(USERS_KEY, updated);
+      await addToAccountsIndex(email, entry.name || email);
+      await loadAllUsers();
+    } catch (e) {
+      console.warn('[AuthContext] rememberAccount :', e.message);
+    }
+  };
+
   const loginToUser = async (id, pin) => {
     if (pin) {
       const { locked, waitMs } = await checkPinRateLimit(id);
@@ -57,10 +89,17 @@ export const AuthProvider = ({ children }) => {
         }
         throw new Error(msg);
       }
-      const storedHash = await safeAsyncReadJSON(`@oraned_pin_${id}`, null);
-      if (storedHash) {
-        const { verifyPin } = await import('../utils/security');
-        const valid = await verifyPin(pin, storedHash);
+      // Le hash réel du PIN vit dans le SecureStore (`getStoredPinHash`) ;
+      // `@oraned_pin_*` contient l'ancien PIN en clair, que `verifyPin`
+      // (format `salt:hash`) refuserait systématiquement → verrouillage
+      // immérité. On gère les deux formats.
+      const { verifyPin, getStoredPinHash } = await import('../utils/security');
+      const storedHash = await getStoredPinHash(id);
+      const legacyPin = storedHash ? null : await safeAsyncReadJSON(`@oraned_pin_${id}`, null);
+      if (storedHash || legacyPin) {
+        const valid = storedHash
+          ? await verifyPin(pin, storedHash)
+          : String(legacyPin) === String(pin);
         if (!valid) {
           const result = await recordFailedPinAttempt(id);
           let msg = 'Code PIN incorrect.';
@@ -94,27 +133,29 @@ export const AuthProvider = ({ children }) => {
     const userIdForMigration = uid || supabaseUser?.id;
     if (!userIdForMigration) return;
     try {
+      // `toRows` applique le masque de colonnes du serveur ; sans lui, un seul
+      // champ hors schéma fait échouer l'upsert du lot entier.
+      let allOk = true;
+      const upsertTable = async (table, records) => {
+        const rows = toRows(table, records, userIdForMigration);
+        if (rows.length === 0) return;
+        const { error } = await supabase.from(table).upsert(rows, {
+          ignoreDuplicates: false,
+          onConflict: 'user_id,id',
+        });
+        if (error) {
+          allOk = false;
+          console.warn(`[AuthContext] Échec migration ${table} :`, error.message);
+        }
+      };
+
       const transactions = await safeAsyncReadJSON(`@oraned_transactions_${email}`, []);
-      if (transactions.length > 0) {
-        const { error } = await supabase.from('transactions').upsert(
-          transactions.map((t) => ({ ...t, user_id: userIdForMigration }))
-        );
-        if (error) console.warn('[AuthContext] Échec migration transactions :', error.message);
-      }
+      await upsertTable('transactions', transactions);
       const debts = await safeAsyncReadJSON(`@oraned_debts_${email}`, []);
-      if (debts.length > 0) {
-        const { error } = await supabase.from('debts').upsert(
-          debts.map((d) => ({ ...d, user_id: userIdForMigration }))
-        );
-        if (error) console.warn('[AuthContext] Échec migration dettes :', error.message);
-      }
+      await upsertTable('debts', debts);
       const tontines = await safeAsyncReadJSON(`@oraned_tontines_${email}`, []);
-      if (tontines.length > 0) {
-        const { error } = await supabase.from('tontines').upsert(
-          tontines.map((t) => ({ ...t, user_id: userIdForMigration }))
-        );
-        if (error) console.warn('[AuthContext] Échec migration tontines :', error.message);
-      }
+      await upsertTable('tontines', tontines);
+
       const settings = await safeAsyncReadJSON(`@oraned_settings_${email}`, null);
       if (settings) {
         const { error } = await supabase.from('user_settings').upsert({
@@ -126,10 +167,16 @@ export const AuthProvider = ({ children }) => {
           budget_period: settings.budgetPeriod || 'month',
           reminder_hour: settings.reminderHour || 20,
           reminder_minute: settings.reminderMinute || 0,
-        });
-        if (error) console.warn('[AuthContext] Échec migration paramètres :', error.message);
+        }, { onConflict: 'user_id' });
+        if (error) {
+          allOk = false;
+          console.warn('[AuthContext] Échec migration paramètres :', error.message);
+        }
       }
-      await safeAsyncWriteJSON(MIGRATED_KEY(email), true);
+
+      // Marquer « migré » alors que les envois ont échoué signait une perte
+      // définitive : la migration n'aurait plus jamais été retentée.
+      if (allOk) await safeAsyncWriteJSON(MIGRATED_KEY(email), true);
     } catch (e) {
       console.warn('[AuthContext] Erreur migration données locales :', e.message);
     }
@@ -153,6 +200,8 @@ export const AuthProvider = ({ children }) => {
         const ok = await initSecureStorage(session.user.email);
         setEncryptionReady(ok);
         migrateLocalData(session.user.email, session.user.id);
+        // Compte Supabase → répertoire local (PIN oublié / comptes / profils).
+        rememberAccount({ name: userData.name, email: userData.email });
       } else {
         setUser(null);
         setSupabaseUser(null);
@@ -180,6 +229,7 @@ export const AuthProvider = ({ children }) => {
           const ok = await initSecureStorage(session.user.email);
           setEncryptionReady(ok);
           migrateLocalData(session.user.email, session.user.id);
+          rememberAccount({ name: userData.name, email: userData.email });
         }
         await loadAllUsers();
         const idx = await safeAsyncReadJSON(ACCOUNTS_INDEX_KEY, []);
@@ -259,6 +309,9 @@ export const AuthProvider = ({ children }) => {
         }
         throw new Error(error.message || 'Erreur de connexion');
       }
+      // Connexion réussie : on garde le hash du mot de passe en local
+      // (indispensable à « PIN oublié » → resetPinCodeWithPassword).
+      await rememberAccount({ email: cleanEmail, password });
     } catch (e) {
       if (isNetworkError(e) || e.message === 'Email ou mot de passe incorrect') {
         if (e.message === 'Email ou mot de passe incorrect') throw e;
@@ -305,6 +358,11 @@ export const AuthProvider = ({ children }) => {
         } catch (e) {
           console.warn('[AuthContext] Erreur création profil :', e.message);
         }
+      }
+      if (data?.session) {
+        // Répertoire local : sans hash du mot de passe, « PIN oublié » et
+        // « Gestion des Comptes » ignorent ce compte.
+        await rememberAccount({ name: cleanName, email: cleanEmail, password });
       }
       if (!data?.session) {
         return { ...data, needsConfirmation: true };

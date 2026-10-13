@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { tontinesKey, generateRounds, ROUND_STATUS, computeTontineSummary } from '../model/TontineModel';
 import { toNumber } from '../utils/format';
@@ -12,8 +12,13 @@ export function TontineProvider({ children }) {
   const { userId } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  // Jeton de chargement : voir DebtContext — évite qu'un ancien compte écrive
+  // l'état du compte connecté quand `sync.pull` résout trop tard.
+  const loadSeq = useRef(0);
 
   const loadGroups = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    const alive = () => seq === loadSeq.current;
     if (!userId) { setGroups([]); setLoaded(true); return; }
     try {
       const raw = await safeAsyncReadJSON(tontinesKey(userId), []);
@@ -21,16 +26,20 @@ export function TontineProvider({ children }) {
 
       await sync.init(userId);
       const cloud = await sync.pull('tontines');
+      if (!alive()) return;
       if (cloud.length > 0) {
-        local = mergeRecords(local, cloud);
+        // Le serveur ne valide pas les enregistrements : on filtre avant fusion,
+        // sinon un groupe sans `rounds` plante `computeTontineSummary` au rendu.
+        local = mergeRecords(local, filterValidRecords(cloud, validateTontine));
       }
 
       setGroups(local);
     } catch (e) {
+      if (!alive()) return;
       console.error('[TontineContext] Erreur chargement :', e);
       setGroups([]);
     } finally {
-      setLoaded(true);
+      if (alive()) setLoaded(true);
     }
   }, [userId]);
 
@@ -40,7 +49,7 @@ export function TontineProvider({ children }) {
     if (!userId) return;
     setGroups(updated);
     await safeAsyncWriteJSON(tontinesKey(userId), updated);
-    sync.push('tontines', updated);
+    sync.push('tontines', updated).catch(() => {});
   }, [userId]);
 
   const addGroup = useCallback(async (data) => {
@@ -98,13 +107,15 @@ export function TontineProvider({ children }) {
 
   const deleteGroup = useCallback(async (id) => {
     const updated = groups.filter((g) => g.id !== id);
+    // `saveGroups` ne fait qu'un upsert : la ligne cloud reviendrait sinon.
+    sync.remove('tontines', [id]);
     await saveGroups(updated);
   }, [groups, saveGroups]);
 
   const markRoundPaid = useCallback(async (groupId, roundNumber) => {
     const updated = groups.map((g) => {
       if (g.id !== groupId) return g;
-      const rounds = g.rounds.map((r) =>
+      const rounds = (Array.isArray(g.rounds) ? g.rounds : []).map((r) =>
         r.roundNumber === roundNumber ? { ...r, status: ROUND_STATUS.PAYE } : r
       );
       return { ...g, rounds, updated_at: new Date().toISOString() };
@@ -115,7 +126,7 @@ export function TontineProvider({ children }) {
   const markRoundReceived = useCallback(async (groupId, roundNumber) => {
     const updated = groups.map((g) => {
       if (g.id !== groupId) return g;
-      const rounds = g.rounds.map((r) =>
+      const rounds = (Array.isArray(g.rounds) ? g.rounds : []).map((r) =>
         r.roundNumber === roundNumber ? { ...r, status: ROUND_STATUS.RECU } : r
       );
       return { ...g, rounds, updated_at: new Date().toISOString() };
@@ -127,7 +138,8 @@ export function TontineProvider({ children }) {
     try {
       try { if (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient') return; } catch (_) {}
       const Notifications = require('expo-notifications');
-      const upcoming = group.rounds.filter((r) => r.status === ROUND_STATUS.A_PAYER).slice(0, 5);
+      const upcoming = (Array.isArray(group.rounds) ? group.rounds : [])
+        .filter((r) => r.status === ROUND_STATUS.A_PAYER).slice(0, 5);
       for (const round of upcoming) {
         const dueDate = new Date(round.dueDate);
         if (dueDate <= new Date()) continue;
@@ -141,7 +153,8 @@ export function TontineProvider({ children }) {
               ? `C'est votre tour de recevoir ! (Tour ${round.roundNumber})`
               : `Échéance de cotisation tour ${round.roundNumber} — ${group.amountPerTour} F`,
           },
-          trigger: { date: remindDate },
+          // `type` obligatoire : sinon `parseTrigger` échoue silencieusement.
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: remindDate },
         });
       }
     } catch (e) {

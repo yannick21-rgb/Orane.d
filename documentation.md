@@ -353,6 +353,12 @@ Période configurable (jour/semaine/mois). Alertes à 80% (attention) et 100% (d
 Plusieurs profils utilisateur avec basculement rapide depuis les réglages.
 Authentification par PIN ou biométrie pour les comptes secondaires.
 
+Le répertoire local `@oraned_all_users` (nom, email, **hash du mot de passe**)
+est tenu à jour pour les comptes Supabase comme pour les comptes locaux
+(`rememberAccount` dans `AuthContext`) : il alimente « Gestion des Comptes »,
+le sélecteur de profils et « PIN oublié ». Sans hash local, la réinitialisation
+PIN passe par `supabase.auth.signInWithPassword`.
+
 ### 9.6 Notifications
 
 - Rappel quotidien (heure configurable)
@@ -365,7 +371,9 @@ Authentification par PIN ou biométrie pour les comptes secondaires.
 - Mots de passe hachés (SHA-256 + sel, 100 itérations)
 - Codes PIN hachés (SHA-256 + sel, 1000 itérations)
 - Rate limiting avec verrouillage progressif (30s → 5min → 1h)
-- Réinitialisation PIN via mot de passe de session
+- Réinitialisation PIN via mot de passe (hash local, sinon API Supabase)
+- Échec d'écriture du PIN dans SecureStore → repli AsyncStorage explicite
+  (sinon l'app afficherait « PIN actif » sans rien stocker)
 - Stockage sécurisé via AES-CBC + SecureStore
 - Validation des schémas au chargement (filtre des données corrompues)
 
@@ -497,6 +505,65 @@ eas build --profile production     # Production
 
 ---
 
-## 13. Licence
+## 13. Synchronisation Supabase (multi-appareil)
+
+### 13.1 Principe (`src/utils/sync.js`)
+
+Mode *offline-first* : chaque sauvegarde écrit en local (`AsyncStorage`), puis
+pousse l'ensemble des enregistrements vers Supabase.
+
+| Fonction | Rôle |
+|---|---|
+| `init(userId)` | charge la file d'attente **et la vide avant le premier `pull`** (sinon une suppression en attente serait annulée par la fusion) |
+| `push(table, records)` | `upsert` avec `onConflict: 'user_id,id'` |
+| `pull(table)` | `select` filtré sur `user_id` |
+| `remove(table, ids)` | suppression explicite — l'upsert ne supprime rien : sans elle, un élément supprimé localement **réapparaîtrait** au prochain pull |
+| `toRows()` | applique le masque de colonnes aligné sur le schéma SQL (un seul champ inconnu ferait échouer l'upsert du lot entier) |
+| `flushPending()` | rejoue la file ; appelé par `init` |
+
+- **Fusion** : `mergeRecords` déduplique par `id` et tranche sur `updated_at`
+  (last-write-wins). Les lignes issues du cloud passent par
+  `filterValidRecords(...)` **avant** fusion dans les trois Contextes — le
+  serveur ne valide rien.
+- **File d'attente** `@pending_sync_<uid>` : coalescée (un seul instantané par
+  table, suppressions fusionnées) pour éviter de re-empiler tout le tableau à
+  chaque sauvegarde.
+- **`updated_at` par enregistrement** conservé au push : l'écraser à chaque
+  envoi fausserait l'arbitrage last-write-wins entre appareils.
+- **Suppressions** : `deleteTransaction`/`deleteDebt`/`deleteGroup` appellent
+  `sync.remove(...)` ; hors ligne, la suppression est enfilée et rejouée au
+  lancement suivant avant le pull.
+
+### 13.2 Schéma de base
+
+- `src/utils/supabase-schema.sql` — installation propre (base vierge).
+- `src/utils/supabase-migration-2026-10-08.sql` — **à exécuter une fois** dans
+  le dashboard Supabase : *SQL Editor → New query → coller → Run*.
+
+  Alignement du schéma sur l'app : colonnes en camelCase identiques aux objets
+  envoyés (`personName`, `momoNetwork`, `groupName`…), `id TEXT` (les ids
+  locaux sont `Date.now().toString()`), clé primaire composite `(user_id, id)`,
+  RLS + policies, trigger `updated_at`. Les anciennes tables sont copiées dans
+  `archive_*_20261008` avant recréation.
+
+  Tant que cette migration n'est pas exécutée, **chaque upsert échoue**
+  (PGRST204 « colonne inconnue » / 22P02 « uuid invalide ») et la
+  synchronisation reste silencieusement inactive.
+
+### 13.3 Chemin de validation
+
+```bash
+npm run check            # règles de code (AST), styles inclus (usines createStyles)
+node scripts/check-a11y.js && node scripts/check-contrast.js
+curl "http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false" -o /dev/null -w "%{http_code}\n"
+```
+
+> Les modules natifs ajoutés (`expo-screen-capture`, `react-native-worklets`)
+> exigent un nouveau build natif : `npx expo run:android` / `npx expo run:ios`
+> (Expo Go seul ne suffit plus).
+
+---
+
+## 14. Licence
 
 MIT — © 2026 Jhpy

@@ -12,8 +12,6 @@ if (Platform.OS !== 'web') {
 import { useAuth } from '../../viewmodel/AuthContext';
 import { useResponsive } from '../../utils/responsive';
 import { useColors } from '../theme';
-import { radius } from '../theme/tokens';
-import { type } from '../theme/type';
 
 const PIN_LENGTH = 5;
 
@@ -21,7 +19,9 @@ export default function ProfileSelectorScreen({ navigation }) {
   const { accountsIndex, loginToUser } = useAuth();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const colors = useColors();
-  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius, colors);
+  const styles = createStyles(
+    contentMaxWidth, contentPadding, cardPadding, borderRadius, colors,
+  );
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -92,7 +92,9 @@ export default function ProfileSelectorScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
+      {/* Suit le thème : `light-content` était figé alors que l'écran peut
+          maintenant être clair. */}
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
 
       <View style={styles.head}>
         <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
@@ -108,7 +110,7 @@ export default function ProfileSelectorScreen({ navigation }) {
             onPress={() => handleProfilePress(acct.id, acct.name)}
           >
             <View style={styles.avatar}>
-              <Text style={[styles.avatarText, { color: colors.accentFg }]}>{acct.name.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.avatarText}>{acct.name.charAt(0).toUpperCase()}</Text>
             </View>
             <Text style={styles.cardName} numberOfLines={1}>{acct.name}</Text>
           </TouchableOpacity>
@@ -129,8 +131,8 @@ export default function ProfileSelectorScreen({ navigation }) {
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modal}>
-            <View style={[styles.avatar, { width: 64, height: 64, borderRadius: radius.pill }]}>
-              <Text style={[styles.avatarText, { fontSize: 24, color: colors.accentFg }]}>
+            <View style={[styles.avatar, { width: 64, height: 64, borderRadius: 32 }]}>
+              <Text style={[styles.avatarText, { fontSize: 24 }]}>
                 {selectedName.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -166,12 +168,22 @@ export default function ProfileSelectorScreen({ navigation }) {
   );
 }
 
-const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+/**
+ * Cet écran était entièrement figé sur un fond sombre écrit en dur
+ * (`#0f1015`, `#16171f`, `#232430`…), alors qu'il est l'entrée de
+ * l'application : il s'affichait en nocturne chez quelqu'un dont le
+ * téléphone est en mode jour, sans aucun moyen de le changer.
+ *
+ * Les valeurs viennent donc de la palette. Les filets remplacent les
+ * contours, et le bleu d'accent est l'accent réellement choisi par
+ * l'utilisateur plutôt que l'ancien `#3b82f6`.
+ */
+const createStyles = (cp, cpad, cardP, br, c) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: c.bg },
 
   head: { alignItems: 'center', paddingTop: 50, paddingBottom: 32 },
   logo: { width: 140, height: 140, marginBottom: 8 },
-  tagline: { fontSize: 14, color: colors.inkMid, marginTop: 6 },
+  tagline: { fontSize: 14, color: c.inkMid, marginTop: 6 },
 
   grid: {
     flexDirection: 'row',
@@ -184,56 +196,58 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
     alignSelf: 'center',
   },
 
+  // Un filet au lieu d'une carte encadrée : c'est la grammaire de « le
+  // carnet », et cela reste lisible en mode jour comme en mode nuit.
   card: {
     width: 100,
     alignItems: 'center',
     paddingVertical: 18,
-    borderRadius: radius.lg,
-    backgroundColor: colors.card,
+    borderRadius: br,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.rule,
   },
-  addCard: { borderStyle: 'dashed' },
+  addCard: { borderStyle: 'dashed', borderColor: c.ruleStrong },
 
   avatar: {
     width: 56,
     height: 56,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    borderRadius: 28,
+    backgroundColor: c.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
-  avatarText: { fontSize: 22, fontWeight: 'bold' },
-  addAvatar: { backgroundColor: colors.sunken },
-  addIcon: { fontSize: 24, color: colors.inkMid, fontWeight: '300' },
+  avatarText: { fontSize: 22, fontWeight: 'bold', color: c.accentFg },
+  addAvatar: { backgroundColor: c.sunken },
+  addIcon: { fontSize: 24, color: c.inkMid, fontWeight: '300' },
 
-  cardName: { fontSize: 13, fontWeight: '600', color: colors.ink, textAlign: 'center', maxWidth: 84 },
-  addLabel: { ...type.micro, color: colors.inkMid, textAlign: 'center' },
+  cardName: { fontSize: 13, fontWeight: '600', color: c.ink, textAlign: 'center', maxWidth: 84 },
+  addLabel: { fontSize: 11, fontWeight: '500', color: c.inkMid, textAlign: 'center' },
 
   overlay: {
     flex: 1,
-    backgroundColor: colors.overlay,
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modal: {
     width: 300,
-    borderRadius: radius.lg,
-    backgroundColor: colors.card,
+    borderRadius: br,
+    backgroundColor: c.card,
     padding: 28,
     alignItems: 'center',
   },
-  modalTitle: { ...type.title, color: colors.ink, marginTop: 10, marginBottom: 4 },
-  modalSub: { fontSize: 13, color: colors.inkMid, marginBottom: 22 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: c.ink, marginTop: 10, marginBottom: 4 },
+  modalSub: { fontSize: 13, color: c.inkMid, marginBottom: 22 },
 
   dots: { flexDirection: 'row', gap: 12, marginBottom: 26 },
   dot: {
-    width: 14, height: 14, borderRadius: radius.pill,
-    backgroundColor: colors.sunken,
-    borderWidth: 1.5, borderColor: colors.accent,
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: c.sunken,
+    borderWidth: 1.5, borderColor: c.rule,
   },
-  dotFill: { backgroundColor: colors.accent },
+  dotFill: { backgroundColor: c.accent, borderColor: c.accent },
 
   pad: {
     flexDirection: 'row',
@@ -244,10 +258,10 @@ const createStyles = (cp, cpad, cardP, br, colors) => StyleSheet.create({
   },
   key: {
     width: 70, height: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.sunken,
+    borderRadius: 14,
+    backgroundColor: c.sunken,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  keyText: { fontSize: 22, fontWeight: '600', color: colors.ink },
+  keyText: { fontSize: 22, fontWeight: '600', color: c.ink },
 });

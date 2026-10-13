@@ -8,6 +8,7 @@ import { verifyPassword, hashPin, verifyPin, storePinHash, getStoredPinHash, rem
 import { safeAsyncRead, safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncWrite, safeAsyncRemove, validateTransaction, filterValidRecords } from '../utils/storage';
 import { secureSet, secureGet, secureGetJSON, secureRemove, initSecureStorage } from '../utils/secureStorage';
 import { sync, mergeRecords } from '../utils/sync';
+import { supabase } from '../utils/supabase';
 import Constants from 'expo-constants';
 
 let Notifications = null;
@@ -152,9 +153,11 @@ export function FinanceProvider({ children }) {
         lastDay.setDate(0);
         lastDay.setHours(20, 0, 0, 0);
       }
+      // `type` est obligatoire (parseTrigger exige `type` ou `channelId`) :
+      // sans lui, la planification lève une TypeError avalée par le catch.
       await Notifications.scheduleNotificationAsync({
         content: { title: 'Bilan mensuel Orane.d', body: 'Découvre ton bilan financier du mois !' },
-        trigger: { date: lastDay, channelId: 'monthly-review' },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: lastDay },
       });
     } catch (_) {
       Notifications = false;
@@ -175,6 +178,12 @@ export function FinanceProvider({ children }) {
     }
 
     setIsUserDataLoaded(false);
+
+    // Garde anti-course : si l'utilisateur change pendant que ce chargement est
+    // en vol (pull réseau lent), l'ancien compte ne doit plus toucher l'état —
+    // sinon ses données s'affichent chez B et `lastSavedUserId` bloque toutes
+    // les sauvegardes de B jusqu'au redémarrage.
+    let alive = true;
 
     const loadUserData = async () => {
       try {
@@ -197,13 +206,15 @@ export function FinanceProvider({ children }) {
 
         await sync.init(userId);
         const cloudTx = await sync.pull('transactions');
+        if (!alive) return;
         if (cloudTx.length > 0) {
-          localTx = mergeRecords(localTx, cloudTx);
+          localTx = mergeRecords(localTx, filterValidRecords(cloudTx, validateTransaction));
         }
 
         setTransactions(localTx);
 
         const storedBudget = await safeAsyncReadJSON(`@oraned_budget_limit_${userId}`, null);
+        if (!alive) return;
         if (storedBudget !== null) {
           setBudgetLimit(Number(storedBudget));
         } else {
@@ -217,9 +228,11 @@ export function FinanceProvider({ children }) {
         }
 
         const storedStartDate = await safeAsyncRead('@oraned_budget_start_date', null);
+        if (!alive) return;
         if (storedStartDate) setBudgetStartDate(storedStartDate);
 
         const storedHash = await getStoredPinHash(userId);
+        if (!alive) return;
         if (storedHash) {
           setHasPinCode(true);
         } else {
@@ -228,24 +241,32 @@ export function FinanceProvider({ children }) {
             const hashed = await hashPin(legacyPin);
             await storePinHash(userId, hashed);
             await safeAsyncRemove(`@oraned_pin_${userId}`);
+            if (!alive) return;
             setHasPinCode(true);
           } else {
             setHasPinCode(false);
           }
         }
 
+        if (!alive) return;
         lastSavedUserId.current = userId;
       } catch (err) {
+        if (!alive) return;
         console.error('[FinanceContext] Erreur chargement données utilisateur :', err);
         setTransactions([]);
         setBudgetLimit(0);
       } finally {
-        setIsUserDataLoaded(true);
-        scheduleMonthlyReview();
+        if (alive) {
+          setIsUserDataLoaded(true);
+          scheduleMonthlyReview();
+        }
       }
     };
 
     loadUserData();
+    return () => {
+      alive = false;
+    };
   }, [userId, scheduleMonthlyReview]);
 
   const changeGlobalLanguage = async (langValue) => {
@@ -330,13 +351,20 @@ export function FinanceProvider({ children }) {
     if (!userId) return false;
     const users = await safeAsyncReadJSON('@oraned_all_users', []);
     const found = users.find((u) => u.email === userId);
-    if (!found) return false;
-    const isHashed = typeof found.password === 'string' && found.password.includes(':');
-    let isValid;
-    if (!isHashed) {
-      isValid = found.password === password;
+    let isValid = false;
+    if (found) {
+      const isHashed = typeof found.password === 'string' && found.password.includes(':');
+      isValid = isHashed ? await verifyPassword(password, found.password) : found.password === password;
     } else {
-      isValid = await verifyPassword(password, found.password);
+      // Compte Supabase sans hash local (session restaurée avant que le compte
+      // n'ait été mémorisé) : on vérifie le mot de passe via l'API d'auth.
+      // `userId` vaut l'email (AuthContext) — échec réseau ⇒ false, comme avant.
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email: userId, password });
+        isValid = !error;
+      } catch (e) {
+        isValid = false;
+      }
     }
     if (!isValid) return false;
     const hashed = await hashPin(newPin);
@@ -456,11 +484,11 @@ export function FinanceProvider({ children }) {
   useEffect(() => {
     if (!isLoaded || !userId) return;
     if (lastSavedUserId.current !== userId) return;
-    safeAsyncWriteJSON(`@oraned_transactions_${userId}`, transactions).then(() => {
-      sync.push('transactions', transactions);
-    }).catch(
-      (err) => console.error('[FinanceContext] Erreur sauvegarde transactions :', err)
-    );
+    safeAsyncWriteJSON(`@oraned_transactions_${userId}`, transactions)
+      .then(() => sync.push('transactions', transactions))
+      .catch(
+        (err) => console.error('[FinanceContext] Erreur sauvegarde transactions :', err)
+      );
   }, [transactions, isLoaded, userId]);
 
   useEffect(() => {
@@ -500,11 +528,13 @@ export function FinanceProvider({ children }) {
   }, [budgetPeriod, isLoaded]);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    // `userId` obligatoire : à la déconnexion, `setBudgetStartDate(null)`
+    // remonterait cet effet et effacerait la clé globale du réglage.
+    if (!isLoaded || !userId) return;
     safeAsyncWrite('@oraned_budget_start_date', budgetStartDate).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde date début budget :', err)
     );
-  }, [budgetStartDate, isLoaded]);
+  }, [budgetStartDate, isLoaded, userId]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -544,14 +574,20 @@ export function FinanceProvider({ children }) {
   };
 
   const deleteTransaction = (id) => {
+    // L'upsert du push suivant ne supprime rien côté serveur : sans cet appel,
+    // la transaction réapparaîtrait au prochain `sync.pull`.
+    sync.remove('transactions', [id]);
     setTransactions((prev) => (prev || []).filter((t) => t.id !== id));
   };
 
   const deleteMultipleTransactions = (ids) => {
+    if (ids && ids.length) sync.remove('transactions', ids);
     setTransactions((prev) => (prev || []).filter((t) => !ids.includes(t.id)));
   };
 
   const resetAllTransactions = () => {
+    const ids = (transactions || []).map((t) => t.id);
+    if (ids.length) sync.remove('transactions', ids);
     setTransactions([]);
   };
 

@@ -1,36 +1,61 @@
-import React, { useState, useMemo } from 'react';
+/**
+ * Dettes & Prêts premium.
+ *
+ * LOGIQUE INCHANGÉE : onglets par type, totaux, remboursement (avec ou
+ * sans écriture de transaction), suppression, formulaire. Nouveau rendu :
+ * onglets animés traduits, avatars à initiales, jauge de remboursement,
+ * pastille d'échéance (J-n, alerte si proche ou dépassée), swipe gauche
+ * pour rembourser / swipe droit pour supprimer, fiche détail avec
+ * timeline. Les libellés FR codés en dur ont été externalisés en Phase 6.
+ */
+import React, { useState, useMemo, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Trash2, Plus, Check, X } from 'lucide-react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Trash2, Plus, Check, X, Handshake } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
-import { DEBT_TABS, DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
+import { DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DebtFormModal from '../components/DebtFormModal';
+import DebtDetailScreen, { dueInfo } from './DebtDetailScreen';
 import { useResponsive } from '../../utils/responsive';
-import { radius } from '../theme/tokens';
-import { type, tabular } from '../theme/type';
+import { useTranslation } from '../../utils/LanguageManager';
 import { useColors } from '../theme';
+import { typography } from '../theme/typography';
+import { radius } from '../theme/tokens';
+import {
+  AmountText, Avatar, Badge, Button, EmptyState, Input,
+  ProgressBar, SegmentedControl,
+} from '../components/ui';
 
 export default function DebtsScreen({ onClose }) {
-  const { accentColor, devise, addTransaction } = useFinance();
+  const { accentColor, devise, addTransaction, isDiscreteMode } = useFinance();
   const { debts, deleteDebt, markReimbursed } = useDebts();
-  const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
-  const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
+  const { contentMaxWidth, contentPadding } = useResponsive();
+  const styles = createStyles(contentMaxWidth, contentPadding);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState(DEBT_TYPES.CREDIT_ACCORDE);
   const [showForm, setShowForm] = useState(false);
   const [editDebt, setEditDebt] = useState(null);
   const [showReimburse, setShowReimburse] = useState(null);
   const [reimburseAmount, setReimburseAmount] = useState('');
+  const [detailDebt, setDetailDebt] = useState(null);
+  const swipeRefs = useRef({});
 
   const colors = useColors();
 
-  const filtered = useMemo(() =>
-    debts.filter((d) => d.type === activeTab),
+  const tabs = [
+    { value: DEBT_TYPES.CREDIT_ACCORDE, label: t('a_recevoir') },
+    { value: DEBT_TYPES.CREDIT_RECU, label: t('a_rembourser') },
+  ];
+
+  const filtered = useMemo(
+    () => debts.filter((d) => d.type === activeTab),
     [debts, activeTab]
   );
 
@@ -38,30 +63,46 @@ export default function DebtsScreen({ onClose }) {
     .filter((d) => d.status !== DEBT_STATUS.REMBOURSEE)
     .reduce((s, d) => s + (toNumber(d.amount) - toNumber(d.amountReimbursed)), 0);
 
+  const closeSwipe = (id) => swipeRefs.current[id]?.close?.();
+
+  const openReimburse = (debt) => {
+    closeSwipe(debt.id);
+    setDetailDebt(null);
+    setShowReimburse(debt);
+    setReimburseAmount('');
+  };
+
   const handleReimburseConfirm = () => {
     const amount = toNumber(reimburseAmount);
     const debt = showReimburse;
     if (amount <= 0) {
-      Alert.alert('Montant invalide', 'Entrez un montant supérieur à 0.');
+      Alert.alert(t('montant_invalide'), t('veuillez_montant'));
       return;
     }
     const remaining = toNumber(debt.amount) - toNumber(debt.amountReimbursed);
     if (amount > remaining) {
-      Alert.alert('Montant trop élevé', `Il reste ${remaining}${deviseSymbol} à rembourser.`);
+      Alert.alert(
+        t('montant_invalide'),
+        `${t('reste_rembourser')} ${remaining.toLocaleString('fr-FR')}${deviseSymbol}`
+      );
       return;
     }
 
     Alert.alert(
-      'Créer une transaction ?',
-      `Ajouter une transaction réelle de ${amount}${deviseSymbol} ?\n\nSi l'argent a déjà été échangé hors-appli, vous pouvez laisser "Non".`,
+      t('creer_transaction'),
+      t('ajouter_transaction_reelle').replace('{x}', `${amount.toLocaleString('fr-FR')}${deviseSymbol}`),
       [
-        { text: 'Non, juste marquer', style: 'cancel', onPress: async () => {
-          await markReimbursed(debt.id, amount);
-          setShowReimburse(null);
-          setReimburseAmount('');
-        }},
         {
-          text: 'Oui, créer la transaction',
+          text: t('non_juste_marquer'),
+          style: 'cancel',
+          onPress: async () => {
+            await markReimbursed(debt.id, amount);
+            setShowReimburse(null);
+            setReimburseAmount('');
+          },
+        },
+        {
+          text: t('oui_creer_transaction'),
           onPress: async () => {
             await markReimbursed(debt.id, amount);
             const isCreditRecu = debt.type === DEBT_TYPES.CREDIT_RECU;
@@ -85,131 +126,163 @@ export default function DebtsScreen({ onClose }) {
   };
 
   const handleDelete = (d) => {
+    closeSwipe(d.id);
     Alert.alert(
-      'Supprimer cette dette ?',
-      `Cela ne peut pas être annulé.`,
+      t('supprimer'),
+      `"${d.personName}" ?\n${t('action_irreversible')}`,
       [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => deleteDebt(d.id) },
+        { text: t('annuler'), style: 'cancel' },
+        { text: t('supprimer'), style: 'destructive', onPress: () => deleteDebt(d.id) },
       ]
     );
   };
 
-  const statusColor = (s) => {
-    if (s === DEBT_STATUS.REMBOURSEE) return colors.green;
-    if (s === DEBT_STATUS.PARTIELLE) return colors.orange;
-    return colors.text;
+  const statusBadge = (d) => {
+    if (d.status === DEBT_STATUS.REMBOURSEE) return { label: t('statut_remboursee'), tone: 'income' };
+    if (d.status === DEBT_STATUS.PARTIELLE) return { label: t('statut_partielle'), tone: 'warning' };
+    return { label: t('statut_en_cours'), tone: 'neutral' };
   };
 
-  const statusLabel = (s) => {
-    if (s === DEBT_STATUS.REMBOURSEE) return 'Remboursée';
-    if (s === DEBT_STATUS.PARTIELLE) return 'Partielle';
-    return 'En cours';
-  };
+  if (detailDebt) {
+    const live = debts.find((d) => d.id === detailDebt.id) || detailDebt;
+    return (
+      <DebtDetailScreen
+        debt={live}
+        deviseSymbol={deviseSymbol}
+        onClose={() => setDetailDebt(null)}
+        onReimburse={openReimburse}
+        onEdit={(d) => { setDetailDebt(null); setEditDebt(d); setShowForm(true); }}
+        onDelete={(d) => { setDetailDebt(null); handleDelete(d); }}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <X size={22} color={colors.text} />
+      <View style={[styles.header, { borderBottomColor: colors.rule }]}>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('annuler')}>
+          <X size={22} color={colors.ink} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Dettes & Prêts</Text>
-        <TouchableOpacity onPress={() => { setEditDebt(null); setShowForm(true); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Text style={[typography.title, { color: colors.ink }]}>{t('dettes_titre')}</Text>
+        <TouchableOpacity
+          onPress={() => { setEditDebt(null); setShowForm(true); }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('ajouter_dette')}
+        >
           <Plus size={22} color={accentColor} />
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.tabRow, { borderBottomColor: colors.border }]}>
-        {DEBT_TABS.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabBtn, active && { borderBottomColor: accentColor, borderBottomWidth: 2 }]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <Text style={[styles.tabIcon]}>{tab.icon}</Text>
-              <Text style={[styles.tabLabel, { color: active ? accentColor : colors.subText }]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={styles.tabs}>
+        <SegmentedControl
+          options={tabs}
+          value={activeTab}
+          onChange={(v) => setActiveTab(v)}
+          accessibilityLabel={t('dettes_titre')}
+        />
       </View>
 
       <View style={[styles.summaryBar, { backgroundColor: colors.card }]}>
-        <Text style={[styles.summaryLabel, { color: colors.subText }]}>Reste à {activeTab === DEBT_TYPES.CREDIT_ACCORDE ? 'recevoir' : 'rembourser'}</Text>
-        <Text style={[styles.summaryValue, { color: accentColor }]}>
-          {activeTotal.toLocaleString()} {deviseSymbol}
+        <Text style={[typography.caption, { color: colors.inkMid }]}>
+          {activeTab === DEBT_TYPES.CREDIT_ACCORDE ? t('a_recevoir') : t('a_rembourser')}
         </Text>
+        <AmountText value={activeTotal} size="amount" currency={deviseSymbol} masked={isDiscreteMode} />
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 && (
-          <View style={styles.empty}>
-            <Text style={{ fontSize: 28, marginBottom: 10 }}>{activeTab === DEBT_TYPES.CREDIT_ACCORDE ? '💸' : '💳'}</Text>
-            <Text style={[styles.emptyText, { color: colors.subText }]}>
-              Aucune dette dans cette catégorie.
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyBtn, { borderColor: accentColor }]}
-              onPress={() => { setEditDebt(null); setShowForm(true); }}
-            >
-              <Text style={[styles.emptyBtnText, { color: accentColor }]}>Ajouter une dette</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            illustration={
+              <View style={[styles.emptyCircle, { backgroundColor: colors.accentSoft }]}>
+                <Handshake color={colors.accent} size={30} />
+              </View>
+            }
+            title={t('aucune_dette')}
+            actionLabel={t('ajouter_dette')}
+            onAction={() => { setEditDebt(null); setShowForm(true); }}
+          />
         )}
 
         {filtered.map((d) => {
           const remaining = toNumber(d.amount) - toNumber(d.amountReimbursed);
           const isSettled = d.status === DEBT_STATUS.REMBOURSEE;
+          const badge = statusBadge(d);
+          const due = dueInfo(d);
           return (
-            <View
+            <Swipeable
               key={d.id}
-              style={[styles.debtCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: isSettled ? 0.5 : 1 }]}
+              ref={(ref) => { if (ref) swipeRefs.current[d.id] = ref; }}
+              overshootLeft={false}
+              overshootRight={false}
+              onSwipeableOpen={(dir) => {
+                if (dir === 'left' && !isSettled) openReimburse(d);
+                if (dir === 'right') handleDelete(d);
+              }}
+              renderRightActions={() => !isSettled ? (
+                <TouchableOpacity
+                  style={[styles.swipeAction, { backgroundColor: colors.income }]}
+                  onPress={() => openReimburse(d)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('marquer_remboursement')}
+                >
+                  <Check size={20} color="#ffffff" />
+                </TouchableOpacity>
+              ) : null}
+              renderLeftActions={() => (
+                <TouchableOpacity
+                  style={[styles.swipeAction, { backgroundColor: colors.danger }]}
+                  onPress={() => handleDelete(d)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('supprimer')}
+                >
+                  <Trash2 size={20} color="#ffffff" />
+                </TouchableOpacity>
+              )}
             >
-              <TouchableOpacity style={{ flex: 1 }} onPress={() => {
-                if (!isSettled) { setEditDebt(d); setShowForm(true); }
-              }}>
-                <View style={styles.debtHeader}>
-                  <Text style={[styles.personName, { color: colors.text }]}>{d.personName}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: statusColor(d.status) + '20' }]}>
-                    <Text style={[styles.statusText, { color: statusColor(d.status) }]}>{statusLabel(d.status)}</Text>
+              <TouchableOpacity
+                style={[styles.debtCard, { backgroundColor: colors.card, opacity: isSettled ? 0.55 : 1 }]}
+                onPress={() => setDetailDebt(d)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={d.personName}
+              >
+                <Avatar name={d.personName} size={44} />
+                <View style={styles.debtMain}>
+                  <View style={styles.debtHead}>
+                    <Text style={[typography.bodyStrong, { color: colors.ink }]} numberOfLines={1}>
+                      {d.personName}
+                    </Text>
+                    <Badge label={badge.label} tone={badge.tone} />
+                  </View>
+                  <AmountText value={d.amount} size="amount" tone={isSettled ? 'faint' : 'ink'} currency={deviseSymbol} masked={isDiscreteMode} />
+                  {toNumber(d.amountReimbursed) > 0 && !isSettled && (
+                    <ProgressBar
+                      value={toNumber(d.amountReimbursed)}
+                      max={Math.max(toNumber(d.amount), 1)}
+                      color={colors.warning}
+                      height={4}
+                      style={styles.gauge}
+                    />
+                  )}
+                  <View style={styles.debtMeta}>
+                    {toNumber(d.amountReimbursed) > 0 && !isSettled && (
+                      <Text style={[typography.caption, { color: colors.inkMid }]} numberOfLines={1}>
+                        {t('reste_a_rembourser')} : {remaining.toLocaleString('fr-FR')} {deviseSymbol}
+                      </Text>
+                    )}
+                    {due && !isSettled && (
+                      <Badge
+                        label={due.days < 0
+                          ? `${t('en_retard')} J+${-due.days}`
+                          : `J-${due.days}`}
+                        tone={due.days < 0 ? 'expense' : due.days <= 7 ? 'warning' : 'neutral'}
+                      />
+                    )}
                   </View>
                 </View>
-                <Text style={[styles.debtAmount, { color: isSettled ? colors.subText : colors.text }]}>
-                  {d.amount.toLocaleString()} {deviseSymbol}
-                </Text>
-                {d.amountReimbursed > 0 && (
-                  <Text style={[styles.reimbursedText, { color: colors.subText }]}>
-                    Remboursé : {d.amountReimbursed.toLocaleString()} {deviseSymbol} / Reste : {remaining.toLocaleString()} {deviseSymbol}
-                  </Text>
-                )}
-                {d.dueDate && (
-                  <Text style={[styles.dueDate, { color: colors.subText }]}>
-                    Échéance : {new Date(d.dueDate).toLocaleDateString('fr-FR')}
-                  </Text>
-                )}
-                {d.note ? <Text style={[styles.note, { color: colors.subText }]}>{d.note}</Text> : null}
               </TouchableOpacity>
-
-              <View style={styles.debtActions}>
-                {!isSettled && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: colors.green + '20' }]}
-                    onPress={() => { setShowReimburse(d); setReimburseAmount(''); }}
-                  >
-                    <Check size={16} color={colors.green} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.red + '20' }]}
-                  onPress={() => handleDelete(d)}
-                >
-                  <Trash2 size={16} color={colors.red} />
-                </TouchableOpacity>
-              </View>
-            </View>
+            </Swipeable>
           );
         })}
       </ScrollView>
@@ -222,27 +295,23 @@ export default function DebtsScreen({ onClose }) {
       />
 
       <Modal visible={!!showReimburse} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modalBg }]}>
           <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Marquer un remboursement</Text>
-            <Text style={[styles.modalSub, { color: colors.subText }]}>
-              Pour {showReimburse?.personName} — Reste : {toNumber(showReimburse?.amount) - toNumber(showReimburse?.amountReimbursed)} {deviseSymbol}
+            <Text style={[typography.subtitle, { color: colors.ink }]}>{t('marquer_remboursement')}</Text>
+            <Text style={[typography.body, styles.modalSub, { color: colors.inkMid }]}>
+              {showReimburse?.personName} · {t('reste')} : {(toNumber(showReimburse?.amount) - toNumber(showReimburse?.amountReimbursed)).toLocaleString('fr-FR')} {deviseSymbol}
             </Text>
-            <TextInput
-              style={[styles.reimburseInput, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
+            <Input
               value={reimburseAmount}
               onChangeText={setReimburseAmount}
               keyboardType="decimal-pad"
-              placeholder="Montant remboursé"
-              placeholderTextColor={colors.subText}
+              numeric
+              placeholder={t('montant_rembourse')}
+              accessibilityLabel={t('montant_rembourse')}
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.input }]} onPress={() => setShowReimburse(null)}>
-                <Text style={{ color: colors.subText, fontWeight: '600' }}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: accentColor }]} onPress={handleReimburseConfirm}>
-                <Text style={{ color: colors.accentFg, fontWeight: '600' }}>Confirmer</Text>
-              </TouchableOpacity>
+              <Button label={t('annuler')} variant="secondary" flex onPress={() => setShowReimburse(null)} />
+              <Button label={t('confirmer')} flex onPress={handleReimburseConfirm} />
             </View>
           </View>
         </View>
@@ -251,56 +320,32 @@ export default function DebtsScreen({ onClose }) {
   );
 }
 
-const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
+const createStyles = (cp, cpad) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: cpad, paddingVertical: 16, borderBottomWidth: 1,
     maxWidth: cp, width: '100%', alignSelf: 'center',
   },
-  headerTitle: { ...type.title },
-  tabRow: {
-    flexDirection: 'row', borderBottomWidth: 1,
-    maxWidth: cp, width: '100%', alignSelf: 'center',
-  },
-  tabBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 14, flexDirection: 'row', justifyContent: 'center', gap: 6,
-  },
-  tabIcon: { fontSize: 16 },
-  tabLabel: { fontSize: 13, fontWeight: '600' },
+  tabs: { paddingHorizontal: cpad, paddingTop: 14, maxWidth: cp, width: '100%', alignSelf: 'center' },
   summaryBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: cpad, paddingVertical: 14, marginHorizontal: cpad, marginTop: 12,
-    borderRadius: br,
+    borderRadius: radius.md,
   },
-  summaryLabel: { fontSize: 13, fontWeight: '600' },
-  summaryValue: { ...type.figure, ...tabular, fontSize: 18 },
-  list: { paddingHorizontal: cpad, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
-  empty: { alignItems: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 14, textAlign: 'center', marginBottom: 16 },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed' },
-  emptyBtnText: { fontSize: 13, fontWeight: '600' },
+  list: { paddingHorizontal: cpad, paddingTop: 12, paddingBottom: 40, maxWidth: cp, width: '100%', alignSelf: 'center' },
+  emptyCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   debtCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 16,
-    borderRadius: radius.md, marginBottom: 10, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14, borderRadius: radius.md, marginBottom: 10,
   },
-  debtHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  personName: { ...type.heading },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.xs },
-  statusText: { ...type.micro },
-  debtAmount: { ...type.amount, ...tabular, fontSize: 18, marginBottom: 2 },
-  reimbursedText: { fontSize: 12, marginTop: 2 },
-  dueDate: { fontSize: 12, marginTop: 2 },
-  note: { fontSize: 11, fontStyle: 'italic', marginTop: 4 },
-  debtActions: { gap: 8, marginLeft: 12 },
-  actionBtn: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  debtMain: { flex: 1, minWidth: 0, gap: 4 },
+  debtHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  gauge: { marginTop: 6 },
+  debtMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 },
+  swipeAction: { width: 72, borderRadius: radius.md, marginBottom: 10, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalCard: { width: '85%', maxWidth: 340, borderRadius: radius.lg, padding: 24 },
-  modalTitle: { ...type.title, marginBottom: 6 },
-  modalSub: { fontSize: 13, marginBottom: 16, lineHeight: 18 },
-  reimburseInput: {
-    height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '600',
-  },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  modalBtn: { flex: 1, paddingVertical: 12, borderRadius: radius.sm, alignItems: 'center' },
+  modalCard: { width: '85%', maxWidth: 340, borderRadius: 20, padding: 20, gap: 4 },
+  modalSub: { marginTop: 4, marginBottom: 12 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
 });

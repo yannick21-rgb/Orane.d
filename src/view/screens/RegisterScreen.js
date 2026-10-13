@@ -18,8 +18,6 @@ import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useResponsive } from '../../utils/responsive';
-import { radius } from '../theme/tokens';
-import { type } from '../theme/type';
 import { useColors } from '../theme';
 
 export default function RegisterScreen({ onSwitchToLogin }) {
@@ -39,9 +37,9 @@ export default function RegisterScreen({ onSwitchToLogin }) {
   const colors = useColors();
 
   const validatePassword = (pw) => {
-    if (pw.length < 6) return 'Le mot de passe doit contenir au moins 6 caractères.';
-    if (!/[a-zA-Z]/.test(pw)) return 'Le mot de passe doit contenir au moins une lettre.';
-    if (!/[0-9]/.test(pw)) return 'Le mot de passe doit contenir au moins un chiffre.';
+    if (pw.length < 6) return t('mdp_6');
+    if (!/[a-zA-Z]/.test(pw)) return t('mdp_lettre');
+    if (!/[0-9]/.test(pw)) return t('mdp_chiffre');
     return null;
   };
 
@@ -50,24 +48,24 @@ export default function RegisterScreen({ onSwitchToLogin }) {
     const cleanName = name.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!cleanName || !cleanEmail || !password.trim() || !confirmPassword.trim()) {
-      Alert.alert(t('erreur'), 'Veuillez remplir tous les champs.');
+      Alert.alert(t('erreur'), t('champ_vide'));
       return;
     }
     if (!emailRegex.test(cleanEmail)) {
-      Alert.alert(t('erreur'), "Format d'email invalide.");
+      Alert.alert(t('erreur'), t('email_invalide'));
       return;
     }
     if (cleanName.length < 2) {
-      Alert.alert(t('erreur'), 'Le nom doit contenir au moins 2 caractères.');
+      Alert.alert(t('erreur'), t('nom_trop_court'));
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert(t('erreur'), 'Les mots de passe ne correspondent pas.');
+      Alert.alert(t('erreur'), t('mdp_differents'));
       return;
     }
     const pwError = validatePassword(password);
     if (pwError) {
-      Alert.alert('Mot de passe faible', pwError);
+      Alert.alert(t('mdp_faible_titre'), pwError);
       return;
     }
     setLoading(true);
@@ -75,15 +73,15 @@ export default function RegisterScreen({ onSwitchToLogin }) {
       const result = await register(cleanName, cleanEmail, password);
       if (result?.needsConfirmation) {
         Alert.alert(
-          'Vérifie ton email',
-          "Un email de confirmation a été envoyé à " + cleanEmail + ". Clique sur le lien puis connecte-toi."
+          t('verifier_email_titre'),
+          t('verifier_email_msg').replace('{email}', cleanEmail)
         );
       } else {
-        Alert.alert('Bienvenue', 'Compte créé avec succès !');
+        Alert.alert(t('bienvenue'), t('compte_cree'));
       }
       onSwitchToLogin();
     } catch (e) {
-      Alert.alert(t('erreur'), e.message || "Erreur lors de l'inscription.");
+      Alert.alert(t('erreur'), t('erreur_inscription'));
     } finally {
       setLoading(false);
     }
@@ -104,13 +102,13 @@ export default function RegisterScreen({ onSwitchToLogin }) {
           <View style={styles.headerSection}>
             <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
             <Text style={[styles.subtitle, { color: colors.subText }]}>
-              {t('Créer un compte') || 'Créez votre compte'}
+              {t('creer_un_compte')}
             </Text>
           </View>
 
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.label, { color: colors.subText }]}>
-              {t('Nom complet') || 'Nom complet'}
+              {t('nom_complet')}
             </Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
@@ -136,7 +134,7 @@ export default function RegisterScreen({ onSwitchToLogin }) {
             />
 
             <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>
-              {t('Mot de passe') || 'Mot de passe'}
+              {t('mot_de_passe')}
             </Text>
             <View style={[styles.pwContainer, { backgroundColor: colors.input, borderColor: colors.border }]}>
               <TextInput
@@ -148,13 +146,18 @@ export default function RegisterScreen({ onSwitchToLogin }) {
                 placeholderTextColor={colors.subText}
                 returnKeyType="next"
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('mot_de_passe')}
+              >
                 {showPassword ? <EyeOff size={20} color={colors.subText} /> : <Eye size={20} color={colors.subText} />}
               </TouchableOpacity>
             </View>
 
             <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>
-              {t('Confirmer le mot de passe') || 'Confirmer le mot de passe'}
+              {t('confirmer_mot_de_passe')}
             </Text>
             <View style={[styles.pwContainer, { backgroundColor: colors.input, borderColor: colors.border }]}>
               <TextInput
@@ -167,7 +170,12 @@ export default function RegisterScreen({ onSwitchToLogin }) {
                 returnKeyType="done"
                 onSubmitEditing={handleRegister}
               />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.eyeBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('confirmer_mot_de_passe')}
+              >
                 {showConfirmPassword ? <EyeOff size={20} color={colors.subText} /> : <Eye size={20} color={colors.subText} />}
               </TouchableOpacity>
             </View>
@@ -182,7 +190,7 @@ export default function RegisterScreen({ onSwitchToLogin }) {
                 <ActivityIndicator color={colors.accentFg} />
               ) : (
                 <Text style={[styles.primaryBtnText, { color: colors.accentFg }]}>
-                  {t("S'inscrire") || "S'inscrire"}
+                  {t('s_inscrire')}
                 </Text>
               )}
             </TouchableOpacity>
@@ -190,10 +198,10 @@ export default function RegisterScreen({ onSwitchToLogin }) {
 
           <TouchableOpacity onPress={onSwitchToLogin} style={styles.switchRow}>
             <Text style={[styles.switchText, { color: colors.subText }]}>
-              {t('Déjà un compte ?') || 'Déjà un compte ?'}
+              {t('deja_un_compte')}
             </Text>
             <Text style={[styles.switchLink, { color: accentColor }]}>
-              {' '}{t('Se connecter') || 'Se connecter'}
+              {' '}{t('se_connecter')}
             </Text>
           </TouchableOpacity>
 
@@ -220,19 +228,21 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginBottom: 32,
   },
   logo: { width: 120, height: 120, marginBottom: 16 },
-  subtitle: { ...type.label, fontSize: 14, marginTop: 6 },
+  subtitle: { fontSize: 14, marginTop: 6 },
   card: {
     padding: cardP,
     borderRadius: br,
     borderWidth: 1,
   },
   label: {
-    ...type.label,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
     marginBottom: 8,
   },
   input: {
     padding: 16,
-    borderRadius: radius.md,
+    borderRadius: 16,
     fontSize: 16,
     fontWeight: '500',
     borderWidth: 1,
@@ -240,7 +250,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   pwContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.md,
+    borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 16,
   },
@@ -256,7 +266,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   primaryBtn: {
     height: 56,
-    borderRadius: radius.lg,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,

@@ -2,6 +2,17 @@
 -- Migration Supabase — Orane.d FinanceTracker
 -- Phase 2 : Connexion multi-appareil
 -- Exécuter dans l'éditeur SQL du dashboard Supabase
+--
+-- INSTALLATION PROPRE (base vierge).
+-- Base existante créée avec l'ancien schéma (snake_case + id UUID) :
+--   → exécuter supabase-migration-2026-10-08.sql à la place.
+--
+-- Les colonnes des 3 tables de données reflètent EXACTEMENT les objets
+-- envoyés par l'app (camelCase : personName, momoNetwork, groupName…).
+-- Les ids locaux sont des chaînes Date.now() propres à l'appareil :
+--   → id TEXT (pas UUID) et clé primaire composite (user_id, id),
+--     l'unicité étant par utilisateur.
+-- Tout envoi d'une colonne inconnue ferait échouer l'upsert entier.
 -- ============================================================
 
 -- --------------------------------------------------
@@ -19,60 +30,67 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 -- Transactions
 CREATE TABLE IF NOT EXISTS transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL,
-  type TEXT NOT NULL,
-  amount NUMERIC NOT NULL,
+  id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  type TEXT,
+  amount NUMERIC DEFAULT 0,
   wallet TEXT DEFAULT 'momo',
   category TEXT DEFAULT '',
   title TEXT DEFAULT '',
   description TEXT DEFAULT '',
-  note TEXT DEFAULT '',
+  note TEXT,
   date TEXT DEFAULT '',
-  momoFee NUMERIC DEFAULT 0,
+  "momoNetwork" TEXT,
+  "momoFee" NUMERIC DEFAULT 0,
   frais NUMERIC DEFAULT 0,
-  amountReceived NUMERIC DEFAULT 0,
+  "amountReceived" NUMERIC DEFAULT 0,
+  "incomeFrequency" TEXT,
   updated_at TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (user_id, id)
 );
 
 -- Debts
 CREATE TABLE IF NOT EXISTS debts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL,
-  type TEXT NOT NULL,
-  amount NUMERIC NOT NULL,
-  person_name TEXT NOT NULL,
+  id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  "userId" TEXT,
+  type TEXT,
+  amount NUMERIC DEFAULT 0,
+  "personName" TEXT,
   description TEXT DEFAULT '',
-  note TEXT DEFAULT '',
-  amount_reimbursed NUMERIC DEFAULT 0,
-  date_created TEXT DEFAULT '',
-  due_date TEXT DEFAULT '',
+  note TEXT,
+  "dueDate" TEXT,
+  "reminderEnabled" BOOLEAN DEFAULT false,
+  "dateCreated" TEXT DEFAULT '',
+  "amountReimbursed" NUMERIC DEFAULT 0,
   status TEXT DEFAULT 'en_cours',
-  reminder_enabled BOOLEAN DEFAULT false,
   updated_at TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (user_id, id)
 );
 
 -- Tontines
 CREATE TABLE IF NOT EXISTS tontines (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL,
-  group_name TEXT NOT NULL,
-  amount_per_tour NUMERIC NOT NULL,
+  id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  "userId" TEXT,
+  "groupName" TEXT,
+  "amountPerTour" NUMERIC DEFAULT 0,
   frequency TEXT DEFAULT 'mensuelle',
-  total_participants INTEGER DEFAULT 1,
-  my_position INTEGER DEFAULT 1,
-  start_date TEXT DEFAULT '',
+  "totalParticipants" INTEGER DEFAULT 1,
+  "myPosition" INTEGER DEFAULT 1,
+  "startDate" TEXT DEFAULT '',
   rounds JSONB DEFAULT '[]',
   updated_at TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (user_id, id)
 );
 
 -- Accounting entries (comptabilité)
 CREATE TABLE IF NOT EXISTS accounting_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   type TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   category TEXT DEFAULT '',
@@ -91,7 +109,7 @@ CREATE TABLE IF NOT EXISTS accounting_entries (
 -- User settings
 CREATE TABLE IF NOT EXISTS user_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) UNIQUE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
   theme TEXT DEFAULT 'Système',
   accent_color TEXT DEFAULT '#3b82f6',
   devise TEXT DEFAULT '€ (EUR)',
@@ -175,9 +193,6 @@ CREATE POLICY "users can insert own accounting_entries" ON accounting_entries
 DROP POLICY IF EXISTS "users can update own accounting_entries" ON accounting_entries;
 CREATE POLICY "users can update own accounting_entries" ON accounting_entries
   FOR UPDATE USING (auth.uid() = user_id);
-DROP POLICY IF EXISTS "users can delete own accounting_entries" ON accounting_entries;
-CREATE POLICY "users can delete own accounting_entries" ON accounting_entries
-  FOR DELETE USING (auth.uid() = user_id);
 
 -- User settings
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;

@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Alert, Switch,
+  View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Alert, Switch, Platform,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { useTranslation } from '../../utils/LanguageManager';
 import { useDebts } from '../../viewmodel/DebtContext';
 import { DEBT_TYPES } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import CrossPlatformDatePicker from './CrossPlatformDatePicker';
 import { useColors } from '../theme';
 import { Button } from './ui';
-import { radius } from '../theme/tokens';
-import { type } from '../theme/type';
 
 export default function DebtFormModal({ visible, onClose, initialData, defaultType }) {
   const { accentColor } = useFinance();
+  const { t } = useTranslation();
   const { addDebt, updateDebt } = useDebts();
   const isEdit = !!initialData;
 
@@ -25,6 +26,12 @@ export default function DebtFormModal({ visible, onClose, initialData, defaultTy
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [note, setNote] = useState('');
+
+  // Un sélecteur ouvert au moment de la fermeture réapparaissait à la
+  // réouverture : on réinitialise l'état à chaque masquage.
+  useEffect(() => {
+    if (!visible) setShowDatePicker(false);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -91,13 +98,18 @@ export default function DebtFormModal({ visible, onClose, initialData, defaultTy
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
         <View style={[styles.container, { backgroundColor: colors.card }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>
               {isEdit ? 'Modifier' : 'Nouvelle'} dette
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('annuler')}
+            >
               <X size={20} color={colors.subText} />
             </TouchableOpacity>
           </View>
@@ -136,21 +148,34 @@ export default function DebtFormModal({ visible, onClose, initialData, defaultTy
             />
 
             <Text style={[styles.label, { color: colors.subText }]}>Date d'échéance (optionnelle)</Text>
-            <TouchableOpacity
-              style={[styles.dateBtn, { backgroundColor: colors.input, borderColor: colors.border }]}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={{ color: dueDate ? colors.text : colors.subText, fontSize: 15 }}>
-                {dueDate ? dueDate.toLocaleDateString('fr-FR') : 'Sélectionner une date'}
-              </Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
+            {Platform.OS === 'web' ? (
+              // Sur web, `@react-native-community/datetimepicker` rend `null`
+              // et ne déclenche jamais `onChange` : le champ restait mort pour
+              // toute la session. On repasse au wrapper (champ natif `<input>`).
+              <CrossPlatformDatePicker
                 value={dueDate || new Date()}
                 mode="date"
-                display="default"
-                onChange={(_, d) => { setShowDatePicker(false); if (d) setDueDate(d); }}
+                onChange={(_, d) => { if (d) setDueDate(d); }}
               />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[styles.dateBtn, { backgroundColor: colors.input, borderColor: colors.border }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={{ color: dueDate ? colors.text : colors.subText, fontSize: 15 }}>
+                    {dueDate ? dueDate.toLocaleDateString('fr-FR') : 'Sélectionner une date'}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={dueDate || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(_, d) => { setShowDatePicker(false); if (d) setDueDate(d); }}
+                  />
+                )}
+              </>
             )}
 
             <View style={styles.switchRow}>
@@ -193,27 +218,27 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   container: {
     maxHeight: '90%',
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 24,
   },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
   },
-  title: { ...type.title },
+  title: { fontSize: 20, fontWeight: 'bold' },
   typeToggle: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 14, borderRadius: radius.md, marginBottom: 20,
+    paddingVertical: 14, borderRadius: 14, marginBottom: 20,
   },
   typeText: { fontSize: 14, fontWeight: '600' },
-  label: { ...type.label, marginBottom: 8, marginTop: 16 },
+  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 16 },
   input: {
-    height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500',
+    height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: '500',
   },
   noteInput: { height: 80, paddingTop: 14 },
   saveBtn: { marginTop: 24, marginBottom: 12 },
   dateBtn: {
-    height: 48, borderRadius: radius.sm, borderWidth: 1, paddingHorizontal: 14,
+    height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14,
     justifyContent: 'center',
   },
   switchRow: {

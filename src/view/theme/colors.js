@@ -28,6 +28,8 @@ export const SEMANTIC = {
   danger: '#ef4444',
   warning: '#f59e0b',
   transfer: '#f59e0b',
+  info: '#5AA9E6',
+  blue: '#5AA9E6',
 };
 
 /** Variantes clair — vérifiées à 4,5:1 sur `card` blanc. */
@@ -37,7 +39,26 @@ const SEMANTIC_LIGHT = {
   danger: '#c02626',
   warning: '#8a5a00',
   transfer: '#8a5a00',
+  info: '#0B5CAD',
+  blue: '#0B5CAD',
 };
+
+/**
+ * Or « Old Money » — l'accent patrimonial.
+ *
+ * Champagne lumineux pour le sombre, bronze resserré pour le clair :
+ * la même famille, deux registres, comme les tons de sens. Le dégradé
+ * héro va du champagne au bronze profond.
+ */
+export const GOLD = {
+  champagne: '#C9A86A',
+  light: '#E3C98B',
+  deep: '#8A6D2B',
+  night: '#2A2417',
+};
+
+export const HERO_GRADIENT_DARK = ['#3A2F18', '#1A1610'];
+export const HERO_GRADIENT_LIGHT = ['#E3C98B', '#C9A86A'];
 
 /* ------------------------------------------------------------------ */
 /* Fond sombre — la direction principale.                               */
@@ -120,6 +141,7 @@ const ALIASES = {
   green: 'income',
   orange: 'warning',
   red: 'danger',
+  blue: 'info',
 };
 
 /* ------------------------------------------------------------------ */
@@ -174,8 +196,15 @@ export function inkOn(bg) {
     : ON_ACCENT_LIGHT;
 }
 
-/** Ajoute un canal alpha à une couleur hex (8 chiffres, format RN). */
-function alpha(hex, a) {
+/**
+ * Ajoute un canal alpha à une couleur hex.
+ *
+ * Exporté parce que les aplats pleins (accent, tons de sens) n'ont pas tous la
+ * même encre possible : un sous-titre posé sur un aplat doit pouvoir être la
+ * même encre que le titre, un cran plus discret — ce qui n'est vrai qu'avec la
+ * valeur d'alpha d'origine, pas avec un blanc ou un gris fixe.
+ */
+export function alpha(hex, a) {
   const [r, g, b] = parseHex(hex);
   return `rgba(${r},${g},${b},${a})`;
 }
@@ -196,11 +225,22 @@ export function buildColors(isDark, accentColor = DEFAULT_ACCENT, overrides = {}
   };
 
   base.accentFg = inkOn(accentColor);
-  // Le rouge de destruction suit la même règle : `#ef4444` en sombre se lit
-  // mieux à l'encre sombre qu'au blanc, et l'inverse en clair.
-  base.dangerFg = inkOn(base.danger);
   base.accentSoft = alpha(accentColor, isDark ? 0.18 : 0.12);
+
+  // Encre posée sur chaque aplat plein de sens. Un libellé posé sur un fond
+  // coloré ne peut pas supposer le blanc : le transfert est jaune orangé en
+  // sombre et brun en clair, et le blanc y plafonne sous le seuil de lecture.
+  // Même règle que l'accent, appliquée aux tons.
+  ['danger', 'income', 'expense', 'warning', 'transfer', 'info', 'blue'].forEach((key) => {
+    base[`${key}Fg`] = inkOn(base[key]);
+  });
   base.mask = isDark ? '#eef1f5' : '#14171c';
+
+  // Or patrimonial + dégradé héro (expo-linear-gradient, Phase 3).
+  base.gold = isDark ? GOLD.champagne : GOLD.deep;
+  base.goldSoft = alpha(GOLD.champagne, isDark ? 0.18 : 0.14);
+  base.goldFg = inkOn(base.gold);
+  base.heroGradient = isDark ? HERO_GRADIENT_DARK : HERO_GRADIENT_LIGHT;
 
   const aliased = Object.entries(ALIASES).reduce((acc, [alias, target]) => {
     acc[alias] = base[target];

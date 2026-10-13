@@ -17,8 +17,6 @@ import { useAuth } from '../../viewmodel/AuthContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useResponsive } from '../../utils/responsive';
-import { radius } from '../theme/tokens';
-import { type } from '../theme/type';
 import { useColors } from '../theme';
 
 export default function LoginScreen({ onSwitchToRegister }) {
@@ -38,18 +36,18 @@ export default function LoginScreen({ onSwitchToRegister }) {
     const cleanEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!cleanEmail || !password.trim()) {
-      Alert.alert(t('erreur'), 'Veuillez remplir tous les champs.');
+      Alert.alert(t('erreur'), t('champ_vide'));
       return;
     }
     if (!emailRegex.test(cleanEmail)) {
-      Alert.alert(t('erreur'), "Format d'email invalide.");
+      Alert.alert(t('erreur'), t('email_invalide'));
       return;
     }
     setLoading(true);
     try {
       await login(cleanEmail, password.trim());
     } catch (e) {
-      Alert.alert(t('erreur'), e.message || 'Identifiants invalides.');
+      Alert.alert(t('erreur'), t('identifiants_invalides'));
     } finally {
       setLoading(false);
     }
@@ -65,7 +63,7 @@ export default function LoginScreen({ onSwitchToRegister }) {
         <View style={styles.content}>
           <View style={styles.headerSection}>
             <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
-            <Text style={[styles.subtitle, { color: colors.subText }]}>{t('Bienvenue') || 'Bienvenue'}</Text>
+            <Text style={[styles.subtitle, { color: colors.subText }]}>{t('bienvenue')}</Text>
           </View>
 
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -82,7 +80,7 @@ export default function LoginScreen({ onSwitchToRegister }) {
               returnKeyType="next"
             />
 
-            <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>{t('Mot de passe') || 'Mot de passe'}</Text>
+            <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>{t('mot_de_passe')}</Text>
             <View style={[styles.pwContainer, { backgroundColor: colors.input, borderColor: colors.border }]}>
               <TextInput
                 style={[styles.pwInput, { color: colors.text }]}
@@ -94,7 +92,12 @@ export default function LoginScreen({ onSwitchToRegister }) {
                 returnKeyType="done"
                 onSubmitEditing={handleLogin}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('mot_de_passe')}
+              >
                 {showPassword ? <EyeOff size={20} color={colors.subText} /> : <Eye size={20} color={colors.subText} />}
               </TouchableOpacity>
             </View>
@@ -108,16 +111,16 @@ export default function LoginScreen({ onSwitchToRegister }) {
               {loading ? (
                 <ActivityIndicator color={colors.accentFg} />
               ) : (
-                <Text style={[styles.primaryBtnText, { color: colors.accentFg }]}>{t('Se connecter') || 'Se connecter'}</Text>
+                <Text style={[styles.primaryBtnText, { color: colors.accentFg }]}>{t('se_connecter')}</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity onPress={onSwitchToRegister} style={styles.switchRow}>
             <Text style={[styles.switchText, { color: colors.subText }]}>
-              {t('Pas de compte ?') || "Pas encore de compte ?"}
+              {t('pas_de_compte')}
             </Text>
-            <Text style={[styles.switchLink, { color: accentColor }]}> {t("S'inscrire") || "S'inscrire"}</Text>
+            <Text style={[styles.switchLink, { color: accentColor }]}> {t('s_inscrire')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -140,19 +143,21 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginBottom: 36,
   },
   logo: { width: 120, height: 120, marginBottom: 16 },
-  subtitle: { ...type.label, fontSize: 14, marginTop: 6 },
+  subtitle: { fontSize: 14, marginTop: 6 },
   card: {
     padding: cardP,
     borderRadius: br,
     borderWidth: 1,
   },
   label: {
-    ...type.label,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
     marginBottom: 8,
   },
   input: {
     padding: 16,
-    borderRadius: radius.md,
+    borderRadius: 16,
     fontSize: 16,
     fontWeight: '500',
     borderWidth: 1,
@@ -160,7 +165,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   pwContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.md,
+    borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 16,
   },
@@ -176,7 +181,7 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
   },
   primaryBtn: {
     height: 56,
-    borderRadius: radius.lg,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,
