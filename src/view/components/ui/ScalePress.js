@@ -34,7 +34,7 @@ export function ScalePress({
       style={[{ minHeight: touchTarget, minWidth: touchTarget }, style]}
       {...props}
     >
-      <Animated.View style={{ transform: [{ scale }], flex: 1 }}>
+      <Animated.View style={{ transform: [{ scale }], flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         {children}
       </Animated.View>
     </Pressable>

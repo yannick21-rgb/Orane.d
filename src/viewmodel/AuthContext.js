@@ -1,9 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Alert } from 'react-native';
 import { supabase } from '../utils/supabase';
 import { hashPassword, verifyPassword, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncRemove, validateUser } from '../utils/storage';
-import { initSecureStorage, resetSecureStorage } from '../utils/secureStorage';
+import { initSecureStorage } from '../utils/secureStorage';
 import { toRows } from '../utils/sync';
 
 const AuthContext = createContext({});

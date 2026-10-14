@@ -56,19 +56,19 @@ export const textFonts = {
  */
 export const typography = {
   /** Solde héro, très grand. Chiffres via AmountText size="display". */
-  display: { fontFamily: fonts.display, fontSize: 34, letterSpacing: -0.8 },
+  display: { fontFamily: fonts.display, fontSize: 34, letterSpacing: -0.8, lineHeight: 40, includeFontPadding: false },
   /** Titre d'écran. */
-  title: { fontFamily: fonts.title, fontSize: 22, letterSpacing: -0.4 },
+  title: { fontFamily: fonts.title, fontSize: 22, letterSpacing: -0.4, lineHeight: 28, includeFontPadding: false },
   /** Sous-titre de bloc, nom de catégorie. */
-  subtitle: { fontFamily: fonts.heading, fontSize: 17, letterSpacing: -0.2 },
+  subtitle: { fontFamily: fonts.heading, fontSize: 17, letterSpacing: -0.2, lineHeight: 24, includeFontPadding: false },
   /** Texte courant. */
-  body: { fontFamily: fonts.body, fontSize: 15, letterSpacing: -0.05 },
+  body: { fontFamily: fonts.body, fontSize: 15, letterSpacing: -0.05, lineHeight: 22, includeFontPadding: false },
   /** Texte courant appuyé. */
-  bodyStrong: { fontFamily: fonts.bodyStrong, fontSize: 15, letterSpacing: -0.05 },
+  bodyStrong: { fontFamily: fonts.bodyStrong, fontSize: 15, letterSpacing: -0.05, lineHeight: 22, includeFontPadding: false },
   /** Libellé de cellule, métadonnée. */
-  caption: { fontFamily: fonts.label, fontSize: 13, letterSpacing: 0 },
+  caption: { fontFamily: fonts.label, fontSize: 13, letterSpacing: 0, lineHeight: 18, includeFontPadding: false },
   /** Micro-libellé, unité monétaire. */
-  micro: { fontFamily: fonts.micro, fontSize: 11, letterSpacing: 0.3 },
+  micro: { fontFamily: fonts.micro, fontSize: 11, letterSpacing: 0.3, lineHeight: 16, includeFontPadding: false },
 };
 
 /** Chiffres à chasse fixe pour les montants. */

@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, X, Trash2, ChevronRight, Users } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTontines } from '../../viewmodel/TontineContext';
-import { ROUND_STATUS, computeTontineSummary } from '../../model/TontineModel';
+import { ROUND_STATUS, computeTontineSummary, nextRoundInfo } from '../../model/TontineModel';
 import TontineFormModal from '../components/TontineFormModal';
 import TontineDetailScreen from './TontineDetailScreen';
 import { useResponsive } from '../../utils/responsive';

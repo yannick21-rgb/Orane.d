@@ -65,10 +65,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     minHeight: touchTarget,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
   },
   inner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { fontSize: 14, fontWeight: '500' },
+  label: { fontSize: 14, fontWeight: '500', lineHeight: 20, includeFontPadding: false },
 });
 
 export default Chip;

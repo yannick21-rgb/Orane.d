@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useColorScheme, Alert, Platform } from 'react-native';
+import { useColorScheme, Alert } from 'react-native';
 import { useAuth } from './AuthContext';
 import { LanguageManager } from '../utils/LanguageManager';
 import { DEFAULT_ACCENT } from '../model/ThemeModel';
 import { exportTransactionsToCSV as exportCSV } from '../service/exportCSV';
-import { verifyPassword, hashPin, verifyPin, storePinHash, getStoredPinHash, removePinHash, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit, getRemainingAttemptsText } from '../utils/security';
+import { verifyPassword, hashPin, verifyPin, storePinHash, getStoredPinHash, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncRead, safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncWrite, safeAsyncRemove, validateTransaction, filterValidRecords } from '../utils/storage';
-import { secureSet, secureGet, secureGetJSON, secureRemove, initSecureStorage } from '../utils/secureStorage';
+import { initSecureStorage } from '../utils/secureStorage';
 import { sync, mergeRecords } from '../utils/sync';
 import { supabase } from '../utils/supabase';
 import Constants from 'expo-constants';

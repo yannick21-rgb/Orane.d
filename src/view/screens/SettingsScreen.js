@@ -19,7 +19,7 @@ let LocalAuthentication = null;
 if (Platform.OS !== 'web') {
   try { LocalAuthentication = require('expo-local-authentication'); } catch (_) {}
 }
-import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Download, Lock, Shield, Users, Handshake, RefreshCw, Calculator, Bell, Database } from 'lucide-react-native';
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Lock, Shield, Users, Handshake, RefreshCw, Calculator } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';

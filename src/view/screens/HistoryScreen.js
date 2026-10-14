@@ -19,7 +19,7 @@ import {
   X, Search, Check, Trash2, SlidersHorizontal, Wallet,
   ShoppingCart, Car, Home as HomeIcon, HeartPulse, Gamepad2,
   Shirt, Briefcase, PiggyBank, Tag, Smartphone, GraduationCap, Star,
-  CreditCard, Trophy, RefreshCcw, Receipt, BookOpen, Laptop, Globe,
+  CreditCard, Trophy, RefreshCcw, Receipt, Laptop, Globe,
   Gift, Handshake, ShoppingBag,
 } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
@@ -32,7 +32,7 @@ import {
   isTransactionInMonth,
 } from '../../utils/transactionDates';
 import { useColors } from '../theme';
-import { typography, maxFontScale } from '../theme/typography';
+import { typography } from '../theme/typography';
 import { radius } from '../theme/tokens';
 import { Amount, Chip, EmptyState, Snackbar } from '../components/ui';
 

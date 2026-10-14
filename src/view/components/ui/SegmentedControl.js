@@ -111,9 +111,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
+    paddingVertical: 0,
     zIndex: 1,
   },
-  label: { fontSize: 14, fontWeight: '600' },
+  label: { fontSize: 14, fontWeight: '600', lineHeight: 20, includeFontPadding: false },
 });
 
 export default SegmentedControl;

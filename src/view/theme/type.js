@@ -36,34 +36,34 @@ export const fonts = {
  */
 export const type = {
   /** Le chiffre du solde en tête d'écran. Le seul corps très marqué. */
-  display: { fontFamily: fonts.bold, fontSize: 34, letterSpacing: -1.4 },
+  display: { fontFamily: fonts.bold, fontSize: 34, letterSpacing: -1.4, lineHeight: 40, includeFontPadding: false },
 
   /** Chiffres secondaires : revenus, dépenses, niveau, soldes de poche. */
-  figure: { fontFamily: fonts.semibold, fontSize: 22, letterSpacing: -0.8 },
+  figure: { fontFamily: fonts.semibold, fontSize: 22, letterSpacing: -0.8, lineHeight: 28, includeFontPadding: false },
 
   /** Montant d'une ligne d'opération — la colonne de droite. */
-  amount: { fontFamily: fonts.medium, fontSize: 15, letterSpacing: -0.2 },
+  amount: { fontFamily: fonts.medium, fontSize: 15, letterSpacing: -0.2, lineHeight: 20, includeFontPadding: false },
 
   /** Montant plus petit : totaux en ligne, valeurs de cellule. */
-  amountSm: { fontFamily: fonts.medium, fontSize: 13, letterSpacing: -0.1 },
+  amountSm: { fontFamily: fonts.medium, fontSize: 13, letterSpacing: -0.1, lineHeight: 18, includeFontPadding: false },
 
   /** Titre d'écran. */
-  title: { fontFamily: fonts.bold, fontSize: 17, letterSpacing: -0.3 },
+  title: { fontFamily: fonts.bold, fontSize: 17, letterSpacing: -0.3, lineHeight: 24, includeFontPadding: false },
 
   /** Sous-titre de bloc, nom d'une catégorie. */
-  heading: { fontFamily: fonts.semibold, fontSize: 15, letterSpacing: -0.2 },
+  heading: { fontFamily: fonts.semibold, fontSize: 15, letterSpacing: -0.2, lineHeight: 22, includeFontPadding: false },
 
   /** Texte courant. */
-  body: { fontSize: 15, letterSpacing: -0.1 },
+  body: { fontSize: 15, letterSpacing: -0.1, lineHeight: 22, includeFontPadding: false },
 
   /** Texte courant appuyé — libellé d'une opération. */
-  bodyStrong: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
+  bodyStrong: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1, lineHeight: 22, includeFontPadding: false },
 
   /** Libellé de cellule, métadonnée. */
-  label: { fontSize: 13, letterSpacing: -0.05 },
+  label: { fontSize: 13, letterSpacing: -0.05, lineHeight: 18, includeFontPadding: false },
 
   /** Micro-libellé : nom d'une cellule, unité monétaire. */
-  micro: { fontSize: 11, fontWeight: '500', letterSpacing: 0.15 },
+  micro: { fontSize: 11, fontWeight: '500', letterSpacing: 0.15, lineHeight: 16, includeFontPadding: false },
 };
 
 /**

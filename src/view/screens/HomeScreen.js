@@ -62,7 +62,7 @@ import { radius, touchTarget, duration } from '../theme/tokens';
 import { shadows } from '../theme/shadows';
 import { DEFAULT_ACCENT } from '../../model/ThemeModel';
 import {
-  Amount, AmountText, Button, Card, EmptyState, IconButton,
+  Amount, AmountText, Card, EmptyState, IconButton,
   ProgressBar, SkeletonRow, Avatar,
 } from '../components/ui';
 

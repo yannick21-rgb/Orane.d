@@ -44,7 +44,7 @@ import {
 } from '../../utils/transactionDates';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../model/TransactionModel';
 import { useColors } from '../theme';
-import { typography, maxFontScale } from '../theme/typography';
+import { typography } from '../theme/typography';
 import { radius, duration } from '../theme/tokens';
 
 /** Une teinte par part — médianes, lisibles sur fond sombre comme clair. */

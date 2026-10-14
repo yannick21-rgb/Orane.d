@@ -520,12 +520,11 @@ export function TransactionSheet({ visible, initialType = 'expense', onClose }) 
 }
 
 const styles = StyleSheet.create({
-  // Chaîne de hauteur bornée : la feuille a un maxHeight (BottomSheetModal),
-  // wrap un maxHeight et les enfants sont en flexShrink:1 → la feuille se
-  // comprime au lieu de déborder hors écran (coupait le bouton en bas).
-  wrap: { position: 'relative', maxHeight: 560, flexShrink: 1 },
-  // Le ScrollView se comprime dans wrap pour laisser sa place au pied de
-  // feuille ; c'est lui qui défile.
+  // La feuille s'étend jusqu'à 98% de l'écran ; le ScrollView défile
+  // et le footer reste fixe en bas.
+  wrap: { flexShrink: 1 },
+  // Le ScrollView occupe tout l'espace disponible pour laisser sa place au
+  // pied de feuille ; c'est lui qui défile.
   scrollView: { flexShrink: 1 },
   scroll: { paddingBottom: spacing.md },
   // Champ montant : conteneur creux (rayon, respiration) — le champ doit
@@ -541,19 +540,20 @@ const styles = StyleSheet.create({
     fontFamily: numericFonts.semibold,
     letterSpacing: -1.2,
     textAlign: 'center',
-    paddingVertical: 2,
+    paddingVertical: 0,
+    includeFontPadding: false,
   },
-  error: { textAlign: 'center', fontSize: 13, marginTop: spacing.sm },
+  error: { textAlign: 'center', fontSize: 13, lineHeight: 18, marginTop: spacing.sm },
   // Raccourcis et rangées : tous calés à gauche, sous leur libellé →
   // un seul rythme visuel (les raccourcis n'échappent plus à la règle).
-  chips: { flexDirection: 'row', gap: 8, marginTop: spacing.md, flexWrap: 'wrap' },
-  row: { flexDirection: 'row', gap: 8, marginTop: spacing.md, flexWrap: 'wrap' },
+  chips: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md, flexWrap: 'wrap' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md, flexWrap: 'wrap' },
   block: { marginTop: spacing.lg },
   // La marge haute est portée par le libellé de section au-dessus
   // (pas de double saut d'espacement).
   feeBox: { borderRadius: radius.md, padding: spacing.md },
   feeRows: { marginTop: spacing.md, gap: 6 },
-  feeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  feeRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   // Libellé de section : même grammaire que la page Ajout (11 px, gras,
   // interlettrage large, capitales) → les deux saisies se ressemblent.
   sectionLabel: {
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   catCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   // 11 px (et non 10) + 2 lignes : « Abonnements & Tech » se replie au
   // lieu d'être tronqué en « Abonnements… ».
-  catLabel: { fontSize: 11, lineHeight: 14, fontWeight: '500', textAlign: 'center' },
+  catLabel: { fontSize: 11, lineHeight: 14, fontWeight: '500', textAlign: 'center', includeFontPadding: false },
   noteToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -594,8 +594,8 @@ const styles = StyleSheet.create({
     minHeight: touchTarget,
     marginTop: spacing.lg,
   },
-  noteInput: { borderRadius: radius.sm, padding: 12, fontSize: 15, minHeight: 64, marginTop: spacing.sm },
-  footer: { paddingTop: spacing.md, marginTop: spacing.sm, borderTopWidth: 1 },
+  noteInput: { borderRadius: radius.sm, padding: 12, fontSize: 15, lineHeight: 20, minHeight: 64, marginTop: spacing.sm },
+  footer: { paddingTop: spacing.md, marginTop: spacing.sm, borderTopWidth: 1, flexShrink: 0 },
   success: { alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg },
   lottie: { width: 140, height: 140 },
 });
