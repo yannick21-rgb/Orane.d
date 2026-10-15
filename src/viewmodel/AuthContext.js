@@ -406,16 +406,28 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateProfile = async (name) => {
-    if (!user || !supabaseUser) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ name: name.trim(), updated_at: new Date().toISOString() })
-      .eq('id', supabaseUser.id);
-    if (error) {
-      console.warn('[AuthContext] Erreur mise à jour profil :', error.message);
-      throw new Error('Erreur lors de la mise à jour du profil');
+    if (!user) return;
+    const cleanName = name.trim();
+
+    // Compte Supabase : mettre à jour la table `profiles`.
+    if (supabaseUser) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: cleanName, updated_at: new Date().toISOString() })
+        .eq('id', supabaseUser.id);
+      if (error) {
+        console.warn('[AuthContext] Erreur mise à jour profil :', error.message);
+        throw new Error('Erreur lors de la mise à jour du profil');
+      }
     }
-    const updatedUser = { ...user, name: name.trim() };
+
+    // Répertoire local : sans cette écriture, le nom reviendrait à l'ancien à
+    // la reconnexion (et pour un compte 100 % local, rien ne serait modifié —
+    // `supabaseUser` est null et l'ancien `if (!user || !supabaseUser) return`
+    // sortait sans effet).
+    await rememberAccount({ name: cleanName, email: user.email });
+
+    const updatedUser = { ...user, name: cleanName };
     setUser(updatedUser);
     await safeAsyncWriteJSON(AUTH_USER_KEY, updatedUser);
   };
