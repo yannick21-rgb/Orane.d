@@ -20,6 +20,8 @@ const traverse = require('@babel/traverse').default;
 
 const STRICT = process.argv.includes('--strict');
 const ROOT = 'src';
+// Points d'entrée hors `src/` (voir check-code.js).
+const DEFAULT_FILES = ['App.js', 'index.js'];
 const MIN_TOUCH = 44;
 
 function walk(dir, out = []) {
@@ -57,7 +59,7 @@ function hasTextInSubtree(node) {
   return found;
 }
 
-for (const file of walk(ROOT)) {
+for (const file of [...new Set([...walk(ROOT), ...DEFAULT_FILES])]) {
   const code = fs.readFileSync(file, 'utf8');
   let ast;
   try {

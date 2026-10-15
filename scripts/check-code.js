@@ -22,8 +22,8 @@
  *   7. prop requise non passée  → le composant lit `undefined`.
  *
  * Usage :
- *   node scripts/check-code.js            # src/
- *   node scripts/check-code.js App.js     # en plus
+ *   node scripts/check-code.js            # src/ + App.js + index.js
+ *   node scripts/check-code.js Autre.js   # en plus
  *   node scripts/check-code.js --strict   # les avertissements comptent aussi
  *
  * Code de sortie 1 si quelque chose est à corriger (2 si la@avertissement
@@ -37,6 +37,9 @@ const parser = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 
 const ROOT = 'src';
+// Points d'entrée hors `src/` : sans eux, `npm run check` ne couvrait pas
+// App.js (relevé par le rapport de supervision).
+const DEFAULT_FILES = ['App.js', 'index.js'];
 const EXTRA = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const STRICT = process.argv.includes('--strict');
 
@@ -88,7 +91,7 @@ function parseCode(code) {
   });
 }
 
-const files = [...walk(ROOT), ...EXTRA].map((f) => path.resolve(f));
+const files = [...new Set([...walk(ROOT), ...DEFAULT_FILES, ...EXTRA])].map((f) => path.resolve(f));
 const sources = files.map((file) => {
   const code = fs.readFileSync(file, 'utf8');
   try {
