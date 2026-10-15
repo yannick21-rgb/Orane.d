@@ -79,9 +79,9 @@ export function DebtProvider({ children }) {
 
   const deleteDebt = useCallback(async (id) => {
     const updated = debts.filter((d) => d.id !== id);
-    // `saveDebts` ne fait qu'un upsert : sans suppression explicite, la ligne
-    // cloud reviendrait au prochain pull (donnée « ressuscitée »).
-    sync.remove('debts', [id]);
+    // `await` obligatoire : sans lui, `saveDebts` (push) s'exécute avant la
+    // suppression et la ligne cloud réapparaît au prochain pull.
+    await sync.remove('debts', [id]);
     await saveDebts(updated);
   }, [debts, saveDebts]);
 

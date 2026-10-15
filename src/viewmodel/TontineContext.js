@@ -107,8 +107,9 @@ export function TontineProvider({ children }) {
 
   const deleteGroup = useCallback(async (id) => {
     const updated = groups.filter((g) => g.id !== id);
-    // `saveGroups` ne fait qu'un upsert : la ligne cloud reviendrait sinon.
-    sync.remove('tontines', [id]);
+    // `await` obligatoire : sans lui, `saveGroups` (push) s'exécute avant la
+    // suppression et la ligne cloud réapparaît au prochain pull.
+    await sync.remove('tontines', [id]);
     await saveGroups(updated);
   }, [groups, saveGroups]);
 

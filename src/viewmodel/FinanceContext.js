@@ -573,21 +573,21 @@ export function FinanceProvider({ children }) {
     );
   };
 
-  const deleteTransaction = (id) => {
-    // L'upsert du push suivant ne supprime rien côté serveur : sans cet appel,
-    // la transaction réapparaîtrait au prochain `sync.pull`.
-    sync.remove('transactions', [id]);
+  const deleteTransaction = async (id) => {
+    // `await` obligatoire : sans lui, le useEffect de push s'exécute avant la
+    // suppression serveur et la transaction réapparaît au prochain pull.
+    await sync.remove('transactions', [id]);
     setTransactions((prev) => (prev || []).filter((t) => t.id !== id));
   };
 
-  const deleteMultipleTransactions = (ids) => {
-    if (ids && ids.length) sync.remove('transactions', ids);
+  const deleteMultipleTransactions = async (ids) => {
+    if (ids && ids.length) await sync.remove('transactions', ids);
     setTransactions((prev) => (prev || []).filter((t) => !ids.includes(t.id)));
   };
 
-  const resetAllTransactions = () => {
+  const resetAllTransactions = async () => {
     const ids = (transactions || []).map((t) => t.id);
-    if (ids.length) sync.remove('transactions', ids);
+    if (ids.length) await sync.remove('transactions', ids);
     setTransactions([]);
   };
 
