@@ -850,7 +850,6 @@ export default function HomeScreen({ navigation }) {
                         toggleSelection(item.id);
                       } else {
                         setEditingTransaction(item);
-                        navigation?.navigate('Ajout');
                       }
                     }}
                     onLongPress={() => {

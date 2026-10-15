@@ -20,9 +20,9 @@ import { useResponsive } from '../../utils/responsive';
 import { buildColors } from '../theme';
 import { type as typeStyles } from '../theme/type';
 
-export default function AddTransactionScreen({ navigation }) {
+export default function AddTransactionScreen({ onClose }) {
   const { t } = useTranslation();
-  const { isDark, accentColor, addTransaction, updateTransaction, editingTransaction, setEditingTransaction, devise } = useFinance();
+  const { isDark, accentColor, addTransaction, updateTransaction, editingTransaction, devise } = useFinance();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
@@ -150,7 +150,6 @@ export default function AddTransactionScreen({ navigation }) {
 
     setShowSuccessModal(true);
 
-    setEditingTransaction(null);
     setTitle('');
     setAmount('');
     setNote('');
@@ -160,7 +159,7 @@ export default function AddTransactionScreen({ navigation }) {
 
     navTimeoutRef.current = setTimeout(() => {
       setShowSuccessModal(false);
-      navigation.goBack();
+      onClose();
     }, 1500);
   };
 

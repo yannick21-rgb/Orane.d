@@ -2,7 +2,7 @@ import './src/utils/cryptoPolyfill';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  StatusBar, View, StyleSheet, Animated, Keyboard,
+  StatusBar, View, StyleSheet, Animated, Keyboard, Modal,
 } from 'react-native';
 import CrossPlatformPager from './src/view/components/CrossPlatformPager';
 import TabBar from './src/view/components/TabBar';
@@ -57,9 +57,8 @@ import {
 const LOADING_TIMEOUT = 5000;
 
 /** Pages du pager ciblées par les 3 onglets (Accueil, Stats, Réglages).
- *  La page Ajout (index 1) n'a pas d'onglet : joignable par balayage
- *  et pour l'édition d'une opération. */
-const TAB_PAGES = [0, 2, 3];
+ *  La page Ajout n'est plus dans le pager : c'est un modal distinct. */
+const TAB_PAGES = [0, 1, 2];
 
 function LoadingScreen() {
   return <SplashAnimated />;
@@ -87,22 +86,19 @@ function MainTabsBody() {
   const pagerRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [keyboardHidden, setKeyboardHidden] = useState(false);
-  const { isDark, accentColor } = useFinance();
+  const { isDark, accentColor, editingTransaction, setEditingTransaction } = useFinance();
   const { t } = useTranslation();
 
   const screens = [
     { key: 'Accueil', component: HomeScreen },
-    // La page Ajout reste dans le pager (balayage + édition d'une
-    // opération existante) mais n'a plus d'onglet dédié : l'ajout
-    // rapide est le FAB de l'Accueil.
-    { key: 'Ajout', component: AddTransactionScreen },
     { key: 'Stats', component: StatsScreen },
     { key: 'Paramètres', component: SettingsScreen },
   ];
 
-  // 3 onglets seulement (Accueil, Stats, Paramètres) → ils pointent sur
-  // leurs pages du pager via `pages` (la page Ajout sautée).
+  // 3 onglets (Accueil, Stats, Paramètres) — la page Ajout n'est plus dans
+  // le pager : c'est un modal distinct (édition + ajout rapide).
   const tabLabels = [t('home'), t('stats'), t('settings')];
+  const tabPages = [0, 1, 2];
 
   // Clavier ouvert → la barre se retire, le pager reprend l'espace
   // (convention tabBarHideOnKeyboard). Les actions restent atteignables
@@ -176,6 +172,19 @@ function MainTabsBody() {
         initialType={quick.initialType}
         onClose={quick.close}
       />
+
+      {/* Édition d'une opération — vrai Modal React Native, hors du pager :
+          non accessible par balayage. Ouvert via setEditingTransaction. */}
+      <Modal
+        visible={!!editingTransaction}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingTransaction(null)}
+      >
+        <AddTransactionScreen
+          onClose={() => setEditingTransaction(null)}
+        />
+      </Modal>
     </View>
   );
 }

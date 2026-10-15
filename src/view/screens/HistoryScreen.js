@@ -212,7 +212,6 @@ export default function HistoryScreen({ onClose, navigation }) {
     closeSwipe(item.id);
     setEditingTransaction(item);
     onClose();
-    navigation?.navigate('Ajout');
   };
 
   const renderRow = ({ item }) => {
