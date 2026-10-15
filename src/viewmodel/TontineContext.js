@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from './AuthContext';
 import { tontinesKey, generateRounds, ROUND_STATUS, computeTontineSummary } from '../model/TontineModel';
 import { toNumber } from '../utils/format';
-import { validateTontine, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
+import { validateTontine, filterValidRecords } from '../utils/storage';
+import { secureReadJSON, secureWriteJSON } from '../utils/secureStorage';
 import { sync, mergeRecords } from '../utils/sync';
 import { generateId } from '../utils/id';
 import Constants from 'expo-constants';
@@ -22,7 +23,7 @@ export function TontineProvider({ children }) {
     const alive = () => seq === loadSeq.current;
     if (!userId) { setGroups([]); setLoaded(true); return; }
     try {
-      const raw = await safeAsyncReadJSON(tontinesKey(userId), []);
+      const raw = await secureReadJSON(tontinesKey(userId), []);
       let local = filterValidRecords(raw, validateTontine);
 
       await sync.init(userId);
@@ -52,7 +53,7 @@ export function TontineProvider({ children }) {
   const saveGroups = useCallback(async (updated) => {
     if (!userId) return;
     setGroups(updated);
-    await safeAsyncWriteJSON(tontinesKey(userId), updated);
+    await secureWriteJSON(tontinesKey(userId), updated);
     sync.push('tontines', updated).catch(() => {});
   }, [userId]);
 

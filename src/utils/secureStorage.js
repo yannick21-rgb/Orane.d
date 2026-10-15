@@ -14,9 +14,15 @@ function sanitizeKey(raw) {
 
 const ENC_KEY_STORE = 'orane_master_key';
 const KEY_SALT_STORE = 'orane_key_salt';
+
+// Marque une valeur chiffrée. Sans ce préfixe, la valeur stockée est du texte
+// en clair : les données écrites AVANT l'activation du chiffrement (ou par un
+// build sans module natif) restent lisibles au lieu d'être prises pour du
+// chiffré et rejetées.
+const ENC_MARKER = 'enc:v1:';
+
 let masterKey = null;
 let keySalt = null;
-let aesAvailable = true;
 
 function isValidKey(key) {
   return typeof key === 'string' && key.length > 0 && /^[a-zA-Z0-9_]+$/.test(key);
@@ -35,6 +41,21 @@ function fromHex(hex) {
     bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
   }
   return bytes;
+}
+
+/**
+ * `crypto.subtle` réellement utilisable ? Sur mobile il vient de
+ * react-native-quick-crypto (posé par cryptoPolyfill.js) ; sur le web du
+ * navigateur. Sans lui, on refuse d'écrire du « chiffré » (voir secureSet).
+ */
+function hasSubtle() {
+  return (
+    typeof crypto !== 'undefined' &&
+    crypto &&
+    crypto.subtle &&
+    typeof crypto.subtle.encrypt === 'function' &&
+    typeof crypto.subtle.decrypt === 'function'
+  );
 }
 
 async function generateMasterKey() {
@@ -64,57 +85,69 @@ async function getOrCreateMasterKey() {
   }
 }
 
+/** Initialisation paresseuse : la clé maîtresse est globale, pas besoin de userId. */
+async function ensureMasterKey() {
+  if (masterKey) return masterKey;
+  masterKey = await getOrCreateMasterKey();
+  return masterKey;
+}
+
 function getKeyMaterial(hexKey) {
   try {
     const raw = fromHex(hexKey);
     return crypto.subtle.importKey('raw', raw, { name: 'AES-CBC' }, false, ['encrypt', 'decrypt']);
   } catch (e) {
-    aesAvailable = false;
-    console.warn('[secureStorage] AES non disponible :', e.message);
+    console.warn('[secureStorage] importKey AES échoué :', e.message);
     return null;
   }
 }
 
+/**
+ * Chiffre et renvoie `enc:v1:<hex>`, ou `null` si le chiffrement n'est pas
+ * possible (pas de crypto, clé absente, échec). On ne renvoie JAMAIS le texte
+ * en clair ici : l'appelant décide alors d'un stockage en clair SANS marqueur.
+ */
 async function aesEncrypt(plaintext, keyHex) {
-  if (!crypto.subtle || !crypto.subtle.encrypt) {
-    aesAvailable = false;
-    return plaintext;
-  }
+  if (!hasSubtle()) return null;
   try {
     const iv = new Uint8Array(16);
     crypto.getRandomValues(iv);
     const key = await getKeyMaterial(keyHex);
-    if (!key) return plaintext;
+    if (!key) return null;
     const encoded = new TextEncoder().encode(plaintext);
     const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, key, encoded);
     const combined = new Uint8Array(iv.length + encrypted.byteLength);
     combined.set(iv, 0);
     combined.set(new Uint8Array(encrypted), iv.length);
-    return toHex(combined);
+    return ENC_MARKER + toHex(combined);
   } catch (e) {
-    aesAvailable = false;
-    console.warn('[secureStorage] Chiffrement AES échoué, stockage en clair :', e.message);
-    return plaintext;
+    console.warn('[secureStorage] Chiffrement AES échoué :', e.message);
+    return null;
   }
 }
 
-async function aesDecrypt(cipherHex, keyHex) {
-  if (!crypto.subtle || !crypto.subtle.decrypt) {
-    aesAvailable = false;
-    return cipherHex;
+/**
+ * Déchiffre une valeur. Une valeur SANS marqueur est rendue telle quelle (texte
+ * en clair hérité). Renvoie `null` si une valeur chiffrée ne peut pas être
+ * déchiffrée (module natif manquant, clé perdue, données corrompues).
+ */
+async function aesDecrypt(stored, keyHex) {
+  if (typeof stored !== 'string' || !stored.startsWith(ENC_MARKER)) return stored;
+  if (!hasSubtle()) {
+    console.error('[secureStorage] Valeur chiffrée illisible : crypto.subtle indisponible (rebuild natif requis).');
+    return null;
   }
   try {
-    const combined = fromHex(cipherHex);
+    const combined = fromHex(stored.slice(ENC_MARKER.length));
     const iv = combined.slice(0, 16);
     const data = combined.slice(16);
     const key = await getKeyMaterial(keyHex);
-    if (!key) return cipherHex;
+    if (!key) return null;
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, data);
     return new TextDecoder().decode(decrypted);
   } catch (e) {
-    aesAvailable = false;
-    console.warn('[secureStorage] Déchiffrement AES échoué, retour données brutes :', e.message);
-    return cipherHex;
+    console.error('[secureStorage] Déchiffrement AES échoué (clé perdue ou données corrompues) :', e.message);
+    return null;
   }
 }
 
@@ -125,17 +158,15 @@ function secureKey(userId, prefix) {
 }
 
 export async function initSecureStorage(userId) {
-  if (masterKey && keySalt) return true;
   try {
-    const keyHex = await getOrCreateMasterKey();
-    if (SecureStore && userId) {
+    const keyHex = await ensureMasterKey();
+    if (!keyHex) return false;
+    if (SecureStore && userId && keySalt === null) {
       const saltKey = secureKey(userId, KEY_SALT_STORE);
       if (isValidKey(saltKey)) {
         keySalt = (await SecureStore.getItemAsync(saltKey)) || '';
       }
     }
-    if (!keyHex) return false;
-    masterKey = keyHex;
     return true;
   } catch (e) {
     console.error('[secureStorage] init échoué :', e.message);
@@ -144,22 +175,24 @@ export async function initSecureStorage(userId) {
 }
 
 export async function secureSet(key, value) {
-  if (!masterKey) throw new Error('secureStorage non initialisé');
   const strValue = typeof value === 'string' ? value : JSON.stringify(value);
-  const encrypted = await aesEncrypt(strValue, masterKey);
-  return safeAsyncWrite(`@enc_${key}`, encrypted);
+  const keyHex = await ensureMasterKey();
+  if (keyHex) {
+    const encrypted = await aesEncrypt(strValue, keyHex);
+    if (encrypted !== null) return safeAsyncWrite(`@enc_${key}`, encrypted);
+  }
+  // Chiffrement indisponible : stockage en clair (comportement historique),
+  // sans marqueur, pour rester lisible.
+  return safeAsyncWrite(`@enc_${key}`, strValue);
 }
 
 export async function secureGet(key) {
-  if (!masterKey) return null;
-  const encrypted = await safeAsyncRead(`@enc_${key}`, null);
-  if (encrypted === null) return null;
-  try {
-    return await aesDecrypt(encrypted, masterKey);
-  } catch (e) {
-    console.error(`[secureStorage] Erreur déchiffrement ${key} :`, e.message);
-    return null;
-  }
+  const stored = await safeAsyncRead(`@enc_${key}`, null);
+  if (stored === null) return null;
+  if (!stored.startsWith(ENC_MARKER)) return stored;
+  const keyHex = await ensureMasterKey();
+  if (!keyHex) return null;
+  return aesDecrypt(stored, keyHex);
 }
 
 export async function secureGetJSON(key, fallback = null) {
@@ -167,8 +200,56 @@ export async function secureGetJSON(key, fallback = null) {
   return safeJSONParse(str, fallback);
 }
 
+/**
+ * Lecture d'une donnée sensible.
+ *
+ * Ordre : stockage chiffré (`@enc_<key>`) d'abord, puis ancienne clé en clair
+ * (`<key>`) écrite avant le chiffrement. Une donnée trouvée en clair est
+ * migrée immédiatement (réécrite chiffrée, copie claire supprimée).
+ */
+export async function secureReadJSON(key, fallback = null) {
+  const stored = await safeAsyncRead(`@enc_${key}`, null);
+  if (stored !== null) {
+    const str = stored.startsWith(ENC_MARKER) ? await secureGet(key) : stored;
+    const parsed = safeJSONParse(str, undefined);
+    if (parsed !== undefined) return parsed;
+    return fallback;
+  }
+
+  const legacy = await safeAsyncRead(key, null);
+  if (legacy === null) return fallback;
+  const parsedLegacy = safeJSONParse(legacy, undefined);
+  if (parsedLegacy === undefined) return fallback;
+  try {
+    await secureWriteJSON(key, parsedLegacy);
+  } catch (e) {
+    console.warn(`[secureStorage] Migration en clair → chiffré échouée pour ${key} :`, e.message);
+  }
+  return parsedLegacy;
+}
+
+/**
+ * Écriture d'une donnée sensible : chiffrée si possible, sinon en clair (pour
+ * ne jamais perdre la donnée). Après une écriture chiffrée, la copie en clair
+ * héritée est supprimée.
+ */
+export async function secureWriteJSON(key, value) {
+  const json = JSON.stringify(value);
+  const keyHex = await ensureMasterKey();
+  if (keyHex) {
+    const encrypted = await aesEncrypt(json, keyHex);
+    if (encrypted !== null) {
+      await safeAsyncWrite(`@enc_${key}`, encrypted);
+      await safeAsyncRemove(key);
+      return true;
+    }
+  }
+  return safeAsyncWrite(key, json);
+}
+
 export async function secureRemove(key) {
-  return safeAsyncRemove(`@enc_${key}`);
+  await safeAsyncRemove(`@enc_${key}`);
+  return safeAsyncRemove(key);
 }
 
 export async function secureStorePinHash(userId, hash) {

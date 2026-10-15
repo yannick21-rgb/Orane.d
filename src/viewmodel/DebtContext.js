@@ -3,7 +3,8 @@ import { useAuth } from './AuthContext';
 import { useFinance } from './FinanceContext';
 import { debtsKey, computeDebtStatus, DEBT_STATUS } from '../model/DebtModel';
 import { toNumber } from '../utils/format';
-import { validateDebt, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
+import { validateDebt, filterValidRecords } from '../utils/storage';
+import { secureReadJSON, secureWriteJSON } from '../utils/secureStorage';
 import { sync, mergeRecords } from '../utils/sync';
 import { generateId } from '../utils/id';
 import Constants from 'expo-constants';
@@ -25,7 +26,7 @@ export function DebtProvider({ children }) {
     const alive = () => seq === loadSeq.current;
     if (!userId) { setDebts([]); setLoaded(true); return; }
     try {
-      const raw = await safeAsyncReadJSON(debtsKey(userId), []);
+      const raw = await secureReadJSON(debtsKey(userId), []);
       let local = filterValidRecords(raw, validateDebt);
 
       await sync.init(userId);
@@ -55,7 +56,7 @@ export function DebtProvider({ children }) {
   const saveDebts = useCallback(async (updated) => {
     if (!userId) return;
     setDebts(updated);
-    await safeAsyncWriteJSON(debtsKey(userId), updated);
+    await secureWriteJSON(debtsKey(userId), updated);
     sync.push('debts', updated).catch(() => {});
   }, [userId]);
 

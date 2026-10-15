@@ -6,7 +6,7 @@ import { DEFAULT_ACCENT } from '../model/ThemeModel';
 import { exportTransactionsToCSV as exportCSV } from '../service/exportCSV';
 import { verifyPassword, hashPin, verifyPin, storePinHash, getStoredPinHash, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncRead, safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncWrite, safeAsyncRemove, validateTransaction, filterValidRecords } from '../utils/storage';
-import { initSecureStorage } from '../utils/secureStorage';
+import { secureReadJSON, secureWriteJSON } from '../utils/secureStorage';
 import { sync, mergeRecords } from '../utils/sync';
 import { supabase } from '../utils/supabase';
 import Constants from 'expo-constants';
@@ -186,7 +186,7 @@ export function FinanceProvider({ children }) {
     const loadUserData = async () => {
       try {
         const txKey = `@oraned_transactions_${userId}`;
-        const storedTx = await safeAsyncReadJSON(txKey, null);
+        const storedTx = await secureReadJSON(txKey, null);
 
         let localTx;
 
@@ -196,7 +196,7 @@ export function FinanceProvider({ children }) {
           const oldTx = await safeAsyncReadJSON('@transactions', null);
           if (oldTx && Array.isArray(oldTx)) {
             localTx = filterValidRecords(oldTx, validateTransaction);
-            await safeAsyncWriteJSON(txKey, localTx);
+            await secureWriteJSON(txKey, localTx);
           } else {
             localTx = [];
           }
@@ -511,7 +511,7 @@ export function FinanceProvider({ children }) {
   useEffect(() => {
     if (!isLoaded || !userId) return;
     if (lastSavedUserId.current !== userId) return;
-    safeAsyncWriteJSON(`@oraned_transactions_${userId}`, transactions)
+    secureWriteJSON(`@oraned_transactions_${userId}`, transactions)
       .then(() => sync.push('transactions', transactions))
       .catch(
         (err) => console.error('[FinanceContext] Erreur sauvegarde transactions :', err)

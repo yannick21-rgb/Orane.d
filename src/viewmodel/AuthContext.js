@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
 import { hashPassword, verifyPassword, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncRemove, validateUser } from '../utils/storage';
-import { initSecureStorage, lockSecureStorage } from '../utils/secureStorage';
+import { initSecureStorage, lockSecureStorage, secureReadJSON } from '../utils/secureStorage';
 import { toRows, sync } from '../utils/sync';
 
 const AuthContext = createContext({});
@@ -179,11 +179,11 @@ export const AuthProvider = ({ children }) => {
         }
       };
 
-      const transactions = await safeAsyncReadJSON(`@oraned_transactions_${email}`, []);
+      const transactions = await secureReadJSON(`@oraned_transactions_${email}`, []);
       await upsertTable('transactions', transactions);
-      const debts = await safeAsyncReadJSON(`@oraned_debts_${email}`, []);
+      const debts = await secureReadJSON(`@oraned_debts_${email}`, []);
       await upsertTable('debts', debts);
-      const tontines = await safeAsyncReadJSON(`@oraned_tontines_${email}`, []);
+      const tontines = await secureReadJSON(`@oraned_tontines_${email}`, []);
       await upsertTable('tontines', tontines);
 
       const settings = await safeAsyncReadJSON(`@oraned_settings_${email}`, null);
