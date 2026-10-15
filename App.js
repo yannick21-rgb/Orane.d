@@ -98,7 +98,6 @@ function MainTabsBody() {
   // 3 onglets (Accueil, Stats, Paramètres) — la page Ajout n'est plus dans
   // le pager : c'est un modal distinct (édition + ajout rapide).
   const tabLabels = [t('home'), t('stats'), t('settings')];
-  const tabPages = [0, 1, 2];
 
   // Clavier ouvert → la barre se retire, le pager reprend l'espace
   // (convention tabBarHideOnKeyboard). Les actions restent atteignables
