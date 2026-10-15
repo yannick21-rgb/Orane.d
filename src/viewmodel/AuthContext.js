@@ -377,7 +377,9 @@ export const AuthProvider = ({ children }) => {
 
   const switchToUser = async (targetEmail, pin) => {
     const target = allUsers.find((u) => u.email === targetEmail);
-    if (!target) return;
+    // Échec explicite (et non un `return` silencieux) : appelé depuis la modale
+    // de bascule, le silence afficherait un faux succès sans rien changer.
+    if (!target) throw new Error('Compte introuvable.');
     // Déléguer à `loginToUser` garantit la vérification du PIN (rate-limit,
     // hash SecureStore) et l'initialisation du stockage chiffré du compte
     // cible. Sans PIN saisi, on refuse de basculer vers un compte protégé.
@@ -387,6 +389,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Code PIN requis pour basculer vers ce compte.');
     }
     await loginToUser(targetEmail, pin);
+    return true;
   };
 
   const logout = async () => {

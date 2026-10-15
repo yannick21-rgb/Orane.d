@@ -23,6 +23,7 @@ import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Lock, Shield, User
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
+import { getStoredPinHash } from '../../utils/security';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
 import { exportTransactionsToCSV } from '../../service/exportCSV';
@@ -360,9 +361,20 @@ export default function SettingsScreen({ navigation }) {
     return ok;
   };
 
-  // Bascule vers un autre compte : ouvre d'abord la vérification du PIN.
-  const handleSwitchAccount = (email) => {
-    setSwitchTarget(email);
+  // Bascule vers un autre compte. Un compte protégé ouvre d'abord la
+  // vérification du PIN ; un compte SANS PIN bascule directement (la modale
+  // afficherait sinon un cadenas sur un compte ouvert, à saisir sans effet).
+  const handleSwitchAccount = async (email) => {
+    try {
+      const hasPin = !!(await getStoredPinHash(email));
+      if (!hasPin) {
+        await switchToUser(email);
+        return;
+      }
+      setSwitchTarget(email);
+    } catch (e) {
+      Alert.alert('Erreur', e.message || 'Bascule impossible.');
+    }
   };
 
   // `onUnlock` doit renvoyer `true` en cas de succès : sinon PinAuthModal
@@ -982,7 +994,8 @@ export default function SettingsScreen({ navigation }) {
         remainingText=""
       />
 
-      {/* Vérification du PIN avant de basculer vers un autre compte. */}
+      {/* Vérification du PIN avant de basculer — ouverte uniquement pour un
+          compte effectivement protégé par un PIN (voir handleSwitchAccount). */}
       <PinAuthModal
         visible={!!switchTarget}
         onClose={() => setSwitchTarget(null)}
