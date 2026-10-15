@@ -40,7 +40,10 @@ export function validateSchema(data, schema) {
 const USER_SCHEMA = {
   name: { type: 'string', required: true },
   email: { type: 'string', required: true },
-  password: { type: 'string', required: true },
+  // Optionnel : un compte Supabase restauré sans saisie du mot de passe n'a
+  // pas de hash local. Il doit rester dans le répertoire (Gestion des Comptes,
+  // PIN oublié via l'API d'auth, bascule), donc on ne le rejette plus.
+  password: { type: 'string', required: false },
 };
 
 const DEBT_SCHEMA = {

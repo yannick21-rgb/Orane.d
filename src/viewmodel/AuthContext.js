@@ -12,6 +12,9 @@ const AUTH_USER_KEY = '@AuthUser';
 const ACCOUNTS_INDEX_KEY = '@orane_accounts_index';
 const MIGRATED_KEY = (uid) => `@migrated_to_supabase_${uid}`;
 
+// File d'attente des écritures de `@oraned_all_users` (voir `rememberAccount`).
+let _rememberChain = Promise.resolve();
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,14 +54,25 @@ export const AuthProvider = ({ children }) => {
    * écrits → « PIN oublié » renvoyait toujours false et « Basculer » ne
    * faisait rien.
    * @param {{name?: string, email: string, password?: string}} p
-   *   `password` absent → met seulement à jour le nom d'un compte déjà connu
-   *   (une entrée sans hash est rejetée par `validateUser`).
+   *   `password` absent → crée l'entrée sans hash (compte Supabase) ou met
+   *   seulement à jour le nom d'un compte déjà connu.
    */
-  const rememberAccount = async ({ name, email, password }) => {
+  const rememberAccount = ({ name, email, password }) => {
+    // Sérialise les écritures : le listener d'auth et `login` peuvent appeler
+    // `rememberAccount` en parallèle ; sans file d'attente, la dernière
+    // écriture gagnante écraserait l'ajout de l'autre (read-modify-write).
+    const run = _rememberChain.then(
+      () => doRememberAccount({ name, email, password }),
+      () => doRememberAccount({ name, email, password })
+    );
+    _rememberChain = run.catch(() => {});
+    return run;
+  };
+
+  const doRememberAccount = async ({ name, email, password }) => {
     try {
       const users = await safeAsyncReadJSON(USERS_KEY, []);
       const idx = users.findIndex((u) => u.email === email);
-      if (idx < 0 && password === undefined) return;
       if (idx >= 0 && password === undefined && (!name || users[idx].name === name)) return;
 
       const entry = idx >= 0 ? { ...users[idx] } : { name: name || email.split('@')[0], email };
