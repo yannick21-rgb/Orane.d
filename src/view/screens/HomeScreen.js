@@ -61,6 +61,7 @@ import { typography, maxFontScale } from '../theme/typography';
 import { radius, touchTarget, duration } from '../theme/tokens';
 import { shadows } from '../theme/shadows';
 import { DEFAULT_ACCENT } from '../../model/ThemeModel';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../model/TransactionModel';
 import {
   Amount, AmountText, Card, EmptyState, IconButton,
   ProgressBar, SkeletonRow, Avatar,
@@ -70,20 +71,18 @@ import {
 /* Catégories                                                          */
 /* ------------------------------------------------------------------ */
 
-const CATEGORY_KEY_MAP = {
-  'Alimentation': 'alimentation',
-  'Transport': 'transport',
-  'Logement': 'logement',
-  'Santé': 'sante',
-  'Loisirs': 'loisirs',
+// Clé i18n de chaque catégorie, construite depuis le modèle pour rester
+// synchronisée (Habillement, Abonnements & Tech, catégories de revenus…).
+// Les clés « legacy » couvrent les transactions enregistrées avant
+// l'harmonisation des libellés.
+const CATEGORY_KEY_MAP = {};
+[...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].forEach((c) => { CATEGORY_KEY_MAP[c.key] = c.tKey; });
+Object.assign(CATEGORY_KEY_MAP, {
   'Vêtements': 'vetements',
   'Salaire': 'salaire',
-  'Épargne': 'epargne',
   'Général': 'general',
   'Retrait MoMo': 'frais_retraits_cat',
-  'Education/Formation': 'education_formation',
-  'Autres': 'autres',
-};
+});
 
 /** Pictogramme + teinte par catégorie (pastille colorée). */
 const CATEGORY_VISUAL = {
@@ -93,6 +92,7 @@ const CATEGORY_VISUAL = {
   'Santé': { Icon: HeartPulse, color: '#E05A7A' },
   'Loisirs': { Icon: Gamepad2, color: '#3FC1C9' },
   'Vêtements': { Icon: Shirt, color: '#C9A86A' },
+  'Habillement': { Icon: Shirt, color: '#C9A86A' },
   'Salaire': { Icon: Briefcase, color: '#2ecc71' },
   'Épargne': { Icon: PiggyBank, color: '#1FA97A' },
   'Général': { Icon: Tag, color: '#8A93A3' },
