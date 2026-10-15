@@ -223,6 +223,21 @@ export async function resetSecureStorage(userId) {
   }
 }
 
+/**
+ * Verrouille le stockage chiffré SANS détruire les identifiants.
+ *
+ * `logout` doit retirer de la mémoire la clé maîtresse (sinon le processus
+ * garde la capacité de déchiffrer les données du compte qu'on vient de
+ * quitter). On NE supprime PAS le hash du PIN ni la clé maîtresse du
+ * SecureStore : le PIN protège le changement de compte et la clé maîtresse
+ * doit survivre pour que les données chiffrées restent lisibles au prochain
+ * login.
+ */
+export function lockSecureStorage() {
+  masterKey = null;
+  keySalt = null;
+}
+
 export async function isSecureStorageReady() {
   return masterKey !== null;
 }

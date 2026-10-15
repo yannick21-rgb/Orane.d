@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
 import { hashPassword, verifyPassword, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncRemove, validateUser } from '../utils/storage';
-import { initSecureStorage } from '../utils/secureStorage';
+import { initSecureStorage, lockSecureStorage } from '../utils/secureStorage';
 import { toRows } from '../utils/sync';
 
 const AuthContext = createContext({});
@@ -397,6 +397,11 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setSupabaseUser(null);
     setEncryptionReady(false);
+    // Retire la clé maîtresse de la mémoire du processus : après déconnexion,
+    // il ne doit plus pouvoir déchiffrer les données du compte quitté. Le hash
+    // du PIN et la clé maîtresse restent dans le SecureStore (le PIN protège
+    // la bascule de compte ; la clé doit survivre pour déchiffrer au retour).
+    lockSecureStorage();
     await safeAsyncRemove(AUTH_USER_KEY);
   };
 
