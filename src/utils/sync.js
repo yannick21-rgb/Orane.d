@@ -364,6 +364,17 @@ export const sync = {
   },
 };
 
+// Horodatage exploitable d'un enregistrement : 0 si absent ou invalide.
+// `new Date('invalide').getTime()` vaut `NaN` : sans ce garde-fou, un
+// enregistrement local corrompu bloquait silencieusement toute mise à jour
+// cloud (`cloudTime > NaN` est toujours faux).
+function recordTime(rec) {
+  const raw = rec && (rec.updated_at || rec.updatedAt);
+  if (!raw) return 0;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
 export function mergeRecords(local, cloud, getId = (r) => r.id) {
   if (!cloud || cloud.length === 0) return local;
   if (!local || local.length === 0) return cloud;
@@ -379,13 +390,12 @@ export function mergeRecords(local, cloud, getId = (r) => r.id) {
     if (!existing) {
       map.set(id, r);
     } else {
-      const localTime = new Date(
-        existing.updated_at || existing.updatedAt || 0
-      ).getTime();
-      const cloudTime = new Date(
-        r.updated_at || r.updatedAt || 0
-      ).getTime();
-      if (cloudTime > localTime) {
+      // Dernière écriture gagne, à horodatage valide : un enregistrement sans
+      // date exploitable (0) n'écrase jamais un enregistrement daté, et à
+      // égalité on conserve la version locale (édits non encore poussés).
+      const localTime = recordTime(existing);
+      const cloudTime = recordTime(r);
+      if (cloudTime > 0 && cloudTime > localTime) {
         map.set(id, r);
       }
     }
