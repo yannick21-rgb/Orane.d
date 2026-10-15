@@ -15,7 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
-import { generateId } from '../../utils/id';
 import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, computeTransferFee } from '../../model/TransactionModel';
 import { useResponsive } from '../../utils/responsive';
 import { buildColors } from '../theme';
@@ -23,7 +22,7 @@ import { type as typeStyles } from '../theme/type';
 
 export default function AddTransactionScreen({ onClose }) {
   const { t } = useTranslation();
-  const { isDark, accentColor, addTransaction, updateTransaction, editingTransaction, devise } = useFinance();
+  const { isDark, accentColor, updateTransaction, editingTransaction, devise } = useFinance();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
@@ -104,6 +103,11 @@ export default function AddTransactionScreen({ onClose }) {
       finalCategory = 'Retrait MoMo';
     }
 
+    // Écran d'édition uniquement : App.js ne le monte que via
+    // `editingTransaction`. La branche de création qui vivait ici était morte
+    // (la création passe par `TransactionSheet`). On garde la garde
+    // `isEditing` : si l'écran était un jour monté sans transaction, on ne
+    // tente pas de lire `editingTransaction.id`.
     if (isEditing) {
       updateTransaction(editingTransaction.id, {
         title:           title.trim(),
@@ -115,38 +119,6 @@ export default function AddTransactionScreen({ onClose }) {
         momoNetwork:     type === 'transfert' ? selectedNetwork : null,
         incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
       });
-    } else {
-      const txId = generateId();
-
-      addTransaction({
-        id:              txId,
-        title:           title.trim(),
-        amount:          finalAmount,
-        type,
-        wallet,
-        category:        finalCategory,
-        note:            customNote || null,
-        date:            new Date().toISOString(),
-        momoNetwork:     type === 'transfert' ? selectedNetwork : null,
-        momoFee:         null,
-        frais:           0,
-        amountReceived:  type === 'transfert' ? parsed : null,
-        incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
-      });
-
-      if (type === 'transfert' && computedFee > 0) {
-        addTransaction({
-          id:          txId + '_fee',
-          title:       `Frais retrait ${title.trim() || selectedNetwork}`,
-          amount:      computedFee,
-          type:        'expense',
-          wallet:      'momo',
-          category:    'Frais & Retraits',
-          momoNetwork: selectedNetwork,
-          note:        `Frais automatiques ${NETWORKS.find(n => n.key === selectedNetwork)?.tKey || selectedNetwork} : ${computedFee}${deviseSymbol}`,
-          date:        new Date().toISOString(),
-        });
-      }
     }
 
     setShowSuccessModal(true);
