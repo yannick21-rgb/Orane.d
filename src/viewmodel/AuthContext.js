@@ -3,7 +3,7 @@ import { supabase } from '../utils/supabase';
 import { hashPassword, verifyPassword, checkPinRateLimit, recordFailedPinAttempt, resetPinRateLimit } from '../utils/security';
 import { safeAsyncReadJSON, safeAsyncWriteJSON, safeAsyncRemove, validateUser } from '../utils/storage';
 import { initSecureStorage, lockSecureStorage } from '../utils/secureStorage';
-import { toRows } from '../utils/sync';
+import { toRows, sync } from '../utils/sync';
 
 const AuthContext = createContext({});
 
@@ -422,6 +422,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    // Vider la file de synchronisation AVANT de fermer la session : après
+    // `signOut`, `flushPending` n'a plus d'utilisateur Supabase et les push /
+    // suppressions en attente resteraient bloqués jusqu'à la réouverture du
+    // compte. En cas d'échec (hors ligne), la file est conservée et repartira
+    // au prochain `sync.init`.
+    try { await sync.flushPending(); } catch (e) { /* hors ligne : conservé */ }
     await supabase.auth.signOut();
     setUser(null);
     setSupabaseUser(null);
