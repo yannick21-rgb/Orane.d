@@ -309,7 +309,10 @@ export function FinanceProvider({ children }) {
     setHasPinCode(true);
   };
 
-  const unlockDiscreteMode = async (enteredPin) => {
+  // Vérifie un PIN SANS effet de bord : `unlockDiscreteMode` (ci-dessous)
+  // s'en sert, et SettingsScreen l'utilise pour vérifier l'ancien PIN lors
+  // d'un changement de code — sans désactiver le mode discret au passage.
+  const verifyPinOnly = async (enteredPin) => {
     if (!userId) return false;
     const { locked, waitMs } = await checkPinRateLimit(userId);
     if (locked) {
@@ -322,14 +325,10 @@ export function FinanceProvider({ children }) {
       throw new Error(msg);
     }
     const storedHash = await getStoredPinHash(userId);
-    if (!storedHash) {
-      setIsDiscreteMode(false);
-      return true;
-    }
+    if (!storedHash) return true;
     const valid = await verifyPin(enteredPin, storedHash);
     if (valid) {
       await resetPinRateLimit(userId);
-      setIsDiscreteMode(false);
       return true;
     }
     const result = await recordFailedPinAttempt(userId);
@@ -344,6 +343,12 @@ export function FinanceProvider({ children }) {
       msg += ` Encore ${result.remainingAttempts} tentative(s).`;
     }
     throw new Error(msg);
+  };
+
+  const unlockDiscreteMode = async (enteredPin) => {
+    const ok = await verifyPinOnly(enteredPin);
+    if (ok) setIsDiscreteMode(false);
+    return ok;
   };
 
   const toggleDiscreteMode = () => {
@@ -616,7 +621,7 @@ export function FinanceProvider({ children }) {
         totalDepenses: walletBalances.totalDepenses, theme, setTheme, accentColor, setAccentColor,
         devise, setDevise, locale, changeGlobalLanguage, isDark, budgetLimit, setBudgetLimit,
         addTransaction, updateTransaction, deleteTransaction, deleteMultipleTransactions, resetAllTransactions,
-        isLoaded, isUserDataLoaded, editingTransaction, setEditingTransaction, isDiscreteMode, hasPinCode, saveNewPin, unlockDiscreteMode,
+        isLoaded, isUserDataLoaded, editingTransaction, setEditingTransaction, isDiscreteMode, hasPinCode, saveNewPin, unlockDiscreteMode, verifyPinOnly,
         toggleDiscreteMode, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, exportTransactionsAsCSV,
         budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute, checkBudgetPeriodAlert, getPeriodExpenses,
         updateDailyReminderTime, scheduleMonthlyReview,

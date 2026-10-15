@@ -213,7 +213,7 @@ export default function SettingsScreen({ navigation }) {
     devise, setDevise, budgetLimit, setBudgetLimit,
     budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute,
     checkBudgetPeriodAlert, getPeriodExpenses, updateDailyReminderTime, scheduleMonthlyReview,
-    hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, unlockDiscreteMode,
+    hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, verifyPinOnly,
   } = useFinance();
   const { t, currentLanguage, changeLanguage } = useTranslation();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
@@ -348,16 +348,14 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleChangePinOldVerify = async (pin) => {
-    try {
-      const ok = await unlockDiscreteMode(pin);
-      if (ok) {
-        setVerifiedOldPin(pin);
-        setChangeStep('new');
-      }
-      return ok;
-    } catch (e) {
-      throw e;
+    // `verifyPinOnly` et non `unlockDiscreteMode` : vérifier l'ancien PIN pour
+    // le changer ne doit pas désactiver le mode discret au passage.
+    const ok = await verifyPinOnly(pin);
+    if (ok) {
+      setVerifiedOldPin(pin);
+      setChangeStep('new');
     }
+    return ok;
   };
 
   const handleChangePinNewSave = async (newPin) => {
