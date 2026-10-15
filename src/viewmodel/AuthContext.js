@@ -375,12 +375,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const switchToUser = async (targetEmail) => {
+  const switchToUser = async (targetEmail, pin) => {
     const target = allUsers.find((u) => u.email === targetEmail);
     if (!target) return;
-    const userData = { name: target.name, email: target.email };
-    setUser(userData);
-    await safeAsyncWriteJSON(AUTH_USER_KEY, userData);
+    // Déléguer à `loginToUser` garantit la vérification du PIN (rate-limit,
+    // hash SecureStore) et l'initialisation du stockage chiffré du compte
+    // cible. Sans PIN saisi, on refuse de basculer vers un compte protégé.
+    const { getStoredPinHash } = await import('../utils/security');
+    const hasPin = !!(await getStoredPinHash(targetEmail));
+    if (hasPin && !pin) {
+      throw new Error('Code PIN requis pour basculer vers ce compte.');
+    }
+    await loginToUser(targetEmail, pin);
   };
 
   const logout = async () => {

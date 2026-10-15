@@ -238,6 +238,8 @@ export default function SettingsScreen({ navigation }) {
   const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
   const [showDebts, setShowDebts] = useState(false);
   const [showTontines, setShowTontines] = useState(false);
+  // Bascule de compte : e-mail cible en attente de vérification du PIN.
+  const [switchTarget, setSwitchTarget] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -356,6 +358,20 @@ export default function SettingsScreen({ navigation }) {
       setChangeStep('new');
     }
     return ok;
+  };
+
+  // Bascule vers un autre compte : ouvre d'abord la vérification du PIN.
+  const handleSwitchAccount = (email) => {
+    setSwitchTarget(email);
+  };
+
+  // `onUnlock` doit renvoyer `true` en cas de succès : sinon PinAuthModal
+  // affiche « PIN incorrect » alors que la bascule a réussi. En cas d'échec,
+  // on relance l'erreur pour que la modale affiche le message (rate-limit…).
+  const handleSwitchConfirm = async (pin) => {
+    await switchToUser(switchTarget, pin);
+    setSwitchTarget(null);
+    return true;
   };
 
   const handleChangePinNewSave = async (newPin) => {
@@ -571,7 +587,7 @@ export default function SettingsScreen({ navigation }) {
                     ) : (
                       <TouchableOpacity
                         style={[styles.switchBtn, { backgroundColor: accentColor }]}
-                        onPress={() => switchToUser(account.email)}
+                        onPress={() => handleSwitchAccount(account.email)}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.switchBtnText}>Basculer</Text>
@@ -961,6 +977,18 @@ export default function SettingsScreen({ navigation }) {
           if (showResetModal) handleResetNewPinSave(pin);
         }}
         hasPin={false}
+        isDark={isDark}
+        accentColor={accentColor}
+        remainingText=""
+      />
+
+      {/* Vérification du PIN avant de basculer vers un autre compte. */}
+      <PinAuthModal
+        visible={!!switchTarget}
+        onClose={() => setSwitchTarget(null)}
+        onUnlock={(pin) => handleSwitchConfirm(pin)}
+        onSaveNewPin={() => {}}
+        hasPin={true}
         isDark={isDark}
         accentColor={accentColor}
         remainingText=""
