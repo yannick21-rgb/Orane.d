@@ -279,10 +279,46 @@ Bottom-sheet pour créer/éditer une tontine.
 
 ### 8.2 Stockage sécurisé (`secureStorage.js`)
 
-- AES-CBC via `expo-crypto` + `expo-secure-store` pour la clé maîtresse
-- Fallback transparent vers AsyncStorage si AES indisponible
-- `secureSet/Get/GetJSON/Remove()` avec préfixe `@enc_`
-- `secureStorePinHash/GetPinHash/RemovePinHash()` via `expo-secure-store`
+Chiffrement **AES-256-CBC** des données au repos. Sur mobile, `crypto.subtle`
+provient de `react-native-quick-crypto` (voir 8.4) ; sans module natif le
+chiffrement est impossible et les données restent en clair — la donnée n'est
+jamais perdue pour autant.
+
+- **Clé maîtresse** : 32 octets aléatoires (`crypto.getRandomValues`), stockée
+  dans `expo-secure-store` (`orane_master_key`), créée à la demande.
+- **Marqueur `enc:v1:`** : seules les valeurs précédées de ce marqueur sont du
+  chiffré. Sans lui, la valeur est du texte en clair hérité et reste lisible —
+  c'est ce qui rend la mise en service du chiffrement non destructive.
+- **Initialisation paresseuse** : `ensureMasterKey()` charge ou crée la clé au
+  premier besoin (pas d'appel d'init à prévoir avant utilisation).
+- `secureReadJSON(key, fallback)` — lecture chiffrée prioritaire, repli sur
+  l'ancienne clé en clair, migration proactive (réécriture chiffrée puis copie
+  claire supprimée). Renvoie `undefined` — et non `fallback` — quand la donnée
+  existe mais est **indéchiffrable**.
+- `secureWriteJSON(key, value)` — écrit chiffré quand c'est possible, en clair
+  sinon. **Refuse d'écrire une valeur vide** (`[]`, `null`) par-dessus une
+  donnée chiffrée illisible : sans cette garde, la persistance d'un contexte
+  qui vient de lire le repli `[]` détruirait la dernière copie locale.
+- `lockSecureStorage()` — au logout, retire la clé de la mémoire **sans**
+  toucher au SecureStore (PIN et clé doivent survivre au compte suivant).
+- Données chiffrées : transactions, dettes, tontines (`@enc_@oraned_*`).
+
+#### Décisions de sécurité documentées
+
+- **Clé globale, pas par compte.** La clé maîtresse n'est pas dérivée par
+  utilisateur : un appareil compromis au niveau du SecureStore expose tous les
+  comptes de l'appareil. Choix assumé — le SecureStore est déjà la frontière de
+  sécurité (le hash du PIN y est stocké lui aussi) et une dérivation par compte
+  exigerait une migration des données. À revoir si des comptes sensibles doivent
+  être isolés les uns des autres.
+- **Pas de sel / PBKDF2 sur la clé maîtresse.** Elle est déjà 256 bits
+  d'entropie issus du CSPRNG ; une dérivation n'ajoute rien à ce niveau et coûte
+  des cycles. L'ancien `keySalt` (lu mais jamais utilisé) a été supprimé plutôt
+  que laissé en trompe-l'œil.
+- **Donnée illisible = donnée conservée.** Une clé perdue (réinstallation,
+  SecureStore vidé) ne déclenche jamais d'écriture destructive ; la reprise se
+  fait par la synchro cloud, et `sync.push` ignore les tableaux vides, donc le
+  cloud n'est jamais écrasé par du vide.
 
 ### 8.3 Sécurité (`security.js`)
 
@@ -296,9 +332,17 @@ Bottom-sheet pour créer/éditer une tontine.
 
 ### 8.4 Crypto Polyfill (`cryptoPolyfill.js`)
 
-Patch `global.crypto` pour React Native avec `expo-crypto` :
-- `crypto.getRandomValues()` via `getRandomBytes()`
-- `crypto.subtle.digest()` via `digestStringAsync()` (SHA-256)
+Complète `global.crypto` sur mobile (le web dispose déjà de WebCrypto) :
+
+- `react-native-quick-crypto` via `install()` — pose le **vrai**
+  `crypto.subtle` (AES-CBC), `global.Buffer` et les helpers base64 ;
+- repli `crypto.getRandomValues()` via `expo-crypto` si le module natif est
+  absent (Expo Go, rebuild natif oublié) : le chiffrement au repos est désactivé,
+  les fonctionnalités ne le sont pas.
+
+> **Module natif** : `react-native-quick-crypto` exige un build natif
+> (`expo prebuild` / `expo run`). Le chiffrement au repos n'est donc pas actif
+> dans Expo Go.
 
 ### 8.5 Formatage (`format.js`)
 
@@ -555,12 +599,13 @@ pousse l'ensemble des enregistrements vers Supabase.
 ```bash
 npm run check            # règles de code (AST), styles inclus (usines createStyles)
 node scripts/check-a11y.js && node scripts/check-contrast.js
+yarn test                # tests unitaires node:test (logique métier + chiffrement)
 curl "http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false" -o /dev/null -w "%{http_code}\n"
 ```
 
-> Les modules natifs ajoutés (`expo-screen-capture`, `react-native-worklets`)
-> exigent un nouveau build natif : `npx expo run:android` / `npx expo run:ios`
-> (Expo Go seul ne suffit plus).
+> Les modules natifs ajoutés (`expo-screen-capture`, `react-native-worklets`,
+> `react-native-quick-crypto`) exigent un nouveau build natif :
+> `npx expo run:android` / `npx expo run:ios` (Expo Go seul ne suffit plus).
 
 ---
 

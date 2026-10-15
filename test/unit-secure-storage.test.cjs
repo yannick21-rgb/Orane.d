@@ -96,3 +96,52 @@ test('secureGet — ne renvoie jamais une valeur chiffrée illisible telle quell
   await harness.AsyncStorage.setItem('@enc_@oraned_transactions_u1', `${MARKER}deadbeef`);
   assert.equal(await secureGet('@oraned_transactions_u1'), null);
 });
+
+test('clé maîtresse perdue — une valeur vide n’écrase PAS la donnée chiffrée', async () => {
+  await initSecureStorage('user-1');
+  await secureWriteJSON('@oraned_transactions_u1', [{ id: 'a', title: 'Café' }]);
+  const stored = await harness.AsyncStorage.getItem('@enc_@oraned_transactions_u1');
+  assert.ok(stored.startsWith(MARKER));
+
+  // Réinstallation / SecureStore vidé : une nouvelle clé maîtresse est générée.
+  harness.secureStoreMap.clear();
+  lockSecureStorage();
+
+  // La lecture signale l'illisibilité au lieu de renvoyer le repli `[]`.
+  assert.equal(await secureReadJSON('@oraned_transactions_u1', []), undefined);
+
+  // La persistance d'un tableau vide — ce qu'écrirait le contexte après la
+  // lecture ci-dessus — doit être refusée, sinon la donnée serait perdue.
+  const refusals = [];
+  const origError = console.error;
+  console.error = (...args) => refusals.push(args);
+  let ok;
+  try {
+    ok = await secureWriteJSON('@oraned_transactions_u1', []);
+  } finally {
+    console.error = origError;
+  }
+  assert.equal(ok, false);
+  assert.ok(refusals.length > 0, 'un refus doit être journalisé');
+
+  // La donnée d'origine est intacte sur le disque.
+  assert.equal(await harness.AsyncStorage.getItem('@enc_@oraned_transactions_u1'), stored);
+});
+
+test('clé maîtresse perdue — une valeur non vide (reprise cloud) reste écritible', async () => {
+  await initSecureStorage('user-1');
+  await secureWriteJSON('@oraned_transactions_u1', [{ id: 'a' }]);
+  harness.secureStoreMap.clear();
+  lockSecureStorage();
+
+  const restored = [{ id: 'cloud', title: 'restauré' }];
+  assert.equal(await secureWriteJSON('@oraned_transactions_u1', restored), true);
+  assert.deepEqual(await secureReadJSON('@oraned_transactions_u1', []), restored);
+});
+
+test('valeur en clair héritée — jamais prise pour une donnée indéchiffrable', async () => {
+  // Clair (pas de marqueur) : la garde anti-perte ne doit pas s'appliquer.
+  await harness.AsyncStorage.setItem('@enc_@oraned_transactions_u1', JSON.stringify([{ id: 'a' }]));
+  await initSecureStorage('user-1');
+  assert.equal(await secureWriteJSON('@oraned_transactions_u1', []), true);
+});

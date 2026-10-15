@@ -13,7 +13,6 @@ function sanitizeKey(raw) {
 }
 
 const ENC_KEY_STORE = 'orane_master_key';
-const KEY_SALT_STORE = 'orane_key_salt';
 
 // Marque une valeur chiffrée. Sans ce préfixe, la valeur stockée est du texte
 // en clair : les données écrites AVANT l'activation du chiffrement (ou par un
@@ -22,7 +21,6 @@ const KEY_SALT_STORE = 'orane_key_salt';
 const ENC_MARKER = 'enc:v1:';
 
 let masterKey = null;
-let keySalt = null;
 
 function isValidKey(key) {
   return typeof key === 'string' && key.length > 0 && /^[a-zA-Z0-9_]+$/.test(key);
@@ -160,14 +158,7 @@ function secureKey(userId, prefix) {
 export async function initSecureStorage(userId) {
   try {
     const keyHex = await ensureMasterKey();
-    if (!keyHex) return false;
-    if (SecureStore && userId && keySalt === null) {
-      const saltKey = secureKey(userId, KEY_SALT_STORE);
-      if (isValidKey(saltKey)) {
-        keySalt = (await SecureStore.getItemAsync(saltKey)) || '';
-      }
-    }
-    return true;
+    return Boolean(keyHex);
   } catch (e) {
     console.error('[secureStorage] init échoué :', e.message);
     return false;
@@ -206,14 +197,29 @@ export async function secureGetJSON(key, fallback = null) {
  * Ordre : stockage chiffré (`@enc_<key>`) d'abord, puis ancienne clé en clair
  * (`<key>`) écrite avant le chiffrement. Une donnée trouvée en clair est
  * migrée immédiatement (réécrite chiffrée, copie claire supprimée).
+ *
+ * Retour :
+ *  - la valeur lue ;
+ *  - `fallback` quand AUCUNE donnée n'existe ;
+ *  - `undefined` quand la donnée EXISTE mais est indéchiffrable (clé maîtresse
+ *    perdue/changée, SecureStore vidé, données corrompues).
+ *
+ * `undefined` est un signal, pas un accident : écrire `fallback` par-dessus
+ * détruirait la dernière copie locale — `secureWriteJSON` le refuse, et
+ * l'appelant peut s'en servir pour afficher une erreur au lieu de vider l'écran.
  */
 export async function secureReadJSON(key, fallback = null) {
   const stored = await safeAsyncRead(`@enc_${key}`, null);
   if (stored !== null) {
-    const str = stored.startsWith(ENC_MARKER) ? await secureGet(key) : stored;
+    if (!stored.startsWith(ENC_MARKER)) {
+      // Clair hérité (chiffrement indisponible) : lisible tel quel.
+      const parsedLegacy = safeJSONParse(stored, undefined);
+      return parsedLegacy === undefined ? fallback : parsedLegacy;
+    }
+    const str = await secureGet(key);
+    if (str === null) return undefined; // chiffré, mais pas déchiffrable ici
     const parsed = safeJSONParse(str, undefined);
-    if (parsed !== undefined) return parsed;
-    return fallback;
+    return parsed === undefined ? undefined : parsed;
   }
 
   const legacy = await safeAsyncRead(key, null);
@@ -229,11 +235,46 @@ export async function secureReadJSON(key, fallback = null) {
 }
 
 /**
+ * Une donnée chiffrée existe sous cette clé mais reste indéchiffrable avec la
+ * clé maîtresse actuelle ? (SecureStore vidé / réinstallé, clé perdue, données
+ * corrompues.) Uniquement vrai pour une valeur PORTANT le marqueur : sans
+ * marqueur c'est du clair lisible, et la garde ne doit pas s'appliquer.
+ */
+async function isStoredUnreadable(key) {
+  const stored = await safeAsyncRead(`@enc_${key}`, null);
+  if (stored === null || !stored.startsWith(ENC_MARKER)) return false;
+  const keyHex = await ensureMasterKey();
+  if (!keyHex) return false;
+  return (await aesDecrypt(stored, keyHex)) === null;
+}
+
+/** Un tableau vide est un « pas de données » : dangereux à écrire ici. */
+function isEmptyValue(value) {
+  if (value === null || value === undefined) return true;
+  if (Array.isArray(value) && value.length === 0) return true;
+  return false;
+}
+
+/**
  * Écriture d'une donnée sensible : chiffrée si possible, sinon en clair (pour
  * ne jamais perdre la donnée). Après une écriture chiffrée, la copie en clair
  * héritée est supprimée.
+ *
+ * Garde anti-perte : si la valeur stockée est chiffrée ET indéchiffrable, on
+ * refuse d'écrire une valeur VIDE par-dessus. La lecture a alors renvoyé le
+ * repli (`[]`) faute de clé ; sans cette garde, la persistance (transactions,
+ * dettes, tontines) écraserait la dernière copie locale des données — perte
+ * définitive hors ligne. Une valeur NON vide est acceptée : elle vient en
+ * général du cloud, qui restaure la donnée sous la nouvelle clé.
  */
 export async function secureWriteJSON(key, value) {
+  if (isEmptyValue(value) && (await isStoredUnreadable(key))) {
+    console.error(
+      `[secureStorage] Écriture de ${key} refusée : la donnée chiffrée existante est ` +
+        'indéchiffrable (clé maîtresse perdue ?) — l\'écrire la perdrait.'
+    );
+    return false;
+  }
   const json = JSON.stringify(value);
   const keyHex = await ensureMasterKey();
   if (keyHex) {
@@ -290,18 +331,7 @@ export async function secureRemovePinHash(userId) {
 
 export async function resetSecureStorage(userId) {
   masterKey = null;
-  keySalt = null;
   await secureRemovePinHash(userId);
-  if (SecureStore && userId) {
-    const saltKey = secureKey(userId, KEY_SALT_STORE);
-    if (isValidKey(saltKey)) {
-      try {
-        await SecureStore.deleteItemAsync(saltKey);
-      } catch (e) {
-        console.error('[secureStorage] Erreur suppression salt :', e.message);
-      }
-    }
-  }
 }
 
 /**
@@ -316,7 +346,6 @@ export async function resetSecureStorage(userId) {
  */
 export function lockSecureStorage() {
   masterKey = null;
-  keySalt = null;
 }
 
 export async function isSecureStorageReady() {
