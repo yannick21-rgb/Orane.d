@@ -45,7 +45,10 @@ export default function LoginScreen({ onSwitchToRegister }) {
     }
     setLoading(true);
     try {
-      await login(cleanEmail, password.trim());
+      // Le mot de passe n'est PAS `trim()` : RegisterScreen hache le mot de
+      // passe brut. Le tronquer ici rendait impossible la connexion d'un mot
+      // de passe commençant/finissant par un espace.
+      await login(cleanEmail, password);
     } catch (e) {
       Alert.alert(t('erreur'), t('identifiants_invalides'));
     } finally {
