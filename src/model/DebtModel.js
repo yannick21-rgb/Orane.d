@@ -1,7 +1,10 @@
+import { generateId } from '../utils/id';
+
 export const DEBT_TYPES = {
   CREDIT_ACCORDE: 'credit_accorde',
   CREDIT_RECU: 'credit_recu',
 };
+
 
 export const DEBT_STATUS = {
   EN_COURS: 'en_cours',
@@ -20,7 +23,7 @@ export function debtsKey(userId) {
 
 export function createDebt({ type, personName, amount, dueDate, note, reminderEnabled }) {
   return {
-    id: Date.now().toString(),
+    id: generateId(),
     userId: '',
     type,
     personName,

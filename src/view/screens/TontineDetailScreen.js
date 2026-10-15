@@ -26,6 +26,7 @@ import { radius } from '../theme/tokens';
 import { shadows } from '../theme/shadows';
 import { AmountText, Avatar, Badge } from '../components/ui';
 import { nextRoundInfo } from '../../model/TontineModel';
+import { generateId } from '../../utils/id';
 
 export default function TontineDetailScreen({ group, onClose }) {
   const { accentColor, devise, addTransaction, isDiscreteMode } = useFinance();
@@ -58,7 +59,7 @@ export default function TontineDetailScreen({ group, onClose }) {
           onPress: async () => {
             await markRoundPaid(group.id, round.roundNumber);
             addTransaction({
-              id: Date.now().toString(),
+              id: generateId(),
               title: `Cotisation tontine — ${group.groupName} (tour ${round.roundNumber})`,
               amount: group.amountPerTour,
               type: 'expense',
@@ -85,7 +86,7 @@ export default function TontineDetailScreen({ group, onClose }) {
           onPress: async () => {
             await markRoundReceived(group.id, round.roundNumber);
             addTransaction({
-              id: Date.now().toString(),
+              id: generateId(),
               title: `Réception tontine — ${group.groupName}`,
               amount: group.amountPerTour * group.totalParticipants,
               type: 'income',
@@ -101,7 +102,7 @@ export default function TontineDetailScreen({ group, onClose }) {
           onPress: async () => {
             await markRoundReceived(group.id, round.roundNumber);
             addTransaction({
-              id: Date.now().toString(),
+              id: generateId(),
               title: `Réception tontine — ${group.groupName}`,
               amount: group.amountPerTour * group.totalParticipants,
               type: 'income',

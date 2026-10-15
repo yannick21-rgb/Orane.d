@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
+import { generateId } from '../../utils/id';
 import { NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, INCOME_FREQUENCIES, computeTransferFee } from '../../model/TransactionModel';
 import { useResponsive } from '../../utils/responsive';
 import { buildColors } from '../theme';
@@ -115,7 +116,7 @@ export default function AddTransactionScreen({ onClose }) {
         incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
       });
     } else {
-      const txId = Date.now().toString();
+      const txId = generateId();
 
       addTransaction({
         id:              txId,

@@ -4,6 +4,7 @@ import { tontinesKey, generateRounds, ROUND_STATUS, computeTontineSummary } from
 import { toNumber } from '../utils/format';
 import { validateTontine, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
 import { sync, mergeRecords } from '../utils/sync';
+import { generateId } from '../utils/id';
 import Constants from 'expo-constants';
 
 const TontineContext = createContext({});
@@ -58,7 +59,7 @@ export function TontineProvider({ children }) {
   const addGroup = useCallback(async (data) => {
     const rounds = generateRounds(data);
     const newGroup = {
-      id: Date.now().toString(),
+      id: generateId(),
       userId,
       groupName: data.groupName.trim(),
       amountPerTour: toNumber(data.amountPerTour),

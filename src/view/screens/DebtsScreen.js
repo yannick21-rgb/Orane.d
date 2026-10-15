@@ -19,6 +19,7 @@ import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
 import { DEBT_TYPES, DEBT_STATUS } from '../../model/DebtModel';
 import { toNumber } from '../../utils/format';
+import { generateId } from '../../utils/id';
 import DebtFormModal from '../components/DebtFormModal';
 import DebtDetailScreen, { dueInfo } from './DebtDetailScreen';
 import { useResponsive } from '../../utils/responsive';
@@ -108,7 +109,7 @@ export default function DebtsScreen({ onClose }) {
             const isCreditRecu = debt.type === DEBT_TYPES.CREDIT_RECU;
             const label = isCreditRecu ? 'Remboursement donné' : 'Remboursement reçu';
             addTransaction({
-              id: Date.now().toString(),
+              id: generateId(),
               title: `${label} — ${debt.personName}`,
               amount,
               type: isCreditRecu ? 'expense' : 'income',

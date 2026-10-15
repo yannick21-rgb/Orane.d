@@ -4,6 +4,7 @@ import { debtsKey, computeDebtStatus, DEBT_STATUS } from '../model/DebtModel';
 import { toNumber } from '../utils/format';
 import { validateDebt, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
 import { sync, mergeRecords } from '../utils/sync';
+import { generateId } from '../utils/id';
 import Constants from 'expo-constants';
 
 const DebtContext = createContext({});
@@ -58,7 +59,7 @@ export function DebtProvider({ children }) {
   const addDebt = useCallback(async (debtData) => {
     const newDebt = {
       ...debtData,
-      id: Date.now().toString(),
+      id: generateId(),
       userId,
       dateCreated: new Date().toISOString(),
       amountReimbursed: 0,

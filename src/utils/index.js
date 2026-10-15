@@ -8,3 +8,5 @@ export {
 export { LanguageManager, useTranslation, translations } from './LanguageManager';
 
 export { toNumber, toCurrency } from './format';
+
+export { generateId } from './id';

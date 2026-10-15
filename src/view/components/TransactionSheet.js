@@ -48,6 +48,7 @@ import {
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
+import { generateId } from '../../utils/id';
 import {
   NETWORKS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, computeTransferFee,
 } from '../../model/TransactionModel';
@@ -220,7 +221,7 @@ export function TransactionSheet({ visible, initialType = 'expense', onClose }) 
       finalCategory = 'Retrait MoMo';
     }
 
-    const txId = Date.now().toString();
+    const txId = generateId();
     addTransaction({
       id: txId,
       title,
