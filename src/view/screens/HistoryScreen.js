@@ -8,7 +8,7 @@
  * Modification par swipe : reprend le flux d'édition existant
  * (`setEditingTransaction` + écran Ajout).
  */
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 } from 'react-native';
@@ -102,6 +102,14 @@ export default function HistoryScreen({ onClose, navigation }) {
   const locale = currentLanguage === 'en' ? 'en-US' : currentLanguage === 'es' ? 'es-ES' : 'fr-FR';
 
   const [query, setQuery] = useState('');
+  // La saisie met à jour `query` (champ réactif) ; le filtrage n'est relancé
+  // qu'après une courte pause, pour ne pas recalculer/trier toute la liste à
+  // chaque frappe.
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(id);
+  }, [query]);
   const [typeF, setTypeF] = useState('tout');
   const [walletF, setWalletF] = useState('tout');
   const [catF, setCatF] = useState('tout');
@@ -141,7 +149,7 @@ export default function HistoryScreen({ onClose, navigation }) {
   }, [transactions]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     return [...(transactions || []).filter(Boolean)]
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .filter((tx) => {
@@ -153,7 +161,7 @@ export default function HistoryScreen({ onClose, navigation }) {
         if (q && !((tx.title || '').toLowerCase().includes(q) || (tx.note || '').toLowerCase().includes(q))) return false;
         return true;
       });
-  }, [transactions, query, typeF, walletF, catF, periodF]);
+  }, [transactions, debouncedQuery, typeF, walletF, catF, periodF]);
 
   const hasFilters = query.trim() || typeF !== 'tout' || walletF !== 'tout' || catF !== 'tout' || periodF !== 'tout';
   const resetFilters = () => {

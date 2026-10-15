@@ -1,12 +1,16 @@
-import React, { forwardRef, useImperativeHandle, useState, useRef, useCallback, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Animated, PanResponder, useWindowDimensions } from 'react-native';
 
 /**
  * Pager web : largeur réactive (`useWindowDimensions`) et PanResponder
- * recréé à chaque rendu. La version précédente lisait `Dimensions.get` au
- * premier rendu et figeait le PanResponder dans un `useRef` — après un
+ * recréé quand la largeur change. La version précédente lisait `Dimensions.get`
+ * au premier rendu et figeait le PanResponder dans un `useRef` — après un
  * redimensionnement, `translateX` et le seuil de swipe restaient calés sur
  * l'ancienne largeur : page active décalée, swipe qui snappait ailleurs.
+ *
+ * Le PanResponder est désormais mémorisé sur `[goTo, screenWidth, pageCount]` :
+ * il se recrée au redimensionnement (comportement voulu) mais plus à chaque
+ * rendu sans rapport (ouverture d'une modale, frappe clavier, etc.).
  */
 const CrossPlatformPager = forwardRef(({ children, initialPage = 0, onPageSelected, style }, ref) => {
   const { width: screenWidth } = useWindowDimensions();
@@ -36,7 +40,7 @@ const CrossPlatformPager = forwardRef(({ children, initialPage = 0, onPageSelect
     scrollX.setValue(currentIndex.current * screenWidth);
   }, [screenWidth, scrollX]);
 
-  const panResponder = PanResponder.create({
+  const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 15 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderRelease: (_, gesture) => {
@@ -52,7 +56,7 @@ const CrossPlatformPager = forwardRef(({ children, initialPage = 0, onPageSelect
         }).start();
       }
     },
-  });
+  }), [goTo, screenWidth, pageCount]);
 
   const pages = React.Children.toArray(children);
 
