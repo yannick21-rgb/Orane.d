@@ -12,7 +12,8 @@
     "check:strict": "node scripts/check-code.js --strict",
     "check:a11y": "node scripts/check-a11y.js",
     "check:contrast": "node scripts/check-contrast.js",
-    "check:all": "node scripts/check-code.js && node scripts/check-a11y.js --strict && node scripts/check-contrast.js"
+    "test": "node --test test/*.test.cjs",
+    "check:all": "node scripts/check-code.js && node scripts/check-a11y.js --strict && node scripts/check-contrast.js && node --test test/*.test.cjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
