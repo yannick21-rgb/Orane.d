@@ -241,6 +241,10 @@ export function FinanceProvider({ children }) {
           if (legacyPeriod) {
             setBudgetPeriod(legacyPeriod);
             await safeAsyncWrite(`@oraned_budget_period_${userId}`, legacyPeriod);
+            // La clé globale ne doit pas survivre à la migration : sinon un
+            // compte qui n'a jamais eu de période propre hériterait
+            // indéfiniment de la valeur du dernier compte migrateur.
+            await safeAsyncRemove('@oraned_budget_period');
           } else {
             setBudgetPeriod('month');
           }
