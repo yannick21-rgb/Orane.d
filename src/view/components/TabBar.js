@@ -4,9 +4,10 @@
  * **3 destinations**, même ordre que le pager : Accueil, Stats,
  * Paramètres. L'onglet « Ajouter » a été retiré : son action vit
  * maintenant dans le bouton flottant (`QuickAddFab`) posé sur la page
- * Accueil, en bas à droite. `pages` mappe chaque onglet sur sa page du
- * pager (la page Ajout reste atteignable par balayage et pour l'édition,
- * sans onglet dédié).
+ * Accueil, en bas à droite. La page « Ajout » n'est plus une page du
+ * pager (donc plus atteignable par balayage) : c'est une modale, ouverte
+ * pour l'édition via `editingTransaction` et pour la création via
+ * `TransactionSheet`. `pages` mappe chaque onglet sur sa page du pager.
  *
  * Réglé sur les règles UI/UX de référence (HIG / Material) :
  *
