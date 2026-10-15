@@ -48,6 +48,7 @@ import {
   ArrowLeftRight, Users, Handshake, Wallet,
   ShoppingCart, Car, Home as HomeIcon, HeartPulse, Gamepad2,
   Shirt, Briefcase, PiggyBank, Tag, GraduationCap, Star,
+  CreditCard, Dumbbell, Coins, Laptop, Gift, ShoppingBag, Undo2,
 } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
 import { useQuickAdd } from '../components/QuickAddContext';
@@ -99,6 +100,18 @@ const CATEGORY_VISUAL = {
   'Retrait MoMo': { Icon: Smartphone, color: '#E08A1E' },
   'Education/Formation': { Icon: GraduationCap, color: '#4A5BF0' },
   'Autres': { Icon: Star, color: '#8A93A3' },
+  // Catégories du modèle qui retombaient sur « Autres » (pastille étoile).
+  'Abonnements & Tech': { Icon: CreditCard, color: '#6C7BFF' },
+  'Sport': { Icon: Dumbbell, color: '#E0705A' },
+  'Remboursement': { Icon: Undo2, color: '#3FC1C9' },
+  'Frais & Retraits': { Icon: Coins, color: '#E08A1E' },
+  'Salaire / Coaching': { Icon: Briefcase, color: '#2ecc71' },
+  'Freelance / Dev': { Icon: Laptop, color: '#4A5BF0' },
+  'Freelance': { Icon: Laptop, color: '#4A5BF0' },
+  'Projets Web': { Icon: TrendingUp, color: '#1FA97A' },
+  'Cadeau': { Icon: Gift, color: '#C9A86A' },
+  'Emprunt': { Icon: Handshake, color: '#9B7BE8' },
+  'Ventes': { Icon: ShoppingBag, color: '#E0913D' },
 };
 
 const INCOME_TYPES = ['income', 'revenu'];
