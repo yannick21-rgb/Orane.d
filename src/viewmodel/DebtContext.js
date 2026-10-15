@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import { useFinance } from './FinanceContext';
 import { debtsKey, computeDebtStatus, DEBT_STATUS } from '../model/DebtModel';
 import { toNumber } from '../utils/format';
 import { validateDebt, filterValidRecords, safeAsyncReadJSON, safeAsyncWriteJSON } from '../utils/storage';
@@ -11,6 +12,8 @@ const DebtContext = createContext({});
 
 export function DebtProvider({ children }) {
   const { userId } = useAuth();
+  const { devise } = useFinance();
+  const deviseSymbol = devise?.split(' ')[0] || 'F';
   const [debts, setDebts] = useState([]);
   const [loaded, setLoaded] = useState(false);
   // Jeton de chargement : si `userId` change pendant un `sync.pull` en vol,
@@ -112,8 +115,8 @@ export function DebtProvider({ children }) {
         content: {
           title: 'Orane.d — Échéance',
           body: debt.type === 'credit_accorde'
-            ? `${debt.personName} vous doit ${debt.amount - debt.amountReimbursed} F`
-            : `Vous devez ${debt.amount - debt.amountReimbursed} F à ${debt.personName}`,
+            ? `${debt.personName} vous doit ${debt.amount - debt.amountReimbursed} ${deviseSymbol}`
+            : `Vous devez ${debt.amount - debt.amountReimbursed} ${deviseSymbol} à ${debt.personName}`,
         },
         // `type` obligatoire : sans lui `parseTrigger` échoue et la
         // notification n'est jamais planifiée (erreur avalée par le catch).
@@ -122,7 +125,7 @@ export function DebtProvider({ children }) {
     } catch (e) {
       if (e && e.message && e.message.includes('removed from Expo Go')) return;
     }
-  }, []);
+  }, [deviseSymbol]);
 
   const totalToReceive = debts
     .filter((d) => d.type === 'credit_accorde' && d.status !== DEBT_STATUS.REMBOURSEE)
