@@ -14,6 +14,8 @@ const MIGRATED_KEY = (uid) => `@migrated_to_supabase_${uid}`;
 
 // File d'attente des écritures de `@oraned_all_users` (voir `rememberAccount`).
 let _rememberChain = Promise.resolve();
+// Migrations locales en cours, par e-mail (voir `migrateLocalData`).
+const _migrating = new Set();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -141,10 +143,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const migrateLocalData = async (email, uid) => {
+    // Anti-réentrance : `applySession` peut être relancé (restauration puis
+    // SIGNED_IN) ; deux migrations concurrentes uploaderaient le même lot deux
+    // fois et écriraient `@migrated_to_supabase_*` en course.
+    if (_migrating.has(email)) return;
     const migrated = await safeAsyncReadJSON(MIGRATED_KEY(email), false);
     if (migrated) return;
     const userIdForMigration = uid || supabaseUser?.id;
     if (!userIdForMigration) return;
+    // L'uid de destination DOIT être celui de la session Supabase courante :
+    // sinon on déposerait les données locales d'un compte sous l'identité d'un
+    // autre (cas d'une bascule de compte local pendant qu'une session Supabase
+    // reste active côté serveur).
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user || session.user.id !== userIdForMigration) return;
+    } catch (e) {
+      return;
+    }
+    _migrating.add(email);
     try {
       // `toRows` applique le masque de colonnes du serveur ; sans lui, un seul
       // champ hors schéma fait échouer l'upsert du lot entier.
@@ -192,6 +209,8 @@ export const AuthProvider = ({ children }) => {
       if (allOk) await safeAsyncWriteJSON(MIGRATED_KEY(email), true);
     } catch (e) {
       console.warn('[AuthContext] Erreur migration données locales :', e.message);
+    } finally {
+      _migrating.delete(email);
     }
   };
 
