@@ -182,25 +182,36 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Applique une session Supabase : profil, utilisateur courant, stockage
+    // chiffré, migration éventuelle et mémorisation du compte. Partagée par la
+    // restauration initiale et le listener d'auth pour ne pas écrire en double.
+    const applySession = async (session) => {
+      setSupabaseUser(session.user);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', session.user.id)
+        .single();
+      const userData = {
+        name: profile?.name || session.user.email?.split('@')[0] || 'Utilisateur',
+        email: session.user.email,
+      };
+      setUser(userData);
+      await safeAsyncWriteJSON(AUTH_USER_KEY, userData);
+      const ok = await initSecureStorage(session.user.email);
+      setEncryptionReady(ok);
+      await migrateLocalData(session.user.email, session.user.id);
+      // Compte Supabase → répertoire local (PIN oublié / comptes / profils).
+      await rememberAccount({ name: userData.name, email: userData.email });
+    };
+
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // La session initiale est déjà appliquée par `restoreSession` ci-dessous :
+      // la traiter aussi ici relançait profil, migration et écritures en double
+      // (courses sur `setUser` et `@oraned_all_users`).
+      if (event === 'INITIAL_SESSION') return;
       if (session?.user) {
-        setSupabaseUser(session.user);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name, email')
-          .eq('id', session.user.id)
-          .single();
-        const userData = {
-          name: profile?.name || session.user.email?.split('@')[0] || 'Utilisateur',
-          email: session.user.email,
-        };
-        setUser(userData);
-        await safeAsyncWriteJSON(AUTH_USER_KEY, userData);
-        const ok = await initSecureStorage(session.user.email);
-        setEncryptionReady(ok);
-        migrateLocalData(session.user.email, session.user.id);
-        // Compte Supabase → répertoire local (PIN oublié / comptes / profils).
-        rememberAccount({ name: userData.name, email: userData.email });
+        await applySession(session);
       } else {
         setUser(null);
         setSupabaseUser(null);
@@ -213,22 +224,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          setSupabaseUser(session.user);
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('name, email')
-            .eq('id', session.user.id)
-            .single();
-          const userData = {
-            name: profile?.name || session.user.email?.split('@')[0] || 'Utilisateur',
-            email: session.user.email,
-          };
-          setUser(userData);
-          await safeAsyncWriteJSON(AUTH_USER_KEY, userData);
-          const ok = await initSecureStorage(session.user.email);
-          setEncryptionReady(ok);
-          migrateLocalData(session.user.email, session.user.id);
-          rememberAccount({ name: userData.name, email: userData.email });
+          await applySession(session);
         }
         await loadAllUsers();
         const idx = await safeAsyncReadJSON(ACCOUNTS_INDEX_KEY, []);
