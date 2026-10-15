@@ -115,11 +115,10 @@ export function FinanceProvider({ children }) {
           }
         }
 
-        const [storedTheme, storedAccent, storedDevise, storedPeriod, storedHour, storedMinute, storedStartDate] = await Promise.all([
+        const [storedTheme, storedAccent, storedDevise, storedHour, storedMinute, storedStartDate] = await Promise.all([
           safeAsyncRead('@user_theme', null),
           safeAsyncRead('@accent_color', null),
           safeAsyncRead('@devise', null),
-          safeAsyncRead('@oraned_budget_period', null),
           safeAsyncRead('@oraned_reminder_hour', null),
           safeAsyncRead('@oraned_reminder_minute', null),
           safeAsyncRead('@oraned_budget_start_date', null),
@@ -128,7 +127,6 @@ export function FinanceProvider({ children }) {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccent) setAccentColor(storedAccent);
         if (storedDevise) setDevise(storedDevise);
-        if (storedPeriod) setBudgetPeriod(storedPeriod);
         if (storedStartDate) setBudgetStartDate(storedStartDate);
         if (storedHour) setReminderHour(Number(storedHour));
         if (storedMinute) setReminderMinute(Number(storedMinute));
@@ -230,6 +228,23 @@ export function FinanceProvider({ children }) {
         const storedStartDate = await safeAsyncRead('@oraned_budget_start_date', null);
         if (!alive) return;
         if (storedStartDate) setBudgetStartDate(storedStartDate);
+
+        // Période de budget PAR UTILISATEUR (comme `budgetLimit`). Migration
+        // depuis l'ancienne clé globale si la clé par utilisateur n'existe pas.
+        const storedPeriod = await safeAsyncRead(`@oraned_budget_period_${userId}`, null);
+        if (!alive) return;
+        if (storedPeriod) {
+          setBudgetPeriod(storedPeriod);
+        } else {
+          const legacyPeriod = await safeAsyncRead('@oraned_budget_period', null);
+          if (!alive) return;
+          if (legacyPeriod) {
+            setBudgetPeriod(legacyPeriod);
+            await safeAsyncWrite(`@oraned_budget_period_${userId}`, legacyPeriod);
+          } else {
+            setBudgetPeriod('month');
+          }
+        }
 
         const storedHash = await getStoredPinHash(userId);
         if (!alive) return;
@@ -521,11 +536,14 @@ export function FinanceProvider({ children }) {
   }, [budgetLimit, isLoaded, userId]);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    safeAsyncWrite('@oraned_budget_period', budgetPeriod).catch(
+    // `userId` obligatoire : à la déconnexion, le défaut 'month' remonterait
+    // cet effet et écraserait la période du compte qu'on vient de quitter.
+    if (!isLoaded || !userId) return;
+    if (lastSavedUserId.current !== userId) return;
+    safeAsyncWrite(`@oraned_budget_period_${userId}`, budgetPeriod).catch(
       (err) => console.error('[FinanceContext] Erreur sauvegarde période budget :', err)
     );
-  }, [budgetPeriod, isLoaded]);
+  }, [budgetPeriod, isLoaded, userId]);
 
   useEffect(() => {
     // `userId` obligatoire : à la déconnexion, `setBudgetStartDate(null)`
