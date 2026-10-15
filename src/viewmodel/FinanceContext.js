@@ -203,6 +203,9 @@ export function FinanceProvider({ children }) {
         }
 
         await sync.init(userId);
+        // Écarte une copie locale d'un enregistrement dont la suppression est
+        // encore en attente (sauvegarde locale interrompue).
+        localTx = await sync.filterDeleted('transactions', localTx);
         const cloudTx = await sync.pull('transactions');
         if (!alive) return;
         if (cloudTx.length > 0) {

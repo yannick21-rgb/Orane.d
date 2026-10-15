@@ -107,6 +107,43 @@ async function enqueue(userId, item) {
   }
 }
 
+// Tombstones : ids supprimés localement dont la suppression serveur n'est pas
+// (encore) confirmée. Ils empêchent `pull` de réintroduire la ligne tant que la
+// suppression n'a pas abouti — sans quoi une suppression hors ligne « ressuscite »
+// à la fusion suivante. Persistés par utilisateur + table.
+const tombstoneKey = (uid, table) => `@oraned_tombstones_${uid}_${table}`;
+
+async function readTombstones(uid, table) {
+  if (!uid) return [];
+  try {
+    const raw = await AsyncStorage.getItem(tombstoneKey(uid, table));
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+async function writeTombstones(uid, table, ids) {
+  if (!uid) return;
+  try {
+    await AsyncStorage.setItem(tombstoneKey(uid, table), JSON.stringify([...new Set(ids)]));
+  } catch (e) {
+    console.warn('[sync] writeTombstones error:', e.message);
+  }
+}
+
+async function addTombstones(uid, table, ids) {
+  const cur = await readTombstones(uid, table);
+  await writeTombstones(uid, table, [...cur, ...(ids || [])]);
+}
+
+async function removeTombstones(uid, table, ids) {
+  const cur = await readTombstones(uid, table);
+  const drop = new Set((ids || []).map(String));
+  await writeTombstones(uid, table, cur.filter((id) => !drop.has(String(id))));
+}
+
 export const sync = {
   async init(userId) {
     if (_userId === userId) {
@@ -198,7 +235,9 @@ export const sync = {
       }
       _lastSync = new Date().toISOString();
       notify();
-      return all;
+      // Écarte les lignes dont la suppression locale n'est pas encore confirmée.
+      const tombstones = new Set((await readTombstones(_userId, table)).map(String));
+      return tombstones.size ? all.filter((r) => r && !tombstones.has(String(r.id))) : all;
     } catch (e) {
       console.warn(`[sync] pull ${table} error:`, e.message);
       return [];
@@ -207,6 +246,10 @@ export const sync = {
 
   async remove(table, ids) {
     if (!_userId || !ids || ids.length === 0) return;
+
+    // Tombstone AVANT l'appel : le pull ne doit pas réintroduire la ligne entre
+    // l'appel et sa confirmation (ou tant qu'il reste en file, hors ligne).
+    await addTombstones(_userId, table, ids);
 
     const sbUserId = await getSupabaseUserId();
     if (!sbUserId) {
@@ -224,12 +267,23 @@ export const sync = {
         .eq('user_id', sbUserId);
       if (error) throw error;
       _lastSync = new Date().toISOString();
+      // Suppression confirmée : le tombstone n'est plus nécessaire.
+      await removeTombstones(_userId, table, ids);
     } catch (e) {
       console.warn(`[sync] remove ${table} error:`, e.message);
       await enqueue(_userId, { op: 'delete', table, ids: [...ids] });
       _pendingCount++;
     }
     notify();
+  },
+
+  // Retire des enregistrements locaux ceux dont la suppression est en attente
+  // (ex. sauvegarde locale interrompue) : appelé par les contextes avant fusion.
+  async filterDeleted(table, records) {
+    if (!_userId || !records || records.length === 0) return records;
+    const tombstones = new Set((await readTombstones(_userId, table)).map(String));
+    if (tombstones.size === 0) return records;
+    return records.filter((r) => r && !tombstones.has(String(r.id)));
   },
 
   async flushPending() {
@@ -264,6 +318,7 @@ export const sync = {
               .delete()
               .in('id', item.ids || [])
               .eq('user_id', sbUserId));
+            if (!error) await removeTombstones(_userId, item.table, item.ids || []);
           } else {
             // Ré-applique le masque de colonnes : la file peut contenir des
             // enregistrements écrits par une version antérieure de l'app.

@@ -25,6 +25,9 @@ export function DebtProvider({ children }) {
       let local = filterValidRecords(raw, validateDebt);
 
       await sync.init(userId);
+      // Écarte une copie locale d'un enregistrement dont la suppression est
+      // encore en attente (sauvegarde locale interrompue).
+      local = await sync.filterDeleted('debts', local);
       const cloud = await sync.pull('debts');
       if (!alive()) return;
       if (cloud.length > 0) {
