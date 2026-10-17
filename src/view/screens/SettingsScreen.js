@@ -340,7 +340,7 @@ export default function SettingsScreen({ navigation }) {
   const handleAbout = () => {
     Alert.alert(
       APP_NAME,
-      `Version ${APP_VERSION}\n\n© 2026 Jhpy. Tous droits réservés.\n\nUne expérience de gestion budgétaire fluide, visuelle et respectueuse de votre vie privée.\n\n🔒 Confidentialité : Vos données financières restent exclusivement stockées en local sur votre appareil (AsyncStorage). L'application ne collecte, ne stocke, ni ne transmet aucune information personnelle ou bancaire.`,
+      `Version ${APP_VERSION}\n\n© 2026 Jhpy. Tous droits réservés.\n\nUne expérience de gestion budgétaire fluide, visuelle et respectueuse de votre vie privée.\n\n🔒 Confidentialité : Vos données financières sont chiffrées sur votre appareil. Elles peuvent être synchronisées, de façon sécurisée, vers votre espace personnel Supabase lorsque vous vous connectez, afin de vous suivre sur plusieurs appareils.`,
       [{ text: 'Fermer', style: 'cancel' }]
     );
   };
