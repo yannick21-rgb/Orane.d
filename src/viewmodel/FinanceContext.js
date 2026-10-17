@@ -59,6 +59,11 @@ export function FinanceProvider({ children }) {
   const [budgetStartDate, setBudgetStartDate] = useState(null);
   const [reminderHour, setReminderHour] = useState(20);
   const [reminderMinute, setReminderMinute] = useState(0);
+  // Interrupteur général des notifications. Persisté sous
+  // `@oraned_notifications_enabled` ; le ref évite les fermetures périmées
+  // dans `scheduleMonthlyReview` / `updateDailyReminderTime`.
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const notificationsEnabledRef = useRef(true);
 
   const [isDiscreteMode, setIsDiscreteMode] = useState(true);
   const [hasPinCode, setHasPinCode] = useState(false);
@@ -115,13 +120,14 @@ export function FinanceProvider({ children }) {
           }
         }
 
-        const [storedTheme, storedAccent, storedDevise, storedHour, storedMinute, storedStartDate] = await Promise.all([
+        const [storedTheme, storedAccent, storedDevise, storedHour, storedMinute, storedStartDate, storedNotifEnabled] = await Promise.all([
           safeAsyncRead('@user_theme', null),
           safeAsyncRead('@accent_color', null),
           safeAsyncRead('@devise', null),
           safeAsyncRead('@oraned_reminder_hour', null),
           safeAsyncRead('@oraned_reminder_minute', null),
           safeAsyncRead('@oraned_budget_start_date', null),
+          safeAsyncRead('@oraned_notifications_enabled', null),
         ]);
 
         if (storedTheme) setTheme(storedTheme);
@@ -130,6 +136,11 @@ export function FinanceProvider({ children }) {
         if (storedStartDate) setBudgetStartDate(storedStartDate);
         if (storedHour) setReminderHour(Number(storedHour));
         if (storedMinute) setReminderMinute(Number(storedMinute));
+        if (storedNotifEnabled !== null) {
+          const enabled = storedNotifEnabled !== 'false';
+          setNotificationsEnabled(enabled);
+          notificationsEnabledRef.current = enabled;
+        }
       } catch (err) {
         console.error('[FinanceContext] Erreur de chargement :', err);
       } finally {
@@ -141,6 +152,7 @@ export function FinanceProvider({ children }) {
 
   const scheduleMonthlyReview = useCallback(async () => {
     if (isExpoGo()) return;
+    if (!notificationsEnabledRef.current) return;
     if (!(await loadNotifications())) return;
     try {
       const now = new Date();
@@ -487,6 +499,7 @@ export function FinanceProvider({ children }) {
 
   const updateDailyReminderTime = async (hour, minute) => {
     if (isExpoGo()) return;
+    if (!notificationsEnabledRef.current) return;
     if (!(await loadNotifications())) return;
     try {
       // On annule uniquement NOTRE rappel quotidien (dont on mémorise
@@ -503,6 +516,28 @@ export function FinanceProvider({ children }) {
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
       });
       await safeAsyncWrite(DAILY_REMINDER_ID_KEY, id);
+    } catch (_) {
+      Notifications = false;
+    }
+  };
+
+  // Interrupteur général des notifications. Coupé : on annule tout ce qui est
+  // planifié. Rallumé : on replanifie le rappel quotidien.
+  const toggleNotifications = async () => {
+    const next = !notificationsEnabledRef.current;
+    notificationsEnabledRef.current = next;
+    setNotificationsEnabled(next);
+    safeAsyncWrite('@oraned_notifications_enabled', next ? 'true' : 'false').catch(
+      (err) => console.error('[FinanceContext] Erreur sauvegarde notifications :', err)
+    );
+    if (isExpoGo()) return;
+    if (!(await loadNotifications())) return;
+    try {
+      if (!next) {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+      } else {
+        await updateDailyReminderTime(reminderHour, reminderMinute);
+      }
     } catch (_) {
       Notifications = false;
     }
@@ -631,7 +666,7 @@ export function FinanceProvider({ children }) {
         isLoaded, isUserDataLoaded, editingTransaction, setEditingTransaction, isDiscreteMode, hasPinCode, saveNewPin, unlockDiscreteMode, verifyPinOnly,
         toggleDiscreteMode, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, exportTransactionsAsCSV,
         budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute, checkBudgetPeriodAlert, getPeriodExpenses,
-        updateDailyReminderTime, scheduleMonthlyReview,
+        updateDailyReminderTime, scheduleMonthlyReview, notificationsEnabled, toggleNotifications,
       }}
     >
       {children}

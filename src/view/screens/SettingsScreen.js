@@ -19,14 +19,13 @@ let LocalAuthentication = null;
 if (Platform.OS !== 'web') {
   try { LocalAuthentication = require('expo-local-authentication'); } catch (_) {}
 }
-import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Lock, Shield, Users, Handshake, RefreshCw, Calculator } from 'lucide-react-native';
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Lock, Shield, Users, Handshake, RefreshCw, Calculator, Eye, Download, Trash2 } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
 import { getStoredPinHash } from '../../utils/security';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
-import { exportTransactionsToCSV } from '../../service/exportCSV';
 import CrossPlatformDatePicker from '../components/CrossPlatformDatePicker';
 import { CollapsingBar, useCollapsingHeader } from '../components';
 import PinAuthModal from '../components/PinAuthModal';
@@ -37,93 +36,6 @@ import { useColors } from '../theme';
 import { inkOn } from '../theme/colors';
 import { ACCENT_COLORS } from '../../model/ThemeModel';
 import { Amount, Button, Card, Input, SectionHeader } from '../components/ui';
-
-const PAYS_DU_MONDE = [
-  { label: 'Afghanistan',           value: 'AF' },
-  { label: 'Afrique du Sud',        value: 'ZA' },
-  { label: 'Algérie',               value: 'DZ' },
-  { label: 'Allemagne',             value: 'DE' },
-  { label: 'Angola',                value: 'AO' },
-  { label: 'Arabie Saoudite',       value: 'SA' },
-  { label: 'Argentine',             value: 'AR' },
-  { label: 'Australie',             value: 'AU' },
-  { label: 'Autriche',              value: 'AT' },
-  { label: 'Belgique',              value: 'BE' },
-  { label: 'Bénin',                 value: 'BJ' },
-  { label: 'Brésil',                value: 'BR' },
-  { label: 'Burkina Faso',          value: 'BF' },
-  { label: 'Burundi',               value: 'BI' },
-  { label: 'Cameroun',              value: 'CM' },
-  { label: 'Canada',                value: 'CA' },
-  { label: 'Chili',                 value: 'CL' },
-  { label: 'Chine',                 value: 'CN' },
-  { label: 'Colombie',              value: 'CO' },
-  { label: 'Congo (Brazzaville)',   value: 'CG' },
-  { label: 'Congo (Kinshasa)',      value: 'CD' },
-  { label: "Côte d'Ivoire",         value: 'CI' },
-  { label: 'Corée du Sud',          value: 'KR' },
-  { label: 'Cuba',                  value: 'CU' },
-  { label: 'Danemark',              value: 'DK' },
-  { label: 'Égypte',                value: 'EG' },
-  { label: 'Émirats Arabes Unis',   value: 'AE' },
-  { label: 'Espagne',               value: 'ES' },
-  { label: 'États-Unis',            value: 'US' },
-  { label: 'Éthiopie',              value: 'ET' },
-  { label: 'Finlande',              value: 'FI' },
-  { label: 'France',                value: 'FR' },
-  { label: 'Gabon',                 value: 'GA' },
-  { label: 'Ghana',                 value: 'GH' },
-  { label: 'Grèce',                 value: 'GR' },
-  { label: 'Guinée',                value: 'GN' },
-  { label: 'Haïti',                 value: 'HT' },
-  { label: 'Inde',                  value: 'IN' },
-  { label: 'Indonésie',             value: 'ID' },
-  { label: 'Iran',                  value: 'IR' },
-  { label: 'Irlande',               value: 'IE' },
-  { label: 'Islande',               value: 'IS' },
-  { label: 'Italie',                value: 'IT' },
-  { label: 'Jamaïque',              value: 'JM' },
-  { label: 'Japon',                 value: 'JP' },
-  { label: 'Jordanie',              value: 'JO' },
-  { label: 'Kenya',                 value: 'KE' },
-  { label: 'Liban',                 value: 'LB' },
-  { label: 'Madagascar',            value: 'MG' },
-  { label: 'Malaisie',              value: 'MY' },
-  { label: 'Mali',                  value: 'ML' },
-  { label: 'Maroc',                 value: 'MA' },
-  { label: 'Maurice',               value: 'MU' },
-  { label: 'Mauritanie',            value: 'MR' },
-  { label: 'Mexique',               value: 'MX' },
-  { label: 'Monaco',                value: 'MC' },
-  { label: 'Niger',                 value: 'NE' },
-  { label: 'Nigéria',               value: 'NG' },
-  { label: 'Norvège',               value: 'NO' },
-  { label: 'Nouvelle-Zélande',      value: 'NZ' },
-  { label: 'Pays-Bas',              value: 'NL' },
-  { label: 'Pérou',                 value: 'PE' },
-  { label: 'Philippines',           value: 'PH' },
-  { label: 'Pologne',               value: 'PL' },
-  { label: 'Portugal',              value: 'PT' },
-  { label: 'Qatar',                 value: 'QA' },
-  { label: 'Royaume-Uni',           value: 'GB' },
-  { label: 'Russie',                value: 'RU' },
-  { label: 'Rwanda',                value: 'RW' },
-  { label: 'Sénégal',               value: 'SN' },
-  { label: 'Singapour',             value: 'SG' },
-  { label: 'Suède',                 value: 'SE' },
-  { label: 'Suisse',                value: 'CH' },
-  { label: 'Tchad',                 value: 'TD' },
-  { label: 'Thaïlande',             value: 'TH' },
-  { label: 'Togo',                  value: 'TG' },
-  { label: 'Tunisie',               value: 'TN' },
-  { label: 'Turquie',               value: 'TR' },
-  { label: 'Ukraine',               value: 'UA' },
-  { label: 'Uruguay',               value: 'UY' },
-  { label: 'Venezuela',             value: 'VE' },
-  { label: 'Viêt Nam',              value: 'VN' },
-  { label: 'Zambie',                value: 'ZM' },
-  { label: 'Zimbabwe',              value: 'ZW' },
-];
 
 const DEVISES_DU_MONDE = [
   { label: '€ (Euro - EUR)',           value: 'EUR' },
@@ -215,13 +127,12 @@ export default function SettingsScreen({ navigation }) {
     budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute,
     checkBudgetPeriodAlert, getPeriodExpenses, updateDailyReminderTime, scheduleMonthlyReview,
     hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, verifyPinOnly,
+    toggleDiscreteMode, isDiscreteMode, resetAllTransactions, exportTransactionsAsCSV,
+    notificationsEnabled, toggleNotifications,
   } = useFinance();
   const { t, currentLanguage, changeLanguage } = useTranslation();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
-
-  const [pays, setPays] = useState('BJ');
-  const [isReady, setIsReady] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -236,31 +147,12 @@ export default function SettingsScreen({ navigation }) {
   const [isDeviceVerified, setIsDeviceVerified] = useState(false);
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showCreatePin, setShowCreatePin] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
   const [showDebts, setShowDebts] = useState(false);
   const [showTontines, setShowTontines] = useState(false);
   // Bascule de compte : e-mail cible en attente de vérification du PIN.
   const [switchTarget, setSwitchTarget] = useState(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      try {
-        const sp = await AsyncStorage.getItem('@pays');
-        if (isMounted && sp) setPays(sp);
-      } catch (err) {
-        console.error('[Settings] Erreur chargement :', err);
-      } finally {
-        if (isMounted) setIsReady(true);
-      }
-    };
-    load();
-    return () => { isMounted = false; };
-  }, []);
-
-  useEffect(() => {
-    if (isReady) AsyncStorage.setItem('@pays', pays).catch(console.error);
-  }, [pays, isReady]);
 
   useEffect(() => {
     setBudgetInput(String(budgetLimit || ''));
@@ -331,10 +223,32 @@ export default function SettingsScreen({ navigation }) {
 
   const handleExport = async () => {
     try {
-      await exportTransactionsToCSV(transactions, devise);
+      await exportTransactionsAsCSV();
     } catch (err) {
       Alert.alert('Erreur', err.message || 'Impossible d\'exporter les transactions.');
     }
+  };
+
+  const handleDeleteData = () => {
+    Alert.alert(
+      'Supprimer mes données',
+      'Toutes vos transactions seront définitivement supprimées, sur cet appareil comme dans votre espace synchronisé. Cette action est irréversible.\n\nLe budget, le thème et les préférences sont conservés.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await resetAllTransactions();
+              Alert.alert('Données supprimées', 'Vos transactions ont été supprimées.');
+            } catch (err) {
+              Alert.alert('Erreur', err.message || 'Impossible de supprimer les données.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleAbout = () => {
@@ -396,6 +310,12 @@ export default function SettingsScreen({ navigation }) {
     } else {
       Alert.alert('Erreur', 'Impossible de modifier le code PIN.');
     }
+  };
+
+  const handleCreatePinSave = async (newPin) => {
+    await saveNewPin(newPin);
+    setShowCreatePin(false);
+    Alert.alert('Code PIN créé', 'Votre code PIN est maintenant actif.');
   };
 
   const handleStartResetPin = async () => {
@@ -700,22 +620,6 @@ export default function SettingsScreen({ navigation }) {
               onChange={(item) => setDevise(item.label)}
             />
 
-            <Text style={[styles.label, { color: colors.subText }]}>{t('country')}</Text>
-            <Dropdown
-              key={`pays-${currentLanguage}`}
-              style={[styles.dropdown, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-              placeholderStyle={[styles.placeholderStyle, { color: colors.subText }]}
-              selectedTextStyle={[styles.selectedTextStyle, { color: colors.text }]}
-              containerStyle={[styles.dropdownContainer, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-              itemTextStyle={{ color: colors.text }}
-              activeColor={colors.inputBg}
-              data={PAYS_DU_MONDE}
-              labelField="label"
-              valueField="value"
-              placeholder={t('choisir_pays')}
-              value={pays}
-              onChange={(item) => setPays(item.value)}
-            />
           </Card>
 
           <Card padding={cardPadding} radius={borderRadius}>
@@ -825,6 +729,21 @@ export default function SettingsScreen({ navigation }) {
               <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.securityRow, { borderColor: colors.border, marginTop: 10 }]}
+              onPress={toggleNotifications}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Text style={[styles.aboutLabel, { color: colors.text }]}>
+                  Notifications {notificationsEnabled ? 'activées' : 'désactivées'}
+                </Text>
+              </View>
+              <View style={[styles.toggleTrack, { backgroundColor: notificationsEnabled ? accentColor : colors.unselectedPill }]}>
+                <View style={[styles.toggleThumb, { alignSelf: notificationsEnabled ? 'flex-end' : 'flex-start' }]} />
+              </View>
+            </TouchableOpacity>
+
             {showTimePicker && (
               <CrossPlatformDatePicker
                 value={new Date(2024, 0, 1, reminderHour, reminderMinute)}
@@ -860,6 +779,20 @@ export default function SettingsScreen({ navigation }) {
               </TouchableOpacity>
             )}
 
+            {!hasPinCode && (
+              <TouchableOpacity
+                style={[styles.securityRow, { borderColor: colors.border }]}
+                onPress={() => setShowCreatePin(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Shield size={18} color={accentColor} style={{ marginRight: 10 }} />
+                  <Text style={[styles.aboutLabel, { color: colors.text }]}>Créer un code PIN</Text>
+                </View>
+                <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.securityRow, { borderColor: colors.border, marginTop: 10 }]}
               onPress={handleStartResetPin}
@@ -872,6 +805,22 @@ export default function SettingsScreen({ navigation }) {
                 </Text>
               </View>
               <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.securityRow, { borderColor: colors.border, marginTop: 10 }]}
+              onPress={toggleDiscreteMode}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Eye size={18} color={isDiscreteMode ? colors.income : colors.subText} style={{ marginRight: 10 }} />
+                <Text style={[styles.aboutLabel, { color: colors.text }]}>
+                  Mode discret {isDiscreteMode ? 'activé' : 'désactivé'}
+                </Text>
+              </View>
+              <View style={[styles.toggleTrack, { backgroundColor: isDiscreteMode ? accentColor : colors.unselectedPill }]}>
+                <View style={[styles.toggleThumb, { alignSelf: isDiscreteMode ? 'flex-end' : 'flex-start' }]} />
+              </View>
             </TouchableOpacity>
           </Card>
 
@@ -901,6 +850,18 @@ export default function SettingsScreen({ navigation }) {
 
           <TouchableOpacity
             style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={handleExport}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Download size={18} color={accentColor} style={{ marginRight: 10 }} />
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>Exporter en CSV</Text>
+            </View>
+            <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.aboutRow, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
             onPress={handleAbout}
             activeOpacity={0.7}
           >
@@ -912,7 +873,18 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* Actions destructives — isolées en bas avec séparateur */}
-          <View style={[styles.destructiveSection, { marginTop: 24 }]}>
+          <View style={[styles.destructiveSection, { marginTop: 24, borderTopColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.logoutBtn, { borderColor: colors.danger, backgroundColor: colors.cardBg }]}
+              onPress={handleDeleteData}
+              activeOpacity={0.8}
+            >
+              <Trash2 size={16} color={colors.danger} style={{ marginRight: 8 }} />
+              <Text style={[styles.logoutText, { color: colors.danger }]}>
+                Supprimer mes données
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.logoutBtn, { borderColor: colors.danger, backgroundColor: colors.cardBg }]}
               onPress={handleLogout}
@@ -975,10 +947,11 @@ export default function SettingsScreen({ navigation }) {
       />
 
       <PinAuthModal
-        visible={(showChangePin && changeStep === 'new') || (showResetModal && resetStep === 'new')}
+        visible={(showChangePin && changeStep === 'new') || (showResetModal && resetStep === 'new') || showCreatePin}
         onClose={() => {
           setShowChangePin(false);
           setShowResetModal(false);
+          setShowCreatePin(false);
           setChangeStep('verify');
           setResetStep('password');
           setIsDeviceVerified(false);
@@ -987,6 +960,7 @@ export default function SettingsScreen({ navigation }) {
         onSaveNewPin={(pin) => {
           if (showChangePin) handleChangePinNewSave(pin);
           if (showResetModal) handleResetNewPinSave(pin);
+          if (showCreatePin) handleCreatePinSave(pin);
         }}
         hasPin={false}
         isDark={isDark}
@@ -1088,9 +1062,21 @@ const createStyles = (cp, cpad, cardP, br) => StyleSheet.create({
     marginTop: 10,
   },
   logoutText: { fontSize: 15, fontWeight: '600' },
+  toggleTrack: {
+    width: 46,
+    height: 26,
+    borderRadius: 13,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+  },
   destructiveSection: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#3a3a3c',
     paddingTop: 16,
   },
   label: { fontSize: 14, marginBottom: 8, marginTop: 12 },
