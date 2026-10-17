@@ -225,25 +225,25 @@ export default function SettingsScreen({ navigation }) {
     try {
       await exportTransactionsAsCSV();
     } catch (err) {
-      Alert.alert('Erreur', err.message || 'Impossible d\'exporter les transactions.');
+      Alert.alert(t('erreur'), err.message || t('erreur_export'));
     }
   };
 
   const handleDeleteData = () => {
     Alert.alert(
-      'Supprimer mes données',
-      'Toutes vos transactions seront définitivement supprimées, sur cet appareil comme dans votre espace synchronisé. Cette action est irréversible.\n\nLe budget, le thème et les préférences sont conservés.',
+      t('supprimer_mes_donnees'),
+      t('supprimer_donnees_msg'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('annuler'), style: 'cancel' },
         {
-          text: 'Tout supprimer',
+          text: t('tout_supprimer'),
           style: 'destructive',
           onPress: async () => {
             try {
               await resetAllTransactions();
-              Alert.alert('Données supprimées', 'Vos transactions ont été supprimées.');
+              Alert.alert(t('donnees_supprimees'), t('donnees_supprimees_msg'));
             } catch (err) {
-              Alert.alert('Erreur', err.message || 'Impossible de supprimer les données.');
+              Alert.alert(t('erreur'), err.message || t('erreur_suppression_donnees'));
             }
           },
         },
@@ -287,7 +287,7 @@ export default function SettingsScreen({ navigation }) {
       }
       setSwitchTarget(email);
     } catch (e) {
-      Alert.alert('Erreur', e.message || 'Bascule impossible.');
+      Alert.alert(t('erreur'), e.message || t('bascule_impossible'));
     }
   };
 
@@ -306,16 +306,16 @@ export default function SettingsScreen({ navigation }) {
     setVerifiedOldPin('');
     setChangeStep('verify');
     if (ok) {
-      Alert.alert('Code PIN modifié', 'Votre code PIN a été mis à jour avec succès.');
+      Alert.alert(t('code_pin_modifie'), t('code_pin_modifie_msg'));
     } else {
-      Alert.alert('Erreur', 'Impossible de modifier le code PIN.');
+      Alert.alert(t('erreur'), t('erreur_modif_pin'));
     }
   };
 
   const handleCreatePinSave = async (newPin) => {
     await saveNewPin(newPin);
     setShowCreatePin(false);
-    Alert.alert('Code PIN créé', 'Votre code PIN est maintenant actif.');
+    Alert.alert(t('code_pin_cree'), t('code_pin_cree_msg'));
   };
 
   const handleStartResetPin = async () => {
@@ -342,7 +342,7 @@ export default function SettingsScreen({ navigation }) {
 
   const handleResetPasswordSubmit = async () => {
     if (!resetPassword.trim()) {
-      Alert.alert('Champ requis', 'Veuillez entrer votre mot de passe.');
+      Alert.alert(t('champ_requis'), t('veuillez_mdp'));
       return;
     }
     setResetStep('new');
@@ -360,9 +360,9 @@ export default function SettingsScreen({ navigation }) {
     setResetStep('password');
     setIsDeviceVerified(false);
     if (ok) {
-      Alert.alert('Code PIN réinitialisé', 'Votre nouveau code PIN est en place.');
+      Alert.alert(t('code_pin_reinitialise'), t('code_pin_reinitialise_msg'));
     } else {
-      Alert.alert('Erreur', 'Mot de passe incorrect. Réinitialisation impossible.');
+      Alert.alert(t('erreur'), t('erreur_mdp_incorrect'));
     }
   };
 
@@ -376,7 +376,7 @@ export default function SettingsScreen({ navigation }) {
   const handleBudgetSave = () => {
     const amount = toNumber(budgetInput);
     if (amount < 0) {
-      Alert.alert('Montant invalide', 'Veuillez entrer un montant valide.');
+      Alert.alert(t('montant_invalide'), t('veuillez_montant'));
       return;
     }
     setBudgetLimit(amount);
@@ -390,7 +390,7 @@ export default function SettingsScreen({ navigation }) {
       msg += `\nReste : ${remaining > 0 ? remaining.toFixed(2) : '0'}${symbol}`;
       if (remaining < 0) msg += '\n⚠️ Budget déjà dépassé !';
     }
-    Alert.alert('Budget défini', msg);
+    Alert.alert(t('budget_defini'), msg);
   };
 
   return (
@@ -522,7 +522,7 @@ export default function SettingsScreen({ navigation }) {
                         onPress={() => handleSwitchAccount(account.email)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.switchBtnText}>Basculer</Text>
+                        <Text style={styles.switchBtnText}>{t('basculer')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -625,13 +625,13 @@ export default function SettingsScreen({ navigation }) {
           <Card padding={cardPadding} radius={borderRadius}>
             <SectionHeader
               icon={<Calculator size={20} color={colors.subText} />}
-              title="Budget & Rappels"
+              title={t('budget_rappels')}
             />
 
-            <Text style={[styles.label, { color: colors.subText }]}>Période du budget</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('periode_budget')}</Text>
             <View style={styles.pillRow}>
               {['day', 'week', 'month'].map((p) => {
-                const labels = { day: 'Jour', week: 'Semaine', month: 'Mois' };
+                const labels = { day: t('jour'), week: t('semaine'), month: t('mois') };
                 const isActive = budgetPeriod === p;
                 return (
                   <TouchableOpacity
@@ -649,7 +649,7 @@ export default function SettingsScreen({ navigation }) {
 
             {budgetPeriod !== 'day' && (
               <>
-                <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>Date de début</Text>
+                <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>{t('date_debut')}</Text>
                 <CrossPlatformDatePicker
                   value={budgetStartDate ? new Date(budgetStartDate) : new Date()}
                   mode="date"
@@ -665,7 +665,7 @@ export default function SettingsScreen({ navigation }) {
               </>
             )}
 
-            <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>Montant maximum</Text>
+            <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>{t('montant_maximum')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Input
                 style={{ flex: 1 }}
@@ -718,14 +718,14 @@ export default function SettingsScreen({ navigation }) {
             )}
 
             <Text style={[styles.label, { color: colors.subText, marginTop: 16 }]}>
-              Rappel quotidien ({String(reminderHour).padStart(2, '0')}h{String(reminderMinute).padStart(2, '0')})
+              {t('rappel_quotidien')} ({String(reminderHour).padStart(2, '0')}h{String(reminderMinute).padStart(2, '0')})
             </Text>
             <TouchableOpacity
               style={[styles.securityRow, { borderColor: colors.border }]}
               onPress={() => setShowTimePicker(true)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.aboutLabel, { color: colors.text }]}>Changer l'heure du rappel</Text>
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('changer_heure_rappel')}</Text>
               <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
             </TouchableOpacity>
 
@@ -736,7 +736,7 @@ export default function SettingsScreen({ navigation }) {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 <Text style={[styles.aboutLabel, { color: colors.text }]}>
-                  Notifications {notificationsEnabled ? 'activées' : 'désactivées'}
+                  Notifications {notificationsEnabled ? t('notifications_activees') : t('notifications_desactivees')}
                 </Text>
               </View>
               <View style={[styles.toggleTrack, { backgroundColor: notificationsEnabled ? accentColor : colors.unselectedPill }]}>
@@ -756,7 +756,7 @@ export default function SettingsScreen({ navigation }) {
           <Card padding={cardPadding} radius={borderRadius}>
             <SectionHeader
               icon={<Lock size={20} color={colors.subText} />}
-              title={`Sécurité & Code PIN`}
+              title={t('securite_pin')}
              />
 
             {/* Le cadenas est un glyphe, pas une icône : il change de forme selon la
@@ -773,7 +773,7 @@ export default function SettingsScreen({ navigation }) {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Shield size={18} color={accentColor} style={{ marginRight: 10 }} />
-                  <Text style={[styles.aboutLabel, { color: colors.text }]}>Modifier le code PIN</Text>
+                  <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('modifier_code_pin')}</Text>
                 </View>
                 <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
               </TouchableOpacity>
@@ -787,7 +787,7 @@ export default function SettingsScreen({ navigation }) {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Shield size={18} color={accentColor} style={{ marginRight: 10 }} />
-                  <Text style={[styles.aboutLabel, { color: colors.text }]}>Créer un code PIN</Text>
+                  <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('creer_code_pin')}</Text>
                 </View>
                 <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
               </TouchableOpacity>
@@ -801,7 +801,7 @@ export default function SettingsScreen({ navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 <Lock size={18} color={colors.danger} style={{ marginRight: 10 }} />
                 <Text style={[styles.aboutLabel, { color: colors.text }]}>
-                  Code PIN oublié ? Réinitialiser
+                  {t('pin_oublie_reinit')}
                 </Text>
               </View>
               <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
@@ -815,7 +815,7 @@ export default function SettingsScreen({ navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 <Eye size={18} color={isDiscreteMode ? colors.income : colors.subText} style={{ marginRight: 10 }} />
                 <Text style={[styles.aboutLabel, { color: colors.text }]}>
-                  Mode discret {isDiscreteMode ? 'activé' : 'désactivé'}
+                  {isDiscreteMode ? t('mode_discret_active') : t('mode_discret_desactive')}
                 </Text>
               </View>
               <View style={[styles.toggleTrack, { backgroundColor: isDiscreteMode ? accentColor : colors.unselectedPill }]}>
@@ -831,7 +831,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Handshake size={18} color={accentColor} style={{ marginRight: 10 }} />
-              <Text style={[styles.aboutLabel, { color: colors.text }]}>Dettes & Prêts</Text>
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('dettes_prets')}</Text>
             </View>
             <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
           </TouchableOpacity>
@@ -843,7 +843,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <RefreshCw size={18} color={accentColor} style={{ marginRight: 10 }} />
-              <Text style={[styles.aboutLabel, { color: colors.text }]}>Tontine / Épargne</Text>
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('tontine_epargne')}</Text>
             </View>
             <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
           </TouchableOpacity>
@@ -855,7 +855,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Download size={18} color={accentColor} style={{ marginRight: 10 }} />
-              <Text style={[styles.aboutLabel, { color: colors.text }]}>Exporter en CSV</Text>
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('exporter_csv')}</Text>
             </View>
             <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
           </TouchableOpacity>
@@ -867,7 +867,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Info size={18} color={colors.subText} style={{ marginRight: 10 }} />
-              <Text style={[styles.aboutLabel, { color: colors.text }]}>À propos de l'application</Text>
+              <Text style={[styles.aboutLabel, { color: colors.text }]}>{t('a_propos_app')}</Text>
             </View>
             <Text style={{ color: colors.subText, fontSize: 16 }}>›</Text>
           </TouchableOpacity>
@@ -881,7 +881,7 @@ export default function SettingsScreen({ navigation }) {
             >
               <Trash2 size={16} color={colors.danger} style={{ marginRight: 8 }} />
               <Text style={[styles.logoutText, { color: colors.danger }]}>
-                Supprimer mes données
+                {t('supprimer_mes_donnees')}
               </Text>
             </TouchableOpacity>
 
@@ -905,7 +905,7 @@ export default function SettingsScreen({ navigation }) {
       <Modal visible={showResetModal && resetStep === 'password'} transparent animationType="fade">
         <View style={[styles.modalOverlay, { backgroundColor: colors.modalBg }]}>
           <View style={[styles.pwdModal, { backgroundColor: colors.cardBg }]}>
-            <Text style={[styles.pwdTitle, { color: colors.text }]}>Réinitialisation du code PIN</Text>
+            <Text style={[styles.pwdTitle, { color: colors.text }]}>{t('reinit_code_pin')}</Text>
             <Text style={[styles.pwdSubtitle, { color: colors.subText }]}>
               {hasBiometrics
                 ? 'L\'authentification biométrique a échoué. Entrez votre mot de passe de session pour vérifier votre identité.'
