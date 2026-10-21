@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import CrossPlatformPager from './src/view/components/CrossPlatformPager';
 import TabBar from './src/view/components/TabBar';
-import QuickAddFab from './src/view/components/QuickAddFab';
 import SplashAnimated from './src/view/components/SplashAnimated';
 import TransactionSheet from './src/view/components/TransactionSheet';
 import { QuickAddProvider, useQuickAdd } from './src/view/components/QuickAddContext';
@@ -184,13 +183,6 @@ function MainTabsBody() {
         onTabPress={onTabPress}
         hidden={keyboardHidden}
       />
-      {/* Ajout rapide : bouton flottant bas-droite de la page Accueil
-          (remplace l'onglet « Ajouter » retiré). Masqué dès qu'on quitte
-          l'Accueil ou que le clavier s'ouvre — même convention que la
-          barre d'onglets. */}
-      {activeIndex === TAB_PAGES[0] && !keyboardHidden && (
-        <QuickAddFab onPress={() => quick.open('expense')} />
-      )}
       <TransactionSheet
         visible={quick.visible}
         initialType={quick.initialType}

@@ -2,11 +2,11 @@
  * Barre d'onglets personnalisée « Old Money ».
  *
  * **3 destinations**, même ordre que le pager : Accueil, Stats,
- * Paramètres. L'onglet « Ajouter » a été retiré : son action vit
- * maintenant dans le bouton flottant (`QuickAddFab`) posé sur la page
- * Accueil, en bas à droite. La page « Ajout » n'est plus une page du
- * pager (donc plus atteignable par balayage) : c'est une modale, ouverte
- * pour l'édition via `editingTransaction` et pour la création via
+ * Paramètres. L'onglet « Ajouter » a été retiré : la création d'une
+ * opération passe par la modale `TransactionSheet`, ouverte depuis les
+ * actions rapides de la page Accueil. La page « Ajout » n'est plus une
+ * page du pager (donc plus atteignable par balayage) : c'est une modale,
+ * ouverte pour l'édition via `editingTransaction` et pour la création via
  * `TransactionSheet`. `pages` mappe chaque onglet sur sa page du pager.
  *
  * Réglé sur les règles UI/UX de référence (HIG / Material) :
@@ -117,7 +117,7 @@ export function TabBar({ labels, pages, activeIndex, onTabPress, hidden = false 
 
   // Mêmes caractéristiques pour les 3 destinations : un seul composant,
   // une seule grille. L'icône suit l'index de l'onglet (Home, Stats,
-  // Réglages) — le bouton « + » vit dans `QuickAddFab`, sur l'Accueil.
+  // Réglages).
   const icons = useMemo(() => [Home, PieChart, SettingsIcon], []);
   const tabs = useMemo(() => labels.map((label, i) => ({
     page: pages ? pages[i] : i,
