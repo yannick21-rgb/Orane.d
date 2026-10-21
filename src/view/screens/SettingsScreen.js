@@ -19,7 +19,7 @@ let LocalAuthentication = null;
 if (Platform.OS !== 'web') {
   try { LocalAuthentication = require('expo-local-authentication'); } catch (_) {}
 }
-import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Lock, Shield, Users, Handshake, RefreshCw, Calculator, Eye, Download, Trash2 } from 'lucide-react-native';
+import { Palette, Globe, User, LogOut, Edit2, Check, X, Info, Lock, Shield, Users, Handshake, RefreshCw, Calculator, Eye, Download, Trash2, Camera } from 'lucide-react-native';
 import { APP_NAME, APP_VERSION } from '../../model/AppConstants';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useAuth } from '../../viewmodel/AuthContext';
@@ -129,6 +129,7 @@ export default function SettingsScreen({ navigation }) {
     hasPinCode, saveNewPin, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, verifyPinOnly,
     toggleDiscreteMode, isDiscreteMode, resetAllTransactions, exportTransactionsAsCSV,
     notificationsEnabled, toggleNotifications,
+    screenCaptureAllowed, toggleScreenCapture,
   } = useFinance();
   const { t, currentLanguage, changeLanguage } = useTranslation();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
@@ -148,6 +149,7 @@ export default function SettingsScreen({ navigation }) {
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showCreatePin, setShowCreatePin] = useState(false);
+  const [showDiscretePin, setShowDiscretePin] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budgetLimit || ''));
   const [showDebts, setShowDebts] = useState(false);
   const [showTontines, setShowTontines] = useState(false);
@@ -686,6 +688,7 @@ export default function SettingsScreen({ navigation }) {
                     tone="mid"
                     align="left"
                     currency={deviseSymbol}
+                    masked={isDiscreteMode}
                   />
                   <Amount
                     value={budgetLimit}
@@ -693,6 +696,7 @@ export default function SettingsScreen({ navigation }) {
                     tone="mid"
                     align="right"
                     currency={deviseSymbol}
+                    masked={isDiscreteMode}
                   />
                 </View>
                 <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden' }}>
@@ -712,6 +716,7 @@ export default function SettingsScreen({ navigation }) {
                   tone={budgetLimit - getPeriodExpenses() > 0 ? 'mid' : 'expense'}
                   align="right"
                   currency={deviseSymbol}
+                  masked={isDiscreteMode}
                   style={{ marginTop: 4 }}
                 />
               </View>
@@ -809,7 +814,16 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity
               style={[styles.securityRow, { borderColor: colors.border, marginTop: 10 }]}
-              onPress={toggleDiscreteMode}
+              onPress={() => {
+                // Révéler les montants (sortie du mode discret) exige le PIN —
+                // même garde que l'œil de HomeScreen. Sans ça, un tap dans
+                // Paramètres suffisait à déverrouiller le mode discret.
+                if (isDiscreteMode && hasPinCode) {
+                  setShowDiscretePin(true);
+                } else {
+                  toggleDiscreteMode();
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -820,6 +834,39 @@ export default function SettingsScreen({ navigation }) {
               </View>
               <View style={[styles.toggleTrack, { backgroundColor: isDiscreteMode ? accentColor : colors.unselectedPill }]}>
                 <View style={[styles.toggleThumb, { alignSelf: isDiscreteMode ? 'flex-end' : 'flex-start' }]} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Protection d'écran. Coupée (défaut) : FLAG_SECURE bloque les
+                captures et masque l'app dans les apps récentes. Activée : les
+                captures redeviennent possibles — à n'ouvrir que pour
+                documenter, puis à refermer. */}
+            <TouchableOpacity
+              style={[styles.securityRow, { borderColor: colors.border, marginTop: 10 }]}
+              onPress={toggleScreenCapture}
+              activeOpacity={0.7}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: screenCaptureAllowed }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
+                <Camera
+                  size={18}
+                  color={screenCaptureAllowed ? colors.income : colors.subText}
+                  style={{ marginRight: 10 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.aboutLabel, { color: colors.text }]}>
+                    {t('allow_screen_capture')}
+                  </Text>
+                  {screenCaptureAllowed && (
+                    <Text style={{ color: colors.warning, fontSize: 13, marginTop: 2 }}>
+                      {t('allow_screen_capture_hint')}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <View style={[styles.toggleTrack, { backgroundColor: screenCaptureAllowed ? accentColor : colors.unselectedPill }]}>
+                <View style={[styles.toggleThumb, { alignSelf: screenCaptureAllowed ? 'flex-end' : 'flex-start' }]} />
               </View>
             </TouchableOpacity>
           </Card>
@@ -974,6 +1021,25 @@ export default function SettingsScreen({ navigation }) {
         visible={!!switchTarget}
         onClose={() => setSwitchTarget(null)}
         onUnlock={(pin) => handleSwitchConfirm(pin)}
+        onSaveNewPin={() => {}}
+        hasPin={true}
+        isDark={isDark}
+        accentColor={accentColor}
+        remainingText=""
+      />
+
+      {/* Vérification du PIN pour sortir du mode discret (toggle Paramètres). */}
+      <PinAuthModal
+        visible={showDiscretePin}
+        onClose={() => setShowDiscretePin(false)}
+        onUnlock={async (pin) => {
+          const ok = await verifyPinOnly(pin);
+          if (ok) {
+            toggleDiscreteMode();
+            setShowDiscretePin(false);
+          }
+          return ok;
+        }}
         onSaveNewPin={() => {}}
         hasPin={true}
         isDark={isDark}

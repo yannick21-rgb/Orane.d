@@ -243,12 +243,19 @@ export const AuthProvider = ({ children }) => {
       // la traiter aussi ici relançait profil, migration et écritures en double
       // (courses sur `setUser` et `@oraned_all_users`).
       if (event === 'INITIAL_SESSION') return;
-      if (session?.user) {
-        await applySession(session);
-      } else {
-        setUser(null);
-        setSupabaseUser(null);
-        setEncryptionReady(false);
+      try {
+        if (session?.user) {
+          await applySession(session);
+        } else {
+          setUser(null);
+          setSupabaseUser(null);
+          setEncryptionReady(false);
+        }
+      } catch (e) {
+        // Sans ce catch, le rejet d'`applySession` (erreur d'écriture locale,
+        // par ex.) devenait une unhandled rejection et `setLoading(false)` —
+        // ci-dessous — n'était jamais atteint : écran de chargement bloqué.
+        console.error('[AuthContext] Erreur application session (listener) :', e);
       }
       setLoading(false);
     });
@@ -414,7 +421,11 @@ export const AuthProvider = ({ children }) => {
     // cible. Sans PIN saisi, on refuse de basculer vers un compte protégé.
     const { getStoredPinHash } = await import('../utils/security');
     const hasPin = !!(await getStoredPinHash(targetEmail));
-    if (hasPin && !pin) {
+    // BUG corrigé : seul le hash SecureStore était interrogé. Un compte
+    // protégé par l'ancien PIN en clair (`@oraned_pin_*`, non migré) passait
+    // la garde et se retrouvait basculable sans aucune preuve.
+    const legacyPin = hasPin ? null : await safeAsyncReadJSON(`@oraned_pin_${targetEmail}`, null);
+    if ((hasPin || legacyPin) && !pin) {
       throw new Error('Code PIN requis pour basculer vers ce compte.');
     }
     await loginToUser(targetEmail, pin);
@@ -428,7 +439,14 @@ export const AuthProvider = ({ children }) => {
     // compte. En cas d'échec (hors ligne), la file est conservée et repartira
     // au prochain `sync.init`.
     try { await sync.flushPending(); } catch (e) { /* hors ligne : conservé */ }
-    await supabase.auth.signOut();
+    // `signOut` rejette si le réseau est indisponible : sans ce try/catch,
+    // le logout restait bloqué — l'utilisateur ne pouvait pas quitter son
+    // compte hors ligne (état local et `@AuthUser` conservés).
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn('[AuthContext] signOut hors ligne (session serveur conservée) :', e.message);
+    }
     setUser(null);
     setSupabaseUser(null);
     setEncryptionReady(false);

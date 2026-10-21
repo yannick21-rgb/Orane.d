@@ -13,6 +13,11 @@ const TontineContext = createContext({});
 export function TontineProvider({ children }) {
   const { userId } = useAuth();
   const [groups, setGroups] = useState([]);
+  // Miroir mutable de `groups` : deux mutations dans le même tick (markRoundPaid
+  // enchaîné, par ex.) lisaient sinon la même closure et la seconde écrasait
+  // la première — voir DebtContext.
+  const groupsRef = useRef([]);
+  useEffect(() => { groupsRef.current = groups; }, [groups]);
   const [loaded, setLoaded] = useState(false);
   // Jeton de chargement : voir DebtContext — évite qu'un ancien compte écrive
   // l'état du compte connecté quand `sync.pull` résout trop tard.
@@ -52,6 +57,7 @@ export function TontineProvider({ children }) {
 
   const saveGroups = useCallback(async (updated) => {
     if (!userId) return;
+    groupsRef.current = updated;
     setGroups(updated);
     await secureWriteJSON(tontinesKey(userId), updated);
     sync.push('tontines', updated).catch(() => {});
@@ -71,13 +77,13 @@ export function TontineProvider({ children }) {
       rounds,
       updated_at: new Date().toISOString(),
     };
-    const updated = [...groups, newGroup];
+    const updated = [...groupsRef.current, newGroup];
     await saveGroups(updated);
     return newGroup;
-  }, [groups, userId, saveGroups]);
+  }, [userId, saveGroups]);
 
   const updateGroup = useCallback(async (id, changes) => {
-    const updated = groups.map((g) => {
+    const updated = groupsRef.current.map((g) => {
       if (g.id !== id) return g;
       const merged = {
         ...g,
@@ -108,18 +114,18 @@ export function TontineProvider({ children }) {
       return merged;
     });
     await saveGroups(updated);
-  }, [groups, saveGroups]);
+  }, [saveGroups]);
 
   const deleteGroup = useCallback(async (id) => {
-    const updated = groups.filter((g) => g.id !== id);
+    const updated = groupsRef.current.filter((g) => g.id !== id);
     // `await` obligatoire : sans lui, `saveGroups` (push) s'exécute avant la
     // suppression et la ligne cloud réapparaît au prochain pull.
     await sync.remove('tontines', [id]);
     await saveGroups(updated);
-  }, [groups, saveGroups]);
+  }, [saveGroups]);
 
   const markRoundPaid = useCallback(async (groupId, roundNumber) => {
-    const updated = groups.map((g) => {
+    const updated = groupsRef.current.map((g) => {
       if (g.id !== groupId) return g;
       const rounds = (Array.isArray(g.rounds) ? g.rounds : []).map((r) =>
         r.roundNumber === roundNumber ? { ...r, status: ROUND_STATUS.PAYE } : r
@@ -127,10 +133,10 @@ export function TontineProvider({ children }) {
       return { ...g, rounds, updated_at: new Date().toISOString() };
     });
     await saveGroups(updated);
-  }, [groups, saveGroups]);
+  }, [saveGroups]);
 
   const markRoundReceived = useCallback(async (groupId, roundNumber) => {
-    const updated = groups.map((g) => {
+    const updated = groupsRef.current.map((g) => {
       if (g.id !== groupId) return g;
       const rounds = (Array.isArray(g.rounds) ? g.rounds : []).map((r) =>
         r.roundNumber === roundNumber ? { ...r, status: ROUND_STATUS.RECU } : r
@@ -138,7 +144,7 @@ export function TontineProvider({ children }) {
       return { ...g, rounds, updated_at: new Date().toISOString() };
     });
     await saveGroups(updated);
-  }, [groups, saveGroups]);
+  }, [saveGroups]);
 
   const scheduleRoundNotifications = useCallback(async (group) => {
     try {

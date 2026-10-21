@@ -3,6 +3,7 @@ import './src/utils/cryptoPolyfill';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   StatusBar, View, StyleSheet, Animated, Keyboard, Modal,
+  TouchableOpacity, Text,
 } from 'react-native';
 import CrossPlatformPager from './src/view/components/CrossPlatformPager';
 import TabBar from './src/view/components/TabBar';
@@ -14,14 +15,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
+import ErrorBoundary from './src/view/components/ErrorBoundary';
 
 SplashScreen.hideAsync();
 
-let usePreventScreenCapture = () => {};
-try {
-  const sc = require('expo-screen-capture');
-  usePreventScreenCapture = sc.usePreventScreenCapture || (() => {});
-} catch (e) {}
+import { useScreenCapturePolicy } from './src/utils/screenCapture';
 import { AuthProvider, useAuth } from './src/viewmodel/AuthContext';
 import { FinanceProvider, useFinance } from './src/viewmodel/FinanceContext';
 import { DebtProvider } from './src/viewmodel/DebtContext';
@@ -60,8 +58,35 @@ const LOADING_TIMEOUT = 5000;
  *  La page Ajout n'est plus dans le pager : c'est un modal distinct. */
 const TAB_PAGES = [0, 1, 2];
 
-function LoadingScreen() {
-  return <SplashAnimated />;
+function LoadingScreen({ onSkip }) {
+  const [showSkip, setShowSkip] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSkip(true), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0e1014' }}>
+      <SplashAnimated />
+      {showSkip && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            bottom: 120,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: '#FFF7E8',
+          }}
+          onPress={onSkip}
+        >
+          <Text style={{ color: '#FFF7E8', fontWeight: '600' }}>Passer</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 }
 
 function AuthScreen() {
@@ -82,7 +107,7 @@ function MainTabs() {
 }
 
 function MainTabsBody() {
-  usePreventScreenCapture();
+  useScreenCapturePolicy();
   const pagerRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [keyboardHidden, setKeyboardHidden] = useState(false);
@@ -111,9 +136,9 @@ function MainTabsBody() {
   const quick = useQuickAdd();
 
   const onTabPress = useCallback((page) => {
-    // L'onglet « Ajouter » n'existe plus : l'ajout rapide est le bouton
-    // flottant (QuickAddFab) de la page Accueil. Ici, simple navigation
-    // vers la page du pager.
+    // L'onglet « Ajouter » n'existe plus : la création passe par la modale
+    // `TransactionSheet` (bouton « + » de la rangée d'actions rapides sur
+    // l'Accueil). Ici, simple navigation vers la page du pager.
     pagerRef.current?.setPage(page);
     setActiveIndex(page);
   }, []);
@@ -248,10 +273,13 @@ function RootNavigator() {
   }, []);
 
   // Filet de sécurité : au-delà de LOADING_TIMEOUT sans réponse du
-  // stockage, on décide sans attendre — en faveur de « vu » (jamais de
+  // stockage, on décide sans attendre — en favor de « vu » (jamais de
   // répétition) — pour ne pas rester bloqué sur le chargement.
+  // Met aussi seenRef.current = true : une lecture tardive avec null
+  // ne doit pas réactiver l'onboarding (le safety a déjà décidé « vu »).
   useEffect(() => {
     const safety = setTimeout(() => {
+      seenRef.current = true;
       setHasSeenOnboarding((prev) => (prev === null ? true : prev));
     }, LOADING_TIMEOUT);
     return () => clearTimeout(safety);
@@ -284,7 +312,7 @@ function RootNavigator() {
   }
 
   // 2) Chargement (flag ou données) : l'auth ne peut pas se glisser avant.
-  if (!isReady || hasSeenOnboarding === null) return <LoadingScreen />;
+  if (!isReady || hasSeenOnboarding === null) return <LoadingScreen onSkip={() => { seenRef.current = true; setHasSeenOnboarding(true); }} />;
 
   // 3) Authentification, puis onglets.
   return (
@@ -324,19 +352,21 @@ export default function App() {
     // lui, les gestes natifs ne sont pas routés sur Android. Pure coquille
     // visuelle, aucune logique métier dedans.
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaProvider>
-      <AuthProvider>
-        <FinanceProvider>
-          <DebtProvider>
-            <TontineProvider>
-              <ThemeProvider>
-                <RootNavigator />
-              </ThemeProvider>
-            </TontineProvider>
-          </DebtProvider>
-        </FinanceProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <FinanceProvider>
+              <DebtProvider>
+                <TontineProvider>
+                  <ThemeProvider>
+                    <RootNavigator />
+                  </ThemeProvider>
+                </TontineProvider>
+              </DebtProvider>
+            </FinanceProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

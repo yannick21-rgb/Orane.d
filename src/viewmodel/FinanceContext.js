@@ -10,6 +10,12 @@ import { secureReadJSON, secureWriteJSON } from '../utils/secureStorage';
 import { sync, mergeRecords } from '../utils/sync';
 import { supabase } from '../utils/supabase';
 import Constants from 'expo-constants';
+import {
+  SCREEN_CAPTURE_KEY,
+  applyScreenCapturePolicy,
+  readScreenCapturePreference,
+  setScreenCaptureAllowed,
+} from '../utils/screenCapture';
 
 let Notifications = null;
 
@@ -64,6 +70,12 @@ export function FinanceProvider({ children }) {
   // dans `scheduleMonthlyReview` / `updateDailyReminderTime`.
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const notificationsEnabledRef = useRef(true);
+
+  // Capture d'écran autorisée par l'utilisateur. Défaut : `false` — la
+  // protection `FLAG_SECURE` reste active tant que le réglage n'est pas
+  // explicitement ouvert. Le ref sert aux fermetures dans les effets.
+  const [screenCaptureAllowed, setScreenCaptureAllowedState] = useState(false);
+  const screenCaptureAllowedRef = useRef(false);
 
   const [isDiscreteMode, setIsDiscreteMode] = useState(true);
   const [hasPinCode, setHasPinCode] = useState(false);
@@ -229,12 +241,18 @@ export function FinanceProvider({ children }) {
         const storedBudget = await safeAsyncReadJSON(`@oraned_budget_limit_${userId}`, null);
         if (!alive) return;
         if (storedBudget !== null) {
-          setBudgetLimit(Number(storedBudget));
+          // `Number('')`/`Number('abc')` → NaN : `NaN <= 0` étant faux,
+          // `checkBudgetPeriodAlert` (gardé par `budgetLimit <= 0`) n'alerterait
+          // plus jamais. On retombe sur 0 pour toute valeur non finie.
+          const b = Number(storedBudget);
+          setBudgetLimit(Number.isFinite(b) ? b : 0);
         } else {
           const oldBudget = await safeAsyncRead('@budget_limit', null);
           if (oldBudget !== null) {
-            setBudgetLimit(Number(oldBudget));
-            await safeAsyncWriteJSON(`@oraned_budget_limit_${userId}`, Number(oldBudget));
+            const legacyBudget = Number(oldBudget);
+            const safeBudget = Number.isFinite(legacyBudget) ? oldBudget : 0;
+            setBudgetLimit(Number(safeBudget));
+            await safeAsyncWriteJSON(`@oraned_budget_limit_${userId}`, Number(safeBudget));
           } else {
             setBudgetLimit(0);
           }
@@ -291,6 +309,11 @@ export function FinanceProvider({ children }) {
         setBudgetLimit(0);
       } finally {
         if (alive) {
+          // AUSSI en cas d'erreur : sans ça, `lastSavedUserId` restait null et
+          // tous les effets de persistance (gardés par
+          // `lastSavedUserId.current !== userId`) refusaient toute écriture —
+          // chaque ajout suivant était perdu au redémarrage.
+          lastSavedUserId.current = userId;
           setIsUserDataLoaded(true);
           scheduleMonthlyReview();
         }
@@ -344,7 +367,14 @@ export function FinanceProvider({ children }) {
       throw new Error(msg);
     }
     const storedHash = await getStoredPinHash(userId);
-    if (!storedHash) return true;
+    if (!storedHash) {
+      // Fail-closed : `hasPinCode` est vrai mais le hash est illisible
+      // (erreur SecureStore avalée par `secureGetPinHash`). Renvoie `true`
+      // ici signifierait « n'importe quel code convient » — le mode discret
+      // se déverrouillerait sans preuve. Seul un compte SANS PIN configuré
+      // peut passer sans vérification.
+      return !hasPinCode;
+    }
     const valid = await verifyPin(enteredPin, storedHash);
     if (valid) {
       await resetPinRateLimit(userId);
@@ -380,6 +410,11 @@ export function FinanceProvider({ children }) {
     if (storedHash) {
       const valid = await verifyPin(oldPin, storedHash);
       if (!valid) return false;
+    } else if (hasPinCode) {
+      // Un PIN est actif mais le hash est illisible : vérifier l'ancien code
+      // est impossible, donc on REFUSE (fail-closed) plutôt que d'écraser le
+      // hash sans aucune preuve.
+      return false;
     }
     const newHashed = await hashPin(newPin);
     await storePinHash(userId, newHashed);
@@ -388,6 +423,10 @@ export function FinanceProvider({ children }) {
 
   const resetPinCodeWithPassword = async (password, newPin) => {
     if (!userId) return false;
+    // Anti-bruteforce : la même fenêtre de tentatives que la vérification du PIN
+    // protège la réinitialisation (le mot de passe y est essayé en boucle).
+    const { locked } = await checkPinRateLimit(userId);
+    if (locked) return false;
     const users = await safeAsyncReadJSON('@oraned_all_users', []);
     const found = users.find((u) => u.email === userId);
     let isValid = false;
@@ -405,7 +444,10 @@ export function FinanceProvider({ children }) {
         isValid = false;
       }
     }
-    if (!isValid) return false;
+    if (!isValid) {
+      await recordFailedPinAttempt(userId);
+      return false;
+    }
     const hashed = await hashPin(newPin);
     await storePinHash(userId, hashed);
     await resetPinRateLimit(userId);
@@ -543,6 +585,36 @@ export function FinanceProvider({ children }) {
     }
   };
 
+  // Interrupteur de la protection d'écran. Activé : `allowScreenCaptureAsync`
+  // retire `FLAG_SECURE` et les captures redeviennent possibles. Désactivé :
+  // `preventScreenCaptureAsync` remet la protection.
+  const toggleScreenCapture = async () => {
+    const next = !screenCaptureAllowedRef.current;
+    screenCaptureAllowedRef.current = next;
+    setScreenCaptureAllowedState(next);
+    const applied = await setScreenCaptureAllowed(next);
+    if (applied !== next) {
+      // Le module natif n'a pas suivi (web, Expo Go) : on reflète l'échec.
+      screenCaptureAllowedRef.current = applied;
+      setScreenCaptureAllowedState(applied);
+    }
+  };
+
+  // Restaure la préférence au démarrage, puis applique la protection si elle
+  // est demandée. Sans cela, la préférence serait lue mais jamais appliquée.
+  useEffect(() => {
+    let cancelled = false;
+    readScreenCapturePreference()
+      .then((allowed) => {
+        if (cancelled) return;
+        screenCaptureAllowedRef.current = allowed;
+        setScreenCaptureAllowedState(allowed);
+        if (!allowed) applyScreenCapturePolicy(false);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     if (!isLoaded || !userId) return;
     if (lastSavedUserId.current !== userId) return;
@@ -641,13 +713,22 @@ export function FinanceProvider({ children }) {
   const deleteTransaction = async (id) => {
     // `await` obligatoire : sans lui, le useEffect de push s'exécute avant la
     // suppression serveur et la transaction réapparaît au prochain pull.
-    await sync.remove('transactions', [id]);
-    setTransactions((prev) => (prev || []).filter((t) => t.id !== id));
+    // La transaction sœur `${id}_fee` (frais de retrait MoMo, créée par
+    // TransactionSheet) part avec elle : sinon la dépense de frais restait
+    // et gonflait les totaux après suppression du retrait.
+    const ids = [id, `${id}_fee`];
+    await sync.remove('transactions', ids);
+    setTransactions((prev) =>
+      (prev || []).filter((t) => !ids.includes(t.id))
+    );
   };
 
   const deleteMultipleTransactions = async (ids) => {
-    if (ids && ids.length) await sync.remove('transactions', ids);
-    setTransactions((prev) => (prev || []).filter((t) => !ids.includes(t.id)));
+    if (ids && ids.length) {
+      const expanded = [...ids, ...ids.map((i) => `${i}_fee`)];
+      await sync.remove('transactions', expanded);
+      setTransactions((prev) => (prev || []).filter((t) => !expanded.includes(t.id)));
+    }
   };
 
   const resetAllTransactions = async () => {
@@ -667,6 +748,7 @@ export function FinanceProvider({ children }) {
         toggleDiscreteMode, changePinCode, resetPinCodeWithPassword, resetPinCodeDirect, exportTransactionsAsCSV,
         budgetPeriod, setBudgetPeriod, budgetStartDate, setBudgetStartDate, reminderHour, reminderMinute, checkBudgetPeriodAlert, getPeriodExpenses,
         updateDailyReminderTime, scheduleMonthlyReview, notificationsEnabled, toggleNotifications,
+        screenCaptureAllowed, toggleScreenCapture,
       }}
     >
       {children}

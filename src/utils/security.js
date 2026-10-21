@@ -40,29 +40,72 @@ async function sha256(data) {
   return digestStringAsync(CryptoDigestAlgorithm.SHA256, data);
 }
 
-async function iterativeHash(saltHex, password, iterations = 1000) {
+// Nombre d'itérations STOCKÉ dans le hash : l'ancien format `salt:hash` en dur
+// (1000 pour le PIN, 100 pour les mots de passe) ne permettait jamais de
+// durcir le coût sans invalider les hashes existants. Nouveau format :
+// `salt:itérations:hash`. L'ancien format (2 parties) reste vérifiable.
+const LEGACY_PIN_ITERATIONS = 1000;
+const LEGACY_PASSWORD_ITERATIONS = 100;
+const PIN_ITERATIONS = 2000;
+const PASSWORD_ITERATIONS = 5000;
+
+async function iterativeHash(saltHex, password, iterations) {
   let data = saltHex + password;
   for (let i = 0; i < iterations; i++) {
     data = await sha256(data);
   }
-  return `${saltHex}:${data}`;
+  return data;
 }
 
-export async function hashPin(pin) {
+/** Format `salt:itérations:hash`. */
+async function hashWithIterations(secret, iterations) {
   const salt = new Uint8Array(16);
   crypto.getRandomValues(salt);
   const saltHex = toHex(salt);
-  return iterativeHash(saltHex, pin);
+  const hash = await iterativeHash(saltHex, secret, iterations);
+  return `${saltHex}:${iterations}:${hash}`;
+}
+
+/**
+ * Vérifie un hash au format `salt:itérations:hash` (ou `salt:hash` legacy)
+ * en comparaison CONSTANT-TIME : une comparaison `===` classique laisse
+ * fuiter le hash byte-par-byte via le temps de réponse.
+ */
+async function verifyWithIterations(secret, stored, legacyIterations) {
+  const parts = String(stored || '').split(':');
+  if (parts.length !== 2 && parts.length !== 3) return false;
+  const [saltHex, maybeIters, maybeHash] = parts;
+  if (!saltHex || saltHex.length !== 32) return false;
+  let iterations = legacyIterations;
+  let expectedHash = maybeHash;
+  if (parts.length === 3) {
+    const parsed = parseInt(maybeIters, 10);
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 1000000) return false;
+    iterations = parsed;
+  } else {
+    expectedHash = maybeIters;
+  }
+  const computed = await iterativeHash(saltHex, secret, iterations);
+  return timingSafeEqual(computed, expectedHash || '');
+}
+
+/** Comparaison de chaînes en temps constant (longueur égalisée). */
+function timingSafeEqual(a, b) {
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+  return diff === 0;
+}
+
+export async function hashPin(pin) {
+  return hashWithIterations(pin, PIN_ITERATIONS);
 }
 
 export async function verifyPin(pin, storedHash) {
   try {
-    const parts = storedHash.split(':');
-    if (parts.length !== 2) return false;
-    const [saltHex, hash] = parts;
-    if (!saltHex || saltHex.length !== 32) return false;
-    const expected = await iterativeHash(saltHex, pin);
-    return expected === storedHash;
+    return await verifyWithIterations(pin, storedHash, LEGACY_PIN_ITERATIONS);
   } catch {
     return false;
   }
@@ -181,18 +224,14 @@ export async function resetPinRateLimit(userId) {
 }
 
 export async function hashPassword(password) {
-  const salt = new Uint8Array(16);
-  crypto.getRandomValues(salt);
-  const saltHex = toHex(salt);
-  return iterativeHash(saltHex, password, 100);
+  // 100 itérations (ancien format) se craquait en quelques millisecondes en
+  // dictionnaire : on monte à 5000 et on grave le coût dans le hash.
+  return hashWithIterations(password, PASSWORD_ITERATIONS);
 }
 
 export async function verifyPassword(password, stored) {
   try {
-    const [saltHex] = stored.split(':');
-    if (!saltHex || saltHex.length !== 32) return false;
-    const hash = await iterativeHash(saltHex, password, 100);
-    return hash === stored;
+    return await verifyWithIterations(password, stored, LEGACY_PASSWORD_ITERATIONS);
   } catch {
     return false;
   }

@@ -14,9 +14,12 @@ export function useReduceMotion() {
 
   useEffect(() => {
     let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled?.()
-      .then((v) => { if (alive) setReduce(!!v); })
-      .catch(() => {});
+    // `isReduceMotionEnabled?.()` vaut `undefined` si la méthode est absente :
+    // le `.then` inconditionnel suivant lèverait alors un TypeError au montage.
+    const p = AccessibilityInfo.isReduceMotionEnabled?.();
+    if (p && typeof p.then === 'function') {
+      p.then((v) => { if (alive) setReduce(!!v); }).catch(() => {});
+    }
     return () => { alive = false; };
   }, []);
 

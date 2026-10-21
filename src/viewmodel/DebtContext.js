@@ -16,6 +16,10 @@ export function DebtProvider({ children }) {
   const { devise } = useFinance();
   const deviseSymbol = devise?.split(' ')[0] || 'F';
   const [debts, setDebts] = useState([]);
+  // Miroir mutable de `debts` : les mutations en cascade (même tick) lisent
+  // cette référence plutôt qu'une closure périmée.
+  const debtsRef = useRef([]);
+  useEffect(() => { debtsRef.current = debts; }, [debts]);
   const [loaded, setLoaded] = useState(false);
   // Jeton de chargement : si `userId` change pendant un `sync.pull` en vol,
   // la promesse de l'ancien compte abandonne au lieu d'écrire l'état du nouveau.
@@ -55,6 +59,11 @@ export function DebtProvider({ children }) {
 
   const saveDebts = useCallback(async (updated) => {
     if (!userId) return;
+    // Miroir de l'état : les mutations (add/update/markReimbursed) lisent ce
+    // ref et non la closure `debts` — deux appels dans le même tick (double-tap
+    // « Rembourser ») construiraient sinon les deux tableaux depuis la même
+    // copie et le second écraserait le premier.
+    debtsRef.current = updated;
     setDebts(updated);
     await secureWriteJSON(debtsKey(userId), updated);
     sync.push('debts', updated).catch(() => {});
@@ -70,40 +79,40 @@ export function DebtProvider({ children }) {
       status: DEBT_STATUS.EN_COURS,
       updated_at: new Date().toISOString(),
     };
-    const updated = [...debts, newDebt];
+    const updated = [...debtsRef.current, newDebt];
     await saveDebts(updated);
     return newDebt;
-  }, [debts, userId, saveDebts]);
+  }, [userId, saveDebts]);
 
   const updateDebt = useCallback(async (id, changes) => {
-    const updated = debts.map((d) => {
+    const updated = debtsRef.current.map((d) => {
       if (d.id !== id) return d;
       const modified = { ...d, ...changes, updated_at: new Date().toISOString() };
       modified.status = computeDebtStatus(modified);
       return modified;
     });
     await saveDebts(updated);
-  }, [debts, saveDebts]);
+  }, [saveDebts]);
 
   const deleteDebt = useCallback(async (id) => {
-    const updated = debts.filter((d) => d.id !== id);
+    const updated = debtsRef.current.filter((d) => d.id !== id);
     // `await` obligatoire : sans lui, `saveDebts` (push) s'exécute avant la
     // suppression et la ligne cloud réapparaît au prochain pull.
     await sync.remove('debts', [id]);
     await saveDebts(updated);
-  }, [debts, saveDebts]);
+  }, [saveDebts]);
 
   const markReimbursed = useCallback(async (id, amount, skipTransaction) => {
-    const debt = debts.find((d) => d.id === id);
+    const debt = debtsRef.current.find((d) => d.id === id);
     if (!debt) return null;
     const newReimbursed = toNumber(debt.amountReimbursed) + toNumber(amount);
     const newStatus = computeDebtStatus({ ...debt, amountReimbursed: newReimbursed });
-    const updated = debts.map((d) =>
+    const updated = debtsRef.current.map((d) =>
       d.id === id ? { ...d, amountReimbursed: newReimbursed, status: newStatus, updated_at: new Date().toISOString() } : d
     );
     await saveDebts(updated);
     return { ...debt, amountReimbursed: newReimbursed, status: newStatus };
-  }, [debts, saveDebts]);
+  }, [saveDebts]);
 
   const scheduleDueDateNotification = useCallback(async (debt) => {
     if (!debt.dueDate || !debt.reminderEnabled) return;
@@ -116,8 +125,8 @@ export function DebtProvider({ children }) {
         content: {
           title: 'Orane.d — Échéance',
           body: debt.type === 'credit_accorde'
-            ? `${debt.personName} vous doit ${debt.amount - debt.amountReimbursed} ${deviseSymbol}`
-            : `Vous devez ${debt.amount - debt.amountReimbursed} ${deviseSymbol} à ${debt.personName}`,
+            ? `${debt.personName} vous doit ${toNumber(debt.amount) - toNumber(debt.amountReimbursed)} ${deviseSymbol}`
+            : `Vous devez ${toNumber(debt.amount) - toNumber(debt.amountReimbursed)} ${deviseSymbol} à ${debt.personName}`,
         },
         // `type` obligatoire : sans lui `parseTrigger` échoue et la
         // notification n'est jamais planifiée (erreur avalée par le catch).

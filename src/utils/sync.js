@@ -79,7 +79,22 @@ function getSupabaseUserId() {
     .catch(() => null);
 }
 
-async function enqueue(userId, item) {
+// File d'attente sérialisée : deux `enqueue` concurrents lisaient la même
+// file (read-modify-write non atomique) et la dernière écriture écrasait les
+// modifications de l'autre — des pushes/suppressions en attente disparaissaient
+// sans jamais partir en cloud. On chaîne les opérations comme dans
+// `AuthContext._rememberChain`.
+let _enqueueChain = Promise.resolve();
+function enqueue(userId, item) {
+  const run = _enqueueChain.then(
+    () => doEnqueue(userId, item),
+    () => doEnqueue(userId, item)
+  );
+  _enqueueChain = run.catch(() => {});
+  return run;
+}
+
+async function doEnqueue(userId, item) {
   try {
     const raw = await AsyncStorage.getItem(PENDING_KEY(userId));
     let queue = raw ? JSON.parse(raw) : [];
@@ -183,9 +198,15 @@ export const sync = {
   async push(table, records) {
     if (!_userId || !records || records.length === 0) return;
 
+    // Capture AVANT les await : pendant un `getSession()` lent, l'utilisateur
+    // peut basculer de compte (`switchToUser`) et `_userId` changer — les
+    // enregistrements du compte A auraient alors été téléversés (ou mis en
+    // file) sous l'identité de B.
+    const uid = _userId;
     const sbUserId = await getSupabaseUserId();
+    if (_userId !== uid) return; // bascule de compte en vol : on abandonne
     if (!sbUserId) {
-      await enqueue(_userId, { table, records });
+      await enqueue(uid, { table, records });
       _pendingCount++;
       notify();
       return;
@@ -204,7 +225,8 @@ export const sync = {
       _lastSync = now;
     } catch (e) {
       console.warn(`[sync] push ${table} error:`, e.message);
-      await enqueue(_userId, { table, records: mapped });
+      if (_userId !== uid) return;
+      await enqueue(uid, { table, records: mapped });
       _pendingCount++;
     }
     notify();
@@ -247,13 +269,19 @@ export const sync = {
   async remove(table, ids) {
     if (!_userId || !ids || ids.length === 0) return;
 
+    // Même garde que `push` : tombstone et suppression serveur doivent rester
+    // attachés au compte qui a initié la suppression.
+    const uid = _userId;
+
     // Tombstone AVANT l'appel : le pull ne doit pas réintroduire la ligne entre
     // l'appel et sa confirmation (ou tant qu'il reste en file, hors ligne).
-    await addTombstones(_userId, table, ids);
+    await addTombstones(uid, table, ids);
+    if (_userId !== uid) return;
 
     const sbUserId = await getSupabaseUserId();
+    if (_userId !== uid) return;
     if (!sbUserId) {
-      await enqueue(_userId, { op: 'delete', table, ids: [...ids] });
+      await enqueue(uid, { op: 'delete', table, ids: [...ids] });
       _pendingCount++;
       notify();
       return;
@@ -268,10 +296,11 @@ export const sync = {
       if (error) throw error;
       _lastSync = new Date().toISOString();
       // Suppression confirmée : le tombstone n'est plus nécessaire.
-      await removeTombstones(_userId, table, ids);
+      await removeTombstones(uid, table, ids);
     } catch (e) {
       console.warn(`[sync] remove ${table} error:`, e.message);
-      await enqueue(_userId, { op: 'delete', table, ids: [...ids] });
+      if (_userId !== uid) return;
+      await enqueue(uid, { op: 'delete', table, ids: [...ids] });
       _pendingCount++;
     }
     notify();
@@ -284,6 +313,15 @@ export const sync = {
     const tombstones = new Set((await readTombstones(_userId, table)).map(String));
     if (tombstones.size === 0) return records;
     return records.filter((r) => r && !tombstones.has(String(r.id)));
+  },
+
+  // Annulation d'une suppression locale (bouton « Annuler » du Snackbar) :
+  // sans le retrait du tombstone, `filterDeleted` re-filtrait la ligne au
+  // prochain lancement et la transaction « annulée » disparaissait
+  // définitivement (hors ligne, le cas le plus fréquent).
+  async clearTombstones(table, ids) {
+    if (!_userId || !ids || ids.length === 0) return;
+    await removeTombstones(_userId, table, ids);
   },
 
   async flushPending() {

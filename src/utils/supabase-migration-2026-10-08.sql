@@ -142,10 +142,16 @@ CREATE POLICY "users can delete own tontines" ON tontines
 -- --------------------------------------------------
 -- 5. TRIGGER updated_at
 -- --------------------------------------------------
+-- BUG corrigé : `NEW.updated_at = now();` écrasait l'horodatage posé par le
+-- client (`sync.js` grave `updated_at` d'origine dans chaque ligne). Le
+-- serveur remplaçait alors la date de la MODIFICATION par celle du PUSH : la
+-- fusion multi-appareils (`mergeRecords`, last-write-wins) donnait la priorité
+-- au dernier appareil à pousser plutôt qu'à la dernière modification réelle.
+-- `COALESCE` ne touche à `updated_at` que s'il est absent.
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = now();
+  NEW.updated_at = COALESCE(NEW.updated_at, now());
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

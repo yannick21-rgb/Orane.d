@@ -16,7 +16,10 @@ import { buildColors } from './colors';
  * @returns {object} palette avec les clés bg, card, text, subText, border, …
  */
 export function useColors() {
-  const { isDark, accentColor } = useFinance();
+  // `useFinance()` vaut `undefined` hors provider : ErrorBoundary est monté
+  // AU-DESSUS de FinanceProvider (App.js), et le destructuring lèverait un
+  // TypeError — l'écran d'erreur ne s'afficherait jamais.
+  const { isDark, accentColor } = useFinance() || {};
 
   return useMemo(
     () => buildColors(isDark, accentColor),

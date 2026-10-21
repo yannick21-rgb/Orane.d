@@ -43,6 +43,15 @@ export default function LoginScreen({ onSwitchToRegister }) {
       Alert.alert(t('erreur'), t('email_invalide'));
       return;
     }
+    // Avertissement si le mot de passe contient des espaces en début/fin —
+    // source fréquente d'échec de connexion (copier-colle, autocorrect).
+    if (password !== password.trim()) {
+      Alert.alert(
+        t('mdp_espaces_titre') || 'Attention',
+        t('mdp_espaces_msg') || 'Votre mot de passe contient des espaces au début ou à la fin. Vérifiez-le.'
+      );
+      return;
+    }
     setLoading(true);
     try {
       // Le mot de passe n'est PAS `trim()` : RegisterScreen hache le mot de
