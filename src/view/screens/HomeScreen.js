@@ -21,16 +21,11 @@ import {
   Animated,
   RefreshControl,
   AccessibilityInfo,
-  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-let usePreventScreenCapture = () => {};
-try {
-  const sc = require('expo-screen-capture');
-  usePreventScreenCapture = sc.usePreventScreenCapture || (() => {});
-} catch (e) {}
+import { useScreenCapturePolicy } from '../../utils/screenCapture';
 import { useFinance } from '../../viewmodel/FinanceContext';
 import { useDebts } from '../../viewmodel/DebtContext';
 import { useTontines } from '../../viewmodel/TontineContext';
@@ -48,24 +43,25 @@ import {
   ArrowLeftRight, Users, Handshake, Wallet,
   ShoppingCart, Car, Home as HomeIcon, HeartPulse, Gamepad2,
   Shirt, Briefcase, PiggyBank, Tag, GraduationCap, Star,
-  CreditCard, Dumbbell, Coins, Laptop, Gift, ShoppingBag, Undo2,
+  CreditCard, Dumbbell, Coins, Laptop, Gift, ShoppingBag, Undo2, ChevronRight,
 } from 'lucide-react-native';
 import PinAuthModal from '../components/PinAuthModal';
 import { useQuickAdd } from '../components/QuickAddContext';
 import DebtsScreen from './DebtsScreen';
 import TontinesScreen from './TontinesScreen';
 import HistoryScreen from './HistoryScreen';
-import Sparkline from '../components/Sparkline';
-import { buildColors, GOLD } from '../theme';
+import BalanceDetailScreen from './BalanceDetailScreen';
+import { buildColors } from '../theme';
 import { type } from '../theme/type';
 import { typography, maxFontScale } from '../theme/typography';
 import { radius, touchTarget, duration } from '../theme/tokens';
 import { shadows } from '../theme/shadows';
+import Sparkline from '../components/Sparkline';
 import { DEFAULT_ACCENT } from '../../model/ThemeModel';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../model/TransactionModel';
 import {
   Amount, AmountText, Card, EmptyState, IconButton,
-  ProgressBar, SkeletonRow, Avatar,
+  SkeletonRow, Avatar,
 } from '../components/ui';
 
 /* ------------------------------------------------------------------ */
@@ -139,7 +135,12 @@ function useCountUp(value, ms = 600) {
   const reduce = useRef(false);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { reduce.current = v; }).catch(() => {});
+    // Garde identique à useReduceMotion : `?.()` sans méthode → `undefined`,
+    // le `.then` inconditionnel lèverait un TypeError.
+    const p = AccessibilityInfo.isReduceMotionEnabled?.();
+    if (p && typeof p.then === 'function') {
+      p.then((v) => { reduce.current = v; }).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -198,7 +199,7 @@ function Rise({ index = 0, children, style = null }) {
 /* ------------------------------------------------------------------ */
 
 export default function HomeScreen({ navigation }) {
-  usePreventScreenCapture();
+  useScreenCapturePolicy();
   const { t, currentLanguage } = useTranslation();
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinRemainingText, setPinRemainingText] = useState('');
@@ -207,8 +208,11 @@ export default function HomeScreen({ navigation }) {
   const [showDebts, setShowDebts] = useState(false);
   const [showTontines, setShowTontines] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [walletIndex, setWalletIndex] = useState(0);
-  const { width: windowWidth } = useWindowDimensions();
+  const [showBalanceDetail, setShowBalanceDetail] = useState(false);
+  // Largeur réelle de la carte « 7 jours » : la sparkline s'y ajuste au
+  // lieu de supposer la largeur de l'écran (la colonne est plafonnée sur
+  // tablette).
+  const [sparkWidth, setSparkWidth] = useState(0);
 
   const {
     transactions = [],
@@ -444,7 +448,6 @@ export default function HomeScreen({ navigation }) {
   const hour = new Date().getHours();
   const greeting = hour < 18 ? t('bonjour') : t('bonsoir');
   const displayName = user?.name || '';
-  const heroInk = isDark ? '#FFF7E8' : GOLD.night;
   const heroSub = isDark ? 'rgba(255,247,232,0.72)' : 'rgba(42,36,23,0.68)';
 
   const wallets = [
@@ -452,8 +455,6 @@ export default function HomeScreen({ navigation }) {
     { key: 'cash', name: t('pocket_especes'), value: cashBalance, Icon: Banknote },
     { key: 'banque', name: t('pocket_banque'), value: banqueBalance, Icon: Landmark },
   ];
-  const cardWidth = Math.min(windowWidth - contentPadding * 2, 320);
-
   const quickActions = [
     { key: 'depense', label: t('label_depenses'), Icon: TrendingDown, tone: 'expense', onPress: () => quick.open('expense') },
     { key: 'revenu', label: t('label_revenus'), Icon: TrendingUp, tone: 'income', onPress: () => quick.open('income') },
@@ -576,102 +577,62 @@ export default function HomeScreen({ navigation }) {
           </View>
         </Rise>
 
-        {/* Carte héro : le solde, en dégradé Old Money */}
+        {/* Carte héro : le solde, cliquable — elle ouvre l'écran de détail
+            (portefeuilles, 7 derniers jours, budget, empilés). Une vraie
+            destination plutôt qu'un dépliage : les trois cartes respirent et
+            restent lisibles même en police agrandie. */}
         <Rise index={1}>
-          <LinearGradient
-            colors={colors.heroGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.hero, shadows.raised]}
-          >
-            <Text style={[typography.micro, { color: heroSub }]}>
-              {t('solde_disponible')}
-            </Text>
-            <Amount
-              value={animatedAvailable}
-              currency={deviseSymbol}
-              size="display"
-              align="left"
-              masked={isDiscreteMode}
-              style={styles.displayAmount}
-            />
-            <View style={styles.heroFlow}>
-              <View style={styles.heroCell}>
-                <Text style={[typography.micro, { color: heroSub }]} numberOfLines={1}>
-                  {t('label_revenus')}
-                </Text>
-                <Amount value={totalIncome} currency={deviseSymbol} size="amount" tone="income" signed align="left" masked={isDiscreteMode} />
-              </View>
-              <View style={[styles.heroDivider, { backgroundColor: heroSub }]} />
-              <View style={styles.heroCell}>
-                <Text style={[typography.micro, { color: heroSub }]} numberOfLines={1}>
-                  {t('label_depenses')}
-                </Text>
-                <Amount value={totalExpenses} currency={deviseSymbol} size="amount" tone="expense" align="left" masked={isDiscreteMode} />
-              </View>
-            </View>
-          </LinearGradient>
-        </Rise>
-
-        {/* Portefeuilles : carrousel façon cartes bancaires */}
-        <Rise index={2}>
-          <Text style={[typography.caption, styles.blockLabel, { color: colors.inkMid }]}>
-            {t('portefeuilles')}
-          </Text>
-          <ScrollView
-            horizontal
-            pagingEnabled={false}
-            snapToInterval={cardWidth + 12}
-            decelerationRate="fast"
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.carousel}
-            onMomentumScrollEnd={(e) => {
-              const i = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12));
-              setWalletIndex(Math.max(0, Math.min(i, wallets.length - 1)));
-            }}
-          >
-            {wallets.map((w) => (
+          <View style={[styles.heroShadow, shadows.raised]}>
+            <View style={styles.hero}>
               <LinearGradient
-                key={w.key}
                 colors={colors.heroGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[styles.walletCard, { width: cardWidth }]}
+                style={StyleSheet.absoluteFill}
+              />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setShowBalanceDetail(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('voir_details')}
+                accessibilityHint={t('details_accueil')}
+                style={styles.heroPress}
               >
-                <View style={styles.walletTop}>
-                  <w.Icon color={colors.gold} size={22} />
-                  <Text style={[typography.caption, { color: heroSub }]} numberOfLines={1}>
-                    {w.name}
+                <View style={styles.heroTop}>
+                  <Text style={[typography.micro, { color: heroSub }]}>
+                    {t('solde_disponible')}
                   </Text>
+                  <ChevronRight color={heroSub} size={20} />
                 </View>
-                <AmountText
-                  value={w.value || 0}
+                <Amount
+                  value={animatedAvailable}
                   currency={deviseSymbol}
-                  size="figure"
+                  size="display"
                   align="left"
                   masked={isDiscreteMode}
+                  style={styles.displayAmount}
                 />
-                <Text style={[typography.micro, { color: heroSub }]}>
-                  •••• {w.key === 'momo' ? 'MoMo' : w.key === 'cash' ? 'Cash' : 'BK'}
-                </Text>
-              </LinearGradient>
-            ))}
-          </ScrollView>
-          <View style={styles.dots}>
-            {wallets.map((w, i) => (
-              <View
-                key={w.key}
-                style={[
-                  styles.dot,
-                  { backgroundColor: i === walletIndex ? colors.gold : colors.dot },
-                ]}
-              />
-            ))}
+                <View style={styles.heroFlow}>
+                  <View style={styles.heroCell}>
+                    <Text style={[typography.micro, { color: heroSub }]} numberOfLines={1}>
+                      {t('label_revenus')}
+                    </Text>
+                    <Amount value={totalIncome} currency={deviseSymbol} size="amount" tone="income" signed align="left" masked={isDiscreteMode} />
+                  </View>
+                  <View style={[styles.heroDivider, { backgroundColor: heroSub }]} />
+                  <View style={styles.heroCell}>
+                    <Text style={[typography.micro, { color: heroSub }]} numberOfLines={1}>
+                      {t('label_depenses')}
+                    </Text>
+                    <Amount value={totalExpenses} currency={deviseSymbol} size="amount" tone="expense" align="left" masked={isDiscreteMode} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </Rise>
 
-        {/* Actions rapides : le geste à moins de 5 secondes commence ici */}
-        <Rise index={3}>
+        <Rise index={2}>
           <View style={styles.quickRow}>
             {quickActions.map((a) => {
               const toneColor = colors[a.tone] || colors.inkMid;
@@ -701,7 +662,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Dettes et tontines : rappel compact, montants masqués en discret */}
         {hasDebts && !isDiscreteMode && (
-          <Rise index={5}>
+          <Rise index={3}>
             <View style={styles.debtRow}>
               {totalToReceive > 0 ? (
                 <DebtCell label={t('a_recevoir')} value={totalToReceive} currency={deviseSymbol} tone="income" colors={colors} styles={styles} />
@@ -716,53 +677,32 @@ export default function HomeScreen({ navigation }) {
           </Rise>
         )}
 
-        {/* Sparkline des 7 derniers jours */}
-        <Rise index={6}>
-          <Card>
+        {/* Dépenses des 7 derniers jours : la sparkline, lisible d'un coup
+            d'œil avant d'ouvrir le détail du solde. */}
+        <Rise index={4}>
+          <Card
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width - 40; // rembourrage du Card
+              if (w > 0 && Math.abs(w - sparkWidth) > 0.5) setSparkWidth(w);
+            }}
+          >
             <View style={styles.sparkHead}>
               <Text style={[typography.caption, { color: colors.inkMid }]}>
                 {t('depenses_7j')}
               </Text>
-              <AmountText value={total7} currency={deviseSymbol} size="amountSm" tone="expense" />
+              <AmountText
+                value={total7}
+                currency={deviseSymbol}
+                size="amountSm"
+                tone="expense"
+                masked={isDiscreteMode}
+              />
             </View>
-            <Sparkline data={last7} width={Math.min(windowWidth - contentPadding * 2 - 40, 600)} height={56} />
+            {sparkWidth > 0 && (
+              <Sparkline data={last7} width={sparkWidth} height={56} />
+            )}
           </Card>
         </Rise>
-
-        {/* Budget du mois : la barre qui vire au rouge */}
-        {budgetLimit > 0 && (
-          <Rise index={7}>
-            <Card>
-              <View style={styles.budgetHead}>
-                <Text style={[typography.caption, { color: colors.inkMid }]}>
-                  {t('budget_titre')}
-                </Text>
-                <Text style={[typography.caption, { color: colors.inkMid }]}>
-                  {Math.round(budgetRatio * 100)} %
-                </Text>
-              </View>
-              <View style={styles.budgetRow}>
-                <AmountText value={periodExpenses} size="amountSm" tone="mid" align="left" currency={deviseSymbol} masked={isDiscreteMode} />
-                <AmountText value={budgetLimit} size="amountSm" tone="mid" align="right" currency={deviseSymbol} masked={isDiscreteMode} />
-              </View>
-              <ProgressBar
-                value={periodExpenses}
-                max={budgetLimit}
-                color={budgetColor}
-                accessibilityLabel={t('budget_titre')}
-              />
-              <AmountText
-                value={Math.max(budgetLimit - periodExpenses, 0)}
-                size="amountSm"
-                tone={budgetLimit - periodExpenses > 0 ? 'mid' : 'expense'}
-                align="right"
-                currency={`${deviseSymbol} ${t('budget_reste')}`}
-                masked={isDiscreteMode}
-                style={styles.budgetLeft}
-              />
-            </Card>
-          </Rise>
-        )}
 
         {/* Transactions récentes, groupées par jour */}
         <Rise index={9}>
@@ -977,6 +917,23 @@ export default function HomeScreen({ navigation }) {
           <HistoryScreen onClose={() => setShowHistory(false)} navigation={navigation} />
         </View>
       )}
+
+      {showBalanceDetail && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}>
+          <BalanceDetailScreen
+            onClose={() => setShowBalanceDetail(false)}
+            wallets={wallets}
+            budgetLimit={budgetLimit}
+            periodExpenses={periodExpenses}
+            budgetRatio={budgetRatio}
+            budgetColor={budgetColor}
+            deviseSymbol={deviseSymbol}
+            available={available}
+            animatedAvailable={animatedAvailable}
+            heroSub={heroSub}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1015,20 +972,17 @@ const createStyles = (cp, cpad) => StyleSheet.create({
   selectionCount: { flex: 1 },
   privacyHit: { marginLeft: 'auto', padding: 4 },
 
-  /* Carte héro */
-  hero: { borderRadius: radius.xl, padding: 20, marginBottom: 20 },
+  /* Carte héro — l'ombre est portée par l'enveloppe, le rognage par la carte :
+     sur Android, `elevation` + `overflow: hidden` sur la même vue perd
+     l'ombre portée. */
+  heroShadow: { borderRadius: radius.xl, marginBottom: 20 },
+  hero: { borderRadius: radius.xl, overflow: 'hidden' },
+  heroPress: { padding: 20 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   displayAmount: { marginTop: 8 },
   heroFlow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   heroCell: { flex: 1, minWidth: 0 },
   heroDivider: { width: 1, alignSelf: 'stretch', opacity: 0.35, marginHorizontal: 12 },
-
-  /* Carrousel */
-  blockLabel: { marginBottom: 10 },
-  carousel: { gap: 12, paddingRight: 4 },
-  walletCard: { borderRadius: radius.lg, padding: 16, minHeight: 128, justifyContent: 'space-between', gap: 8 },
-  walletTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
 
   /* Actions rapides */
   quickRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 18 },
@@ -1040,11 +994,13 @@ const createStyles = (cp, cpad) => StyleSheet.create({
   debtCell: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
   debtAmount: { marginTop: 3 },
 
-  /* Sparkline + budget */
-  sparkHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  budgetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  budgetRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  budgetLeft: { marginTop: 8 },
+  /* Sparkline 7 jours */
+  sparkHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
 
   sectionHead: {
     flexDirection: 'row',
