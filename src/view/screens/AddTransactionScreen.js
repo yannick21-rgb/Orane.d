@@ -22,7 +22,7 @@ import { type as typeStyles } from '../theme/type';
 
 export default function AddTransactionScreen({ onClose }) {
   const { t } = useTranslation();
-  const { isDark, accentColor, updateTransaction, editingTransaction, devise } = useFinance();
+  const { isDark, accentColor, updateTransaction, addTransaction, deleteTransaction, transactions, editingTransaction, devise } = useFinance();
   const { contentMaxWidth, contentPadding, cardPadding, borderRadius } = useResponsive();
   const styles = createStyles(contentMaxWidth, contentPadding, cardPadding, borderRadius);
   const deviseSymbol = devise?.split(' ')[0] || 'F';
@@ -109,16 +109,53 @@ export default function AddTransactionScreen({ onClose }) {
     // `isEditing` : si l'écran était un jour monté sans transaction, on ne
     // tente pas de lire `editingTransaction.id`.
     if (isEditing) {
+      const isTransfert = type === 'transfert';
       updateTransaction(editingTransaction.id, {
         title:           title.trim(),
         amount:          finalAmount,
         type,
-        wallet,
+        wallet:          isTransfert ? 'momo' : wallet,
         category:        finalCategory,
         note:            customNote || null,
-        momoNetwork:     type === 'transfert' ? selectedNetwork : null,
+        momoNetwork:     isTransfert ? selectedNetwork : null,
+        // BUG corrigé : `amountReceived` n'était jamais mis à jour. Les soldes
+        // wallet (FinanceContext) priorisent `amountReceived` sur `amount` —
+        // éditer un retrait de 10 000 → 50 000 laissait les soldes MoMo/Cash
+        // calculés sur l'ancien montant.
+        amountReceived:  isTransfert ? finalAmount : null,
         incomeFrequency: type === 'revenu' || type === 'income' ? incomeFrequency : null,
       });
+
+      // Transaction sœur `${id}_fee` créée par TransactionSheet : elle doit
+      // suivre l'édition (nouveau montant / réseau) ou disparaître (type
+      // changé, frais recalculés à 0) — sinon les dépenses restent gonflées
+      // à l'ancien taux de frais.
+      const feeTxId = `${editingTransaction.id}_fee`;
+      const feeTx = (transactions || []).find((x) => x && x.id === feeTxId);
+      if (isTransfert && computedFee > 0) {
+        const netLabel = NETWORKS.find((n) => n.key === selectedNetwork);
+        const netName = netLabel ? t(netLabel.tKey) : selectedNetwork;
+        const feeFields = {
+          title:   `Frais retrait ${title.trim()}`,
+          amount:  computedFee,
+          type:    'expense',
+          wallet:  'momo',
+          category: 'Frais & Retraits',
+          momoNetwork: selectedNetwork,
+          note:    `Frais automatiques ${netName} : ${computedFee}${deviseSymbol}`,
+        };
+        if (feeTx) {
+          updateTransaction(feeTxId, feeFields);
+        } else {
+          addTransaction({
+            id: feeTxId,
+            ...feeFields,
+            date: editingTransaction.date || new Date().toISOString(),
+          });
+        }
+      } else if (feeTx) {
+        deleteTransaction(feeTxId);
+      }
     }
 
     setShowSuccessModal(true);

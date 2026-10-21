@@ -23,6 +23,7 @@ import {
   Gift, Handshake, ShoppingBag,
 } from 'lucide-react-native';
 import { useFinance } from '../../viewmodel/FinanceContext';
+import { sync } from '../../utils/sync';
 import { useQuickAdd } from '../components/QuickAddContext';
 import { useTranslation } from '../../utils/LanguageManager';
 import { toNumber } from '../../utils/format';
@@ -203,8 +204,12 @@ export default function HistoryScreen({ onClose, navigation }) {
           text: t('supprimer'),
           style: 'destructive',
           onPress: () => {
+            // Capture la transaction sœur `${id}_fee` (frais de retrait MoMo)
+            // avant suppression : l'undo doit la remettre aussi, sinon le
+            // retrait revient mais ses frais sont perdus.
+            const feeTx = transactions.find((x) => x && x.id === `${item.id}_fee`);
             deleteTransaction(item.id);
-            setSnack({ item });
+            setSnack({ item, feeTx });
           },
         },
       ]
@@ -212,7 +217,16 @@ export default function HistoryScreen({ onClose, navigation }) {
   };
 
   const undoDelete = () => {
-    if (snack?.item) addTransaction({ ...snack.item });
+    if (snack?.item) {
+      // Retire le tombstone posé par `deleteTransaction` AVANT de ré-ajouter :
+      // sinon le filtre `sync.filterDeleted` au prochain lancement retirait à
+      // nouveau la ligne et l'annulation était perdue (perte de données).
+      sync
+        .clearTombstones('transactions', [snack.item.id, `${snack.item.id}_fee`])
+        .catch(() => {});
+      addTransaction({ ...snack.item });
+      if (snack.feeTx) addTransaction({ ...snack.feeTx });
+    }
     setSnack(null);
   };
 
