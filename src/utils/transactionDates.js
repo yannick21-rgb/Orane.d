@@ -7,6 +7,7 @@ import {
   startOfMonth,
   startOfWeek,
   subDays,
+  subWeeks,
 } from "date-fns";
 
 function toDate(value) {
@@ -57,4 +58,20 @@ export function isTransactionInMonth(transaction, month = new Date()) {
     start: startOfMonth(ref),
     end: endOfMonth(ref),
   });
+}
+
+/** Semaine calendaire précédente (lundi → dimanche, comme l'écran Stats). */
+export function isTransactionInPreviousWeek(transaction, now = new Date(), weekStartsOn = 1) {
+  const ref = toDate(now);
+  if (!ref) return false;
+
+  return isTransactionInCurrentWeek(transaction, subWeeks(ref, 1), weekStartsOn);
+}
+
+/** Année calendaire — `year` permet de viser l'année précédente. */
+export function isTransactionInYear(transaction, year = new Date().getFullYear()) {
+  const txDate = toDate(transaction?.date);
+  if (!txDate) return false;
+
+  return txDate.getFullYear() === year;
 }

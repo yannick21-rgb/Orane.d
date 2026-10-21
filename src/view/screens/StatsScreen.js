@@ -41,6 +41,8 @@ import { useReduceMotion } from '../../utils/useReduceMotion';
 import {
   isTransactionInCurrentWeek,
   isTransactionInMonth,
+  isTransactionInPreviousWeek,
+  isTransactionInYear,
 } from '../../utils/transactionDates';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../model/TransactionModel';
 import { useColors } from '../theme';
@@ -62,7 +64,10 @@ const LEGACY_TKEY = {
 };
 
 function fillTemplate(tpl, vars) {
-  return String(tpl).replace('{cat}', vars.cat).replace('{pct}', String(vars.pct));
+  return String(tpl)
+    .replace('{cat}', vars.cat)
+    .replace('{pct}', String(vars.pct))
+    .replace('{period}', String(vars.period ?? ''));
 }
 
 /** Diamètre du donut (partagé entre le tracé et son conteneur). */
@@ -92,7 +97,9 @@ export default function StatsScreen() {
   const header = useCollapsingHeader();
   const quick = useQuickAdd();
 
-  const [period, setPeriod] = useState('mois');
+  // La semaine par défaut : c'est l'unité de décision courante (dépenses de
+  // la semaine en cours), et celle qui laisse le moins de trous dans l'écran.
+  const [period, setPeriod] = useState('semaine');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -100,9 +107,13 @@ export default function StatsScreen() {
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
 
-  const safeTransactions = Array.isArray(transactions)
-    ? transactions.filter(Boolean)
-    : [];
+  // Mémoïsé : un tableau littéral à chaque rendu annulait les dépendances de
+  // `filtered`, `prevFiltered` et `dailyExpenseData` — les 4 mémos étaient
+  // recalculés inutilement à chaque rendu (filtrage O(n) sur gros historiques).
+  const safeTransactions = useMemo(
+    () => (Array.isArray(transactions) ? transactions.filter(Boolean) : []),
+    [transactions]
+  );
 
   const changePeriod = (p) => {
     setPeriod(p);
@@ -131,20 +142,40 @@ export default function StatsScreen() {
   const { totalIncome, totalExpenses } = computeIncomeExpenseTotals(filtered);
   const balance = totalIncome - totalExpenses;
 
-  // ── Mois précédent (comparatif) ────────────────────────────────────────────
-  const prevRef = useMemo(() => {
-    const d = new Date();
+  // ── Période précédente (comparatif) ───────────────────────────────────────
+  // Le comparatif se fait sur la MÊME période que l'écran : cette semaine
+  // contre la semaine dernière, ce mois contre le mois dernier, cette année
+  // contre l'année dernière. Comparer une semaine au mois dernier n'aurait
+  // aucun sens.
+  const prevFiltered = useMemo(() => {
+    if (period === 'semaine') {
+      return safeTransactions.filter((tx) => tx.date && isTransactionInPreviousWeek(tx));
+    }
+    if (period === 'annee') {
+      const lastYear = new Date().getFullYear() - 1;
+      return safeTransactions.filter((tx) => tx.date && isTransactionInYear(tx, lastYear));
+    }
+    // Mois et période personnalisée : le mois précédent.
     // `setMonth(-1)` sur un 31 déborde (31 mars → 3 mars) : on se cale au 1er
     // avant de reculer d'un mois pour viser le vrai mois précédent.
+    const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - 1);
-    return d;
-  }, []);
-  const prevFiltered = useMemo(
-    () => safeTransactions.filter((tx) => tx.date && isTransactionInMonth(tx, prevRef)),
-    [safeTransactions, prevRef]
-  );
+    return safeTransactions.filter((tx) => tx.date && isTransactionInMonth(tx, d));
+  }, [safeTransactions, period]);
   const prevTotals = computeIncomeExpenseTotals(prevFiltered);
+
+  // Titres des deux colonnes du comparatif et phrase de l'insight.
+  const prevPeriodTitle = period === 'semaine'
+    ? t('semaine_derniere')
+    : period === 'annee'
+      ? t('annee_derniere')
+      : t('mois_dernier');
+  const prevPeriodPhrase = period === 'semaine'
+    ? t('prec_semaine')
+    : period === 'annee'
+      ? t('prec_annee')
+      : t('prec_mois');
 
   // ── Prêts & Dettes (logique reprise telle quelle) ─────────────────────────
   const totalBorrowed = filtered.filter((tx) => (tx.type === 'income' || tx.type === 'revenu') && tx.category === 'Emprunt').reduce((s, tx) => s + Math.abs(toNumber(tx.amount)), 0);
@@ -201,14 +232,19 @@ export default function StatsScreen() {
   const maxDaily = Math.max(...dailyExpenseData.map((d) => d.value), 1);
 
   // ── Catégories de dépenses (logique inchangée, top 6 + regroupement) ──────
-  const categoryMap = {};
-  filtered
-    .filter((tx) => (tx.type === 'expense' || tx.type === 'depense') && tx.category !== 'Remboursement')
-    .forEach((tx) => {
-      const cat = tx.category || 'Général';
-      categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(toNumber(tx.amount));
-    });
-  const ranked = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+  // Mémoïsé sur `filtered` : un tableau reconstruit à chaque rendu dans les
+  // deps de `insights` annulait sa mémoïsation (recalcul complet, chaînes
+  // localisées comprises, à chaque rendu).
+  const ranked = useMemo(() => {
+    const categoryMap = {};
+    filtered
+      .filter((tx) => (tx.type === 'expense' || tx.type === 'depense') && tx.category !== 'Remboursement')
+      .forEach((tx) => {
+        const cat = tx.category || 'Général';
+        categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(toNumber(tx.amount));
+      });
+    return Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
   const topSlices = ranked.slice(0, 6);
   const restValue = ranked.slice(6).reduce((s, [, v]) => s + v, 0);
   if (restValue > 0) topSlices.push(['__rest__', restValue]);
@@ -252,7 +288,7 @@ export default function StatsScreen() {
         pct: Math.round((topVal / totalExpenses) * 100),
       }));
     }
-    // Plus forte variation par catégorie vs mois précédent.
+    // Plus forte variation par catégorie vs période précédente.
     const prevMap = {};
     prevFiltered
       .filter((tx) => (tx.type === 'expense' || tx.type === 'depense') && tx.category !== 'Remboursement')
@@ -261,7 +297,7 @@ export default function StatsScreen() {
         prevMap[cat] = (prevMap[cat] || 0) + Math.abs(toNumber(tx.amount));
       });
     let mover = null;
-    Object.entries(categoryMap).forEach(([cat, cur]) => {
+    ranked.forEach(([cat, cur]) => {
       const prev = prevMap[cat] || 0;
       if (prev > 0 && cur > 0) {
         const pct = Math.round(((cur - prev) / prev) * 100);
@@ -269,9 +305,10 @@ export default function StatsScreen() {
       }
     });
     if (mover && Math.abs(mover.pct) >= 10) {
-      out.push(fillTemplate(t('insight_move'), {
+      out.push(fillTemplate(t('insight_move_vs'), {
         cat: catLabel(mover.cat),
         pct: `${mover.pct >= 0 ? '+' : ''}${mover.pct}`,
+        period: prevPeriodPhrase,
       }));
     }
     if (totalIncome > 0) {
@@ -283,7 +320,7 @@ export default function StatsScreen() {
     }
     return out.slice(0, 3);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ranked, totalExpenses, totalIncome, balance, prevFiltered, currentLanguage]);
+  }, [ranked, totalExpenses, totalIncome, balance, prevFiltered, prevPeriodPhrase, currentLanguage]);
 
   const localeDateStr = currentLanguage === 'en' ? 'en-US' : (currentLanguage === 'es' ? 'es-ES' : 'fr-FR');
 
@@ -517,10 +554,10 @@ export default function StatsScreen() {
                       style={styles.barCol}
                       onPress={() => setSelectedDay((prev) => (prev === i ? null : i))}
                       accessibilityRole="button"
-                      accessibilityLabel={`${d.label}, ${d.value} ${deviseSymbol}`}
+                      accessibilityLabel={`${d.label}, ${isDiscreteMode ? t('mode_discret') : `${d.value} ${deviseSymbol}`}`}
                     >
                       <Text style={[typography.micro, { color: active ? colors.ink : colors.inkFaint }]}>
-                        {active ? d.value.toLocaleString('fr-FR') : ''}
+                        {active ? (isDiscreteMode ? '••••' : d.value.toLocaleString('fr-FR')) : ''}
                       </Text>
                       <View style={[styles.barTrack, { backgroundColor: colors.track }]}>
                         <View
@@ -542,11 +579,12 @@ export default function StatsScreen() {
               </View>
             </Card>
 
-            {/* Comparatif mois précédent */}
+            {/* Comparatif : période courante contre la même période
+                précédente (semaine contre semaine dernière, etc.). */}
             <Card>
               <View style={styles.compareHead}>
-                <Text style={[typography.caption, { color: colors.inkMid }]}>{t('ce_mois')}</Text>
-                <Text style={[typography.caption, { color: colors.inkMid }]}>{t('mois_dernier')}</Text>
+                <Text style={[typography.caption, { color: colors.inkMid }]}>{periodLabel}</Text>
+                <Text style={[typography.caption, { color: colors.inkMid }]}>{prevPeriodTitle}</Text>
               </View>
               <CompareRow
                 label={t('incomeLabel')}
