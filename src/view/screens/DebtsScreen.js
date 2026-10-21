@@ -269,7 +269,7 @@ export default function DebtsScreen({ onClose }) {
                   <View style={styles.debtMeta}>
                     {toNumber(d.amountReimbursed) > 0 && !isSettled && (
                       <Text style={[typography.caption, { color: colors.inkMid }]} numberOfLines={1}>
-                        {t('reste_a_rembourser')} : {remaining.toLocaleString('fr-FR')} {deviseSymbol}
+                        {t('reste_a_rembourser')} : {isDiscreteMode ? '••••' : `${remaining.toLocaleString('fr-FR')} ${deviseSymbol}`}
                       </Text>
                     )}
                     {due && !isSettled && (
@@ -300,7 +300,7 @@ export default function DebtsScreen({ onClose }) {
           <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
             <Text style={[typography.subtitle, { color: colors.ink }]}>{t('marquer_remboursement')}</Text>
             <Text style={[typography.body, styles.modalSub, { color: colors.inkMid }]}>
-              {showReimburse?.personName} · {t('reste')} : {(toNumber(showReimburse?.amount) - toNumber(showReimburse?.amountReimbursed)).toLocaleString('fr-FR')} {deviseSymbol}
+              {showReimburse?.personName} · {t('reste')} : {isDiscreteMode ? '••••' : `${(toNumber(showReimburse?.amount) - toNumber(showReimburse?.amountReimbursed)).toLocaleString('fr-FR')} ${deviseSymbol}`}
             </Text>
             <Input
               value={reimburseAmount}

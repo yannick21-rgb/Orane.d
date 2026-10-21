@@ -51,7 +51,7 @@ export default function TontineDetailScreen({ group, onClose }) {
     closeSwipe(round.roundNumber);
     Alert.alert(
       t('marquer_paiement_tour'),
-      `${group.amountPerTour.toLocaleString('fr-FR')} ${deviseSymbol} ?`,
+      `${Number(group.amountPerTour).toLocaleString('fr-FR')} ${deviseSymbol} ?`,
       [
         { text: t('non'), onPress: async () => { await markRoundPaid(group.id, round.roundNumber); } },
         {
@@ -78,7 +78,7 @@ export default function TontineDetailScreen({ group, onClose }) {
     closeSwipe(round.roundNumber);
     Alert.alert(
       t('marquer_recu_tour'),
-      `${(group.amountPerTour * group.totalParticipants).toLocaleString('fr-FR')} ${deviseSymbol} ?`,
+      `${Number(group.amountPerTour * group.totalParticipants).toLocaleString('fr-FR')} ${deviseSymbol} ?`,
       [
         { text: t('non'), style: 'cancel', onPress: () => markRoundReceived(group.id, round.roundNumber) },
         {
@@ -167,7 +167,7 @@ export default function TontineDetailScreen({ group, onClose }) {
                 {info.days < 0 ? `J+${-info.days}` : `J-${info.days}`}
               </Text>
               <Text style={[typography.caption, { color: 'rgba(255,247,232,0.72)' }]}>
-                {new Date(info.round.dueDate).toLocaleDateString(locale)} · {Number(group.amountPerTour).toLocaleString('fr-FR')} {deviseSymbol}
+                {new Date(info.round.dueDate).toLocaleDateString(locale)} · {isDiscreteMode ? '••••' : `${Number(group.amountPerTour).toLocaleString('fr-FR')} ${deviseSymbol}`}
               </Text>
             </>
           ) : (

@@ -130,7 +130,7 @@ export default function TontinesScreen({ onClose }) {
                     {g.groupName}
                   </Text>
                   <Text style={[typography.caption, { color: colors.inkMid }]} numberOfLines={1}>
-                    {Number(g.amountPerTour).toLocaleString('fr-FR')} {deviseSymbol} × {g.totalParticipants} {t('tour').toLowerCase()}s · {g.frequency === 'hebdomadaire' ? t('freq_hebdo') : t('freq_mensuel')}
+                    {isDiscreteMode ? '••••' : `${Number(g.amountPerTour).toLocaleString('fr-FR')} ${deviseSymbol}`} × {g.totalParticipants} {t('tour').toLowerCase()}s · {g.frequency === 'hebdomadaire' ? t('freq_hebdo') : t('freq_mensuel')}
                   </Text>
                 </View>
                 <TouchableOpacity

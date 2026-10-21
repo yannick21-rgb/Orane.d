@@ -17,6 +17,7 @@ import { ChevronLeft, Check } from 'lucide-react-native';
 import { toNumber } from '../../utils/format';
 import { DEBT_STATUS } from '../../model/DebtModel';
 import { useTranslation } from '../../utils/LanguageManager';
+import { useFinance } from '../../viewmodel/FinanceContext';
 import { useColors } from '../theme';
 import { typography } from '../theme/typography';
 import { radius } from '../theme/tokens';
@@ -40,6 +41,9 @@ export function dueInfo(debt) {
 export default function DebtDetailScreen({ debt, deviseSymbol, onClose, onReimburse, onEdit, onDelete }) {
   const { t, currentLanguage } = useTranslation();
   const colors = useColors();
+  // Mode discret : cet écran n'affichait AUCUN montant masqué (les
+  // AmountText/Text bruts passaient en clair malgré le masquage global).
+  const { isDiscreteMode } = useFinance();
   const locale = currentLanguage === 'en' ? 'en-US' : currentLanguage === 'es' ? 'es-ES' : 'fr-FR';
 
   const total = toNumber(debt.amount);
@@ -92,9 +96,9 @@ export default function DebtDetailScreen({ debt, deviseSymbol, onClose, onReimbu
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         <View style={[styles.hero, { backgroundColor: colors.card }]}>
           <Avatar name={debt.personName} size={56} />
-          <AmountText value={remaining} size="figure" tone={settled ? 'faint' : 'expense'} currency={deviseSymbol} />
+          <AmountText value={remaining} size="figure" tone={settled ? 'faint' : 'expense'} currency={deviseSymbol} masked={isDiscreteMode} />
           <Text style={[typography.caption, { color: colors.inkMid }]}>
-            {paid.toLocaleString('fr-FR')} / {total.toLocaleString('fr-FR')} {deviseSymbol}
+            {isDiscreteMode ? '••••' : `${paid.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')} ${deviseSymbol}`}
           </Text>
           <ProgressBar
             value={paid}
@@ -131,7 +135,7 @@ export default function DebtDetailScreen({ debt, deviseSymbol, onClose, onReimbu
                 <Text style={[typography.bodyStrong, { color: colors.ink }]}>{s.label}</Text>
                 {s.date ? <Text style={[typography.caption, { color: colors.inkFaint }]}>{s.date}</Text> : null}
               </View>
-              <AmountText value={s.value} size="amountSm" tone={s.tone} currency={deviseSymbol} />
+              <AmountText value={s.value} size="amountSm" tone={s.tone} currency={deviseSymbol} masked={isDiscreteMode} />
             </View>
           </View>
         ))}
